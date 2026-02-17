@@ -94,6 +94,7 @@ try
     Console.ForegroundColor = ConsoleColor.Yellow;
     Console.WriteLine("⚡ Available Commands:");
     Console.ResetColor();
+    Console.WriteLine("  'commands' or 'help' - Display all available commands");
     Console.WriteLine("  'exit' or 'quit'     - Exit the program");
     Console.WriteLine("  'upload <path>'      - Upload a PDF to analyze (or drop PDFs in ./pdf_to_analyze/)");
     Console.WriteLine("  'list'               - List available PDFs");
@@ -120,10 +121,19 @@ try
             break;
         }
 
-        // Handle PDF commands
+    // Handle PDF commands
         if (input.Equals("list", StringComparison.OrdinalIgnoreCase))
         {
-            await Commands.HandleListPdfsAsync(pdfFolder);
+            var selected = await Commands.HandleListPdfsAsync(pdfFolder);
+            if (!string.IsNullOrEmpty(selected))
+                currentPdfFile = selected;
+            continue;
+        }
+
+        if (input.Equals("commands", StringComparison.OrdinalIgnoreCase) ||
+            input.Equals("help", StringComparison.OrdinalIgnoreCase))
+        {
+            Commands.HandleCommandsCommand();
             continue;
         }
 
