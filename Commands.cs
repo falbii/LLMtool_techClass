@@ -46,11 +46,14 @@ public static class Commands
     {
         try
         {
-            await Program.RunWithSpinnerAsync($"Uploading {Path.GetFileName(sourceFile)}", async () =>
+            await Program.RunWithSpinnerAsync($" Uploading {Path.GetFileName(sourceFile)}", async () =>
             {
                 string destFile = Path.Combine(pdfFolder, Path.GetFileName(sourceFile));
                 await Task.Run(() => File.Copy(sourceFile, destFile, true));
             });
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"Loaded: {Path.GetFileName(sourceFile)}");
+            Console.ResetColor();
             return Path.Combine(pdfFolder, Path.GetFileName(sourceFile));
         }
         catch (Exception ex)
@@ -64,21 +67,54 @@ public static class Commands
 
     /// <summary>
     /// Loads a PDF file for analysis.
+    /// Accepts: full filename, filename without extension, or list number.
     /// </summary>
-    public static string? HandleAnalyzeCommand(string filename, string pdfFolder)
+    public static string? HandleAnalyzeCommand(string input, string pdfFolder)
     {
-        var pdfPath = Path.Combine(pdfFolder, filename);
-        if (File.Exists(pdfPath))
+        var pdfFiles = Directory.GetFiles(pdfFolder, "*.pdf")
+            .OrderBy(f => Path.GetFileName(f))
+            .ToArray();
+
+        if (pdfFiles.Length == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("❌ No PDFs found in pdf_to_analyze folder.");
+            Console.ResetColor();
+            return null;
+        }
+
+        string? selectedFile = null;
+
+        // Try to parse as number (1-indexed list position)
+        if (int.TryParse(input, out int listNumber) && listNumber >= 1 && listNumber <= pdfFiles.Length)
+        {
+            selectedFile = pdfFiles[listNumber - 1];
+        }
+        else
+        {
+            // Try exact match with .pdf extension
+            selectedFile = pdfFiles.FirstOrDefault(f => 
+                Path.GetFileName(f).Equals(input, StringComparison.OrdinalIgnoreCase));
+
+            // If not found, try matching without extension
+            if (selectedFile == null)
+            {
+                selectedFile = pdfFiles.FirstOrDefault(f => 
+                    Path.GetFileNameWithoutExtension(f).Equals(input, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        if (selectedFile != null && File.Exists(selectedFile))
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"✓ Loaded: {filename}");
+            Console.WriteLine($"Loaded: {Path.GetFileName(selectedFile)}");
             Console.ResetColor();
-            return pdfPath;
+            return selectedFile;
         }
         else
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("❌ PDF not found in pdf_to_analyze folder.");
+            Console.WriteLine($"❌ PDF '{input}' not found. Use 'list' to see available PDFs.");
             Console.ResetColor();
             return null;
         }

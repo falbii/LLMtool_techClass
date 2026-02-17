@@ -68,7 +68,7 @@ try
     Console.WriteLine();
 
     // Step 4: Create session
-    await Program.RunWithSpinnerAsync($"Creating session with {model}", async () =>
+    await Program.RunWithSpinnerAsync($" Creating session with {model}", async () =>
     {
         session = await client.CreateSessionAsync(new SessionConfig
         {
@@ -88,12 +88,16 @@ try
     string? currentPdfFile = null;
 
     // Step 6: Interactive chat
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.WriteLine("💬 Interactive Chat - just ask something or use predefined commands:\n");
+    Console.ResetColor();
     Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine("💬 Interactive Chat - Commands:\n");
+    Console.WriteLine("⚡ Available Commands:");
+    Console.ResetColor();
     Console.WriteLine("  'exit' or 'quit'     - Exit the program");
     Console.WriteLine("  'upload <path>'      - Upload a PDF to analyze (or drop PDFs in ./pdf_to_analyze/)");
     Console.WriteLine("  'list'               - List available PDFs");
-    Console.WriteLine("  'analyze <filename>' - Analyze a specific PDF");
+    Console.WriteLine("  'analyze <file>'     - Analyze a PDF (use filename or list number)");
     Console.WriteLine("  'current'            - Show current PDF");
     Console.WriteLine("  'batch-analyze <q>'  - Analyze all PDFs with a question\n");
     Console.ResetColor();
@@ -154,7 +158,10 @@ try
 
         if (input.StartsWith("upload ", StringComparison.OrdinalIgnoreCase))
         {
-            var filePath = input[7..].Trim();
+            var filePath = input[7..].Trim().Trim('"');
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine($"   Checking: {filePath}");
+            Console.ResetColor();
             if (File.Exists(filePath))
             {
                 currentPdfFile = await Commands.HandleUploadPdfAsync(filePath, pdfFolder);
@@ -232,7 +239,7 @@ public partial class Program
             await spinnerTask;
             Console.SetCursorPosition(0, Console.CursorTop);
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("✓");
+            Console.Write(" →");
             Console.ResetColor();
             Console.WriteLine();
         }
