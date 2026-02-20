@@ -8,7 +8,7 @@ namespace PdfAnalysisApp;
 public static class PdfAnalyzer
 {
     /// <summary>
-    /// Extracts text from a PDF file.
+    /// Extracts text from a PDF file with enhanced table detection and preservation of numerical data.
     /// </summary>
     public static async Task<string> ExtractTextFromPdfAsync(string filePath)
     {
@@ -23,12 +23,104 @@ public static class PdfAnalyzer
                 {
                     var page = pdfDoc.GetPage(pageNum);
                     var content = PdfTextExtractor.GetTextFromPage(page);
-                    text.AppendLine(content);
+                    
+                    // Add page marker for better context
+                    text.AppendLine($"[PAGE {pageNum}]");
+                    
+                    // Process content with table region markers
+                    AppendContentWithTableMarkers(text, content);
+                    
+                    text.AppendLine("[END OF PAGE]");
+                    text.AppendLine();
                 }
             }
 
             return text.ToString();
         });
+    }
+
+    /// <summary>
+    /// Appends content with inline table region markers (doesn't duplicate content).
+    /// </summary>
+    private static void AppendContentWithTableMarkers(System.Text.StringBuilder output, string pageContent)
+    {
+        var lines = pageContent.Split(new[] { "\n", "\r\n" }, StringSplitOptions.None);
+        var tableBuffer = new List<string>();
+        var lineCount = 0;
+        var tableType = "";
+
+        foreach (var line in lines)
+        {
+            // Count numeric values and structural indicators in the line
+            var numericCount = System.Text.RegularExpressions.Regex.Matches(line, @"\d+[\d.,]*").Count;
+            var hasStructure = line.Contains("|") || line.Contains("\t") || 
+                              (numericCount >= 3 && line.Length > 20);
+            
+            // Detect technology name lists (even without numbers)
+            var hasTechKeywords = System.Text.RegularExpressions.Regex.IsMatch(line, 
+                @"\b(electrolysis|synthesis|capture|conversion|storage|production|supply|generation|reactor|turbine|boiler|pump|compressor|heat exchanger|separator|absorber|adsorber|catalytic|thermal|chemical|mechanical|electrical)\b", 
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            
+            var hasListStructure = System.Text.RegularExpressions.Regex.IsMatch(line.TrimStart(), 
+                @"^(\d+\.|\d+\)|\-|\•|\*|[A-Z]{2,}[\s_]|[A-Z][a-z]+\s[A-Z])");
+            
+            var hasMultipleCapitalizedWords = System.Text.RegularExpressions.Regex.Matches(line, @"\b[A-Z][A-Za-z]{2,}").Count >= 2;
+            
+            var isTechNameLine = (hasTechKeywords || hasListStructure || hasMultipleCapitalizedWords) && 
+                                 line.Trim().Length > 10;
+            
+            var isTableLine = (hasStructure && numericCount >= 2) || isTechNameLine;
+
+            if (isTableLine)
+            {
+                // Start of table region
+                if (tableBuffer.Count == 0)
+                {
+                    // Determine table type
+                    if (numericCount >= 2)
+                        tableType = "DATA";
+                    else
+                        tableType = "TECH_LIST";
+                        
+                    var marker = tableType == "DATA" 
+                        ? "[TABLE REGION - IMPORTANT NUMERICAL DATA]"
+                        : "[TECHNOLOGY LIST TABLE - EXTRACT ALL TECHNOLOGIES]";
+                    output.AppendLine(marker);
+                }
+                
+                output.AppendLine(line);
+                tableBuffer.Add(line);
+                lineCount++;
+            }
+            else
+            {
+                // Not a table line
+                if (tableBuffer.Count > 0 && lineCount >= 3)
+                {
+                    // End previous table
+                    output.AppendLine("[END TABLE]");
+                    tableBuffer.Clear();
+                    lineCount = 0;
+                    tableType = "";
+                }
+                else if (tableBuffer.Count > 0)
+                {
+                    // Table was too short, discard markers
+                    tableBuffer.Clear();
+                    lineCount = 0;
+                    tableType = "";
+                }
+                
+                // Add normal line
+                output.AppendLine(line);
+            }
+        }
+
+        // Handle remaining table buffer at end of content
+        if (tableBuffer.Count > 0 && lineCount >= 3)
+        {
+            output.AppendLine("[END TABLE]");
+        }
     }
 
     /// <summary>

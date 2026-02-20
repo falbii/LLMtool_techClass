@@ -1,3 +1,4 @@
+using System.Text;
 using GitHub.Copilot.SDK;
 using Refractored.GitHub.Copilot.SDK.Helpers;
 using PdfAnalysisApp;
@@ -81,9 +82,11 @@ try
     Console.WriteLine($"   Session ID: {session!.SessionId}\n");
     Console.ResetColor();
 
-    // Step 5: Create pdf_to_analyze folder
+    // Step 5: Create pdf_to_analyze and output folders
     string pdfFolder = Path.Combine(Directory.GetCurrentDirectory(), "pdf_to_analyze");
     Directory.CreateDirectory(pdfFolder);
+    string outputFolder = Path.Combine(Directory.GetCurrentDirectory(), "output");
+    Directory.CreateDirectory(outputFolder);
     
     string? currentPdfFile = null;
 
@@ -100,6 +103,7 @@ try
     Console.WriteLine("  'list'               - List available PDFs");
     Console.WriteLine("  'analyze <file>'     - Analyze a PDF (use filename or list number)");
     Console.WriteLine("  'current'            - Show current PDF");
+    Console.WriteLine("  'auto-classify'      - Classify technologies and export CSV");
     Console.WriteLine("  'batch-analyze <q>'  - Analyze all PDFs with a question\n");
     Console.ResetColor();
 
@@ -191,6 +195,20 @@ try
             var result = Commands.HandleAnalyzeCommand(filename, pdfFolder);
             if (result != null)
                 currentPdfFile = result;
+            continue;
+        }
+
+        if (input.Equals("auto-classify", StringComparison.OrdinalIgnoreCase))
+        {
+            if (currentPdfFile == null)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("❌ No PDF loaded. Use 'upload' or 'analyze' to select one.");
+                Console.ResetColor();
+                continue;
+            }
+
+            await Commands.HandleAutoClassifyAsync(session, currentPdfFile, outputFolder);
             continue;
         }
 
@@ -388,6 +406,109 @@ public partial class Program
         {
             spinnerCts.Cancel();
             Console.CursorVisible = true;
+            subscription.Dispose();
+        }
+    }
+
+    public static async Task<string> SendMessageAndCollectResponseAsync(CopilotSession session, string message)
+    {
+        var done = new TaskCompletionSource();
+        var response = new StringBuilder();
+        var hasDelta = false;
+        var spinnerChars = new[] { '|', '/', '-', '\\' };
+        var spinnerCts = new CancellationTokenSource();
+
+        Console.CursorVisible = false;
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.Write("\nCopilot: ");
+        Console.ResetColor();
+        var spinnerLeft = Console.CursorLeft;
+        var spinnerTop = Console.CursorTop;
+
+        var spinnerTask = Task.Run(async () =>
+        {
+            int i = 0;
+            while (!spinnerCts.Token.IsCancellationRequested)
+            {
+                Console.SetCursorPosition(spinnerLeft, spinnerTop);
+                Console.Write(spinnerChars[i++ % spinnerChars.Length]);
+                try { await Task.Delay(100, spinnerCts.Token); } catch { break; }
+            }
+        });
+
+        var subscription = session.On(evt =>
+        {
+            switch (evt)
+            {
+                case AssistantMessageDeltaEvent delta:
+                    hasDelta = true;
+                    response.Append(delta.Data.DeltaContent);
+                    break;
+                case AssistantMessageEvent msg:
+                    if (!hasDelta)
+                        response.Append(msg.Data.Content);
+                    break;
+                case SessionIdleEvent:
+                    done.TrySetResult();
+                    break;
+                case SessionErrorEvent err:
+                    done.TrySetException(new InvalidOperationException(err.Data.Message));
+                    break;
+            }
+        });
+
+        try
+        {
+            await session.SendAsync(new MessageOptions { Prompt = message });
+            await done.Task;
+            spinnerCts.Cancel();
+            await spinnerTask;
+            Console.WriteLine();
+            return response.ToString();
+        }
+        finally
+        {
+            spinnerCts.Cancel();
+            Console.CursorVisible = true;
+            subscription.Dispose();
+        }
+    }
+
+    public static async Task<string> SendMessageAndCollectResponseSilentAsync(CopilotSession session, string message)
+    {
+        var done = new TaskCompletionSource();
+        var response = new StringBuilder();
+        var hasDelta = false;
+
+        var subscription = session.On(evt =>
+        {
+            switch (evt)
+            {
+                case AssistantMessageDeltaEvent delta:
+                    hasDelta = true;
+                    response.Append(delta.Data.DeltaContent);
+                    break;
+                case AssistantMessageEvent msg:
+                    if (!hasDelta)
+                        response.Append(msg.Data.Content);
+                    break;
+                case SessionIdleEvent:
+                    done.TrySetResult();
+                    break;
+                case SessionErrorEvent err:
+                    done.TrySetException(new InvalidOperationException(err.Data.Message));
+                    break;
+            }
+        });
+
+        try
+        {
+            await session.SendAsync(new MessageOptions { Prompt = message });
+            await done.Task;
+            return response.ToString();
+        }
+        finally
+        {
             subscription.Dispose();
         }
     }
