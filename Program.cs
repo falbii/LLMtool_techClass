@@ -78,8 +78,17 @@ try
         });
     });
     
+    if (session == null)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("❌ Failed to create session.");
+        Console.ResetColor();
+        Console.ReadKey(true);
+        return;
+    }
+    
     Console.ForegroundColor = ConsoleColor.DarkGray;
-    Console.WriteLine($"   Session ID: {session!.SessionId}\n");
+    Console.WriteLine($"   Session ID: {session.SessionId}\n");
     Console.ResetColor();
 
     // Step 5: Create pdf_to_analyze and output folders
@@ -149,7 +158,7 @@ try
 
         if (input.StartsWith("batch-analyze ", StringComparison.OrdinalIgnoreCase))
         {
-            var question = input[14..].Trim();
+            var question = input.Length > 14 ? input[14..].Trim() : string.Empty;
             if (string.IsNullOrEmpty(question))
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
@@ -172,7 +181,7 @@ try
 
         if (input.StartsWith("upload ", StringComparison.OrdinalIgnoreCase))
         {
-            var filePath = input[7..].Trim().Trim('"');
+            var filePath = input.Length > 7 ? input[7..].Trim().Trim('"') : string.Empty;
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine($"   Checking: {filePath}");
             Console.ResetColor();
@@ -191,7 +200,7 @@ try
 
         if (input.StartsWith("analyze ", StringComparison.OrdinalIgnoreCase))
         {
-            var filename = input[8..].Trim();
+            var filename = input.Length > 8 ? input[8..].Trim() : string.Empty;
             var result = Commands.HandleAnalyzeCommand(filename, pdfFolder);
             if (result != null)
                 currentPdfFile = result;
@@ -243,7 +252,7 @@ public partial class Program
     public static async Task RunWithSpinnerAsync(string message, Func<Task> action)
     {
         var spinnerChars = new[] { '|', '/', '-', '\\' };
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         
         Console.CursorVisible = false;
         Console.Write($"  {message}...");
@@ -293,7 +302,7 @@ public partial class Program
         var spinnerChars = new[] { '|', '/', '-', '\\' };
         var done = new TaskCompletionSource();
         var hasStartedResponse = false;
-        var spinnerCts = new CancellationTokenSource();
+        using var spinnerCts = new CancellationTokenSource();
         
         Console.CursorVisible = false;
         Console.ForegroundColor = ConsoleColor.Green;
@@ -416,7 +425,7 @@ public partial class Program
         var response = new StringBuilder();
         var hasDelta = false;
         var spinnerChars = new[] { '|', '/', '-', '\\' };
-        var spinnerCts = new CancellationTokenSource();
+        using var spinnerCts = new CancellationTokenSource();
 
         Console.CursorVisible = false;
         Console.ForegroundColor = ConsoleColor.Green;
@@ -479,6 +488,8 @@ public partial class Program
         var done = new TaskCompletionSource();
         var response = new StringBuilder();
         var hasDelta = false;
+        // 15 minute timeout for service calls (auto-classification can take time)
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(15));
 
         var subscription = session.On(evt =>
         {
@@ -504,8 +515,16 @@ public partial class Program
         try
         {
             await session.SendAsync(new MessageOptions { Prompt = message });
+            // Wait for response with 15-minute timeout
+            using var timeoutTask = timeoutCts.Token.Register(() => done.TrySetException(
+                new TimeoutException("Copilot service did not respond within 15 minutes.")));
+            
             await done.Task;
             return response.ToString();
+        }
+        catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested)
+        {
+            throw new TimeoutException("Copilot service request timed out after 15 minutes.");
         }
         finally
         {

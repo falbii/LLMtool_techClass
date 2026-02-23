@@ -12,27 +12,58 @@ public static class PdfAnalyzer
     /// </summary>
     public static async Task<string> ExtractTextFromPdfAsync(string filePath)
     {
+        // Validate file exists and is readable
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"PDF file not found: {filePath}");
+        
+        var fileInfo = new FileInfo(filePath);
+        if (fileInfo.Length == 0)
+            throw new InvalidOperationException("PDF file is empty.");
+        
+        // Warn on very large files (over 50MB)
+        if (fileInfo.Length > 50 * 1024 * 1024)
+            Console.WriteLine("⚠️  Warning: PDF file is very large. Processing may take time or memory.");
+        
         return await Task.Run(() =>
         {
             var text = new System.Text.StringBuilder();
 
-            using (var reader = new PdfReader(filePath))
-            using (var pdfDoc = new PdfDocument(reader))
+            try
             {
-                for (int pageNum = 1; pageNum <= pdfDoc.GetNumberOfPages(); pageNum++)
+                using (var reader = new PdfReader(filePath))
+                using (var pdfDoc = new PdfDocument(reader))
                 {
-                    var page = pdfDoc.GetPage(pageNum);
-                    var content = PdfTextExtractor.GetTextFromPage(page);
+                    int totalPages = pdfDoc.GetNumberOfPages();
+                    if (totalPages == 0)
+                        throw new InvalidOperationException("PDF contains no pages.");
                     
-                    // Add page marker for better context
-                    text.AppendLine($"[PAGE {pageNum}]");
-                    
-                    // Process content with table region markers
-                    AppendContentWithTableMarkers(text, content);
-                    
-                    text.AppendLine("[END OF PAGE]");
-                    text.AppendLine();
+                    for (int pageNum = 1; pageNum <= totalPages; pageNum++)
+                    {
+                        try
+                        {
+                            var page = pdfDoc.GetPage(pageNum);
+                            var content = PdfTextExtractor.GetTextFromPage(page);
+                            
+                            // Add page marker for better context
+                            text.AppendLine($"[PAGE {pageNum}]");
+                            
+                            // Process content with table region markers
+                            AppendContentWithTableMarkers(text, content);
+                            
+                            text.AppendLine("[END OF PAGE]");
+                            text.AppendLine();
+                        }
+                        catch (Exception ex)
+                        {
+                            text.AppendLine($"[ERROR extracting page {pageNum}: {ex.Message}]");
+                            text.AppendLine();
+                        }
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to extract text from PDF: {ex.Message}", ex);
             }
 
             return text.ToString();

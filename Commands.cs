@@ -15,6 +15,12 @@ public static class Commands
     /// </summary>
     public static async Task<string?> HandleListPdfsAsync(string pdfFolder)
     {
+        if (!Directory.Exists(pdfFolder))
+        {
+            Console.WriteLine("📁 PDF folder not found or not accessible.");
+            return null;
+        }
+        
         var pdfs = Directory.GetFiles(pdfFolder, "*.pdf")
             .OrderBy(f => Path.GetFileName(f))
             .ToArray();
@@ -96,6 +102,14 @@ public static class Commands
     /// </summary>
     public static async Task<string?> HandleUploadPdfAsync(string sourceFile, string pdfFolder)
     {
+        if (!File.Exists(sourceFile))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("❌ Source file not found.");
+            Console.ResetColor();
+            return null;
+        }
+        
         try
         {
             await Program.RunWithSpinnerAsync($" Uploading {Path.GetFileName(sourceFile)}", async () =>
@@ -123,6 +137,14 @@ public static class Commands
     /// </summary>
     public static string? HandleAnalyzeCommand(string input, string pdfFolder)
     {
+        if (!Directory.Exists(pdfFolder) || string.IsNullOrEmpty(input))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("❌ Invalid input or folder.");
+            Console.ResetColor();
+            return null;
+        }
+        
         var pdfFiles = Directory.GetFiles(pdfFolder, "*.pdf")
             .OrderBy(f => Path.GetFileName(f))
             .ToArray();
@@ -199,6 +221,14 @@ public static class Commands
     /// </summary>
     public static async Task HandleBatchAnalyzeAsync(CopilotSession session, string pdfFolder, string question)
     {
+        if (!Directory.Exists(pdfFolder))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("❌ PDF folder not found.");
+            Console.ResetColor();
+            return;
+        }
+        
         var pdfFiles = Directory.GetFiles(pdfFolder, "*.pdf");
         if (pdfFiles.Length == 0)
         {
@@ -236,15 +266,25 @@ public static class Commands
 
     public static async Task<string?> HandleAutoClassifyAsync(CopilotSession session, string pdfFile, string outputFolder)
     {
-        if (!File.Exists(pdfFile))
+        if (string.IsNullOrWhiteSpace(pdfFile) || !File.Exists(pdfFile))
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("❌ PDF not found.");
+            Console.WriteLine("❌ PDF not found or invalid path.");
             Console.ResetColor();
             return null;
         }
 
-        Directory.CreateDirectory(outputFolder);
+        try
+        {
+            Directory.CreateDirectory(outputFolder);
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"❌ Cannot create output folder: {ex.Message}");
+            Console.ResetColor();
+            return null;
+        }
 
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine("🧠 Classifying technologies from PDF...\n");
@@ -258,7 +298,7 @@ public static class Commands
 
             Console.Write("  📤 Classifying with Copilot and writing to CSV... ");
             var spinnerChars = new[] { '|', '/', '-', '\\' };
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
             var spinnerLeft = Console.CursorLeft;
             var spinnerTop = Console.CursorTop;
 
@@ -330,7 +370,7 @@ public static class Commands
                 }
                 else
                 {
-                    classifications.Add(classification);
+                    // Only track errors, don't add incomplete classifications
                     foreach (var error in errors)
                         rowErrors.Add($"Row {i + 1}: {error}");
                 }
@@ -353,7 +393,17 @@ public static class Commands
                 outputFolder,
                 $"{Path.GetFileNameWithoutExtension(pdfFile)}_classification.csv");
 
-            TechnologyClassificationCsv.WriteCsv(outputPath, completeClassifications);
+            try
+            {
+                TechnologyClassificationCsv.WriteCsv(outputPath, completeClassifications);
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"❌ Failed to write CSV file: {ex.Message}");
+                Console.ResetColor();
+                return null;
+            }
 
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"✅ Classification complete!");
@@ -388,115 +438,139 @@ public static class Commands
 
     private static string BuildClassificationPrompt(List<string> chunks)
     {
-        var headerList = string.Join(", ", TechnologyClassificationCsv.HeaderOrder);
         var sb = new StringBuilder();
-        sb.AppendLine("You are extracting ALL individual technologies and sub-processes from a PDF.");
-        sb.AppendLine("YOUR GOAL: Extract EVERY technology mentioned - narrative text, tables, lists, figures, appendices.");
-        sb.AppendLine("COMPLETENESS IS CRITICAL: If the paper has 115 technologies, you must extract all 115.");
-        sb.AppendLine();
-        sb.AppendLine("CRITICAL: Pay special attention to tables, formulas, and numerical data—these contain key technology parameters.");
-        sb.AppendLine("CRITICAL: If a technology is mentioned for DIFFERENT TIME HORIZONS (e.g., 2030 vs 2050, near-term vs long-term),");
-        sb.AppendLine("         create SEPARATE rows for each time variant:");
-        sb.AppendLine("         - Append '_2030' suffix to Datapaper Tech ID for 2030 variants");
-        sb.AppendLine("         - Append '_2050' suffix to Datapaper Tech ID for 2050 variants");
-        sb.AppendLine("         - Append '_LongTerm' or '_NearTerm' if time periods are used instead of years");
-        sb.AppendLine("         Example: If 'Alkaline Electrolysis' appears as both 2030 projection and 2050 projection, extract:");
-        sb.AppendLine("           1. ALK_ELY_2030 (with 2030-specific data)");
-        sb.AppendLine("           2. ALK_ELY_2050 (with 2050-specific data)");
-        sb.AppendLine();
-        sb.AppendLine("IMPORTANT: Break down composite/integrated processes into their constituent unit operations.");
-        sb.AppendLine("Example: If the PDF mentions 'Electrolysis + Fischer-Tropsch for fuel synthesis', extract:");
-        sb.AppendLine("  1. Electrolysis (AEC) as a separate row");
-        sb.AppendLine("  2. Fischer-Tropsch (FT) synthesis as a separate row");
-        sb.AppendLine("Do NOT create single rows for integrated pathways—extract each technology individually.");
-        sb.AppendLine();
-        sb.AppendLine("Return ONLY a JSON array where each item is a single technology/unit operation with keys:");
-        sb.AppendLine(headerList);
-        sb.AppendLine();
-        sb.AppendLine("Rules:");
-        sb.AppendLine("- Extract EVERY distinct technology, process, and unit operation from:");
-        sb.AppendLine("  * Main narrative text");
-        sb.AppendLine("  * ALL tables (especially technology lists like 'Table 11', 'Table of Technologies', etc.)");
-        sb.AppendLine("  * Figure captions and diagrams");
-        sb.AppendLine("  * Appendices and supplementary sections");
-        sb.AppendLine("  * Network models and system diagrams");
-        sb.AppendLine("- For integrated pathways, create separate rows for each component technology.");
-        sb.AppendLine("- For 'description': Write a SHORT description of the technology:");
-        sb.AppendLine("    * Keep it concise: 5-15 words maximum");
-        sb.AppendLine("    * Examples: 'Alkaline water electrolysis', 'Low-temperature solid sorbent DAC', 'Fischer-Tropsch synthesis'");
-        sb.AppendLine("    * Just the technology name/type, nothing more");
-        sb.AppendLine("- For 'summary': Write a COMPREHENSIVE summary at the end:");
-        sb.AppendLine("    * Include ALL relevant details from the paper about this technology");
-        sb.AppendLine("    * Cover: purpose, operating conditions, key parameters, applications, context");
-        sb.AppendLine("    * Include specifics like temperature ranges, pressure, catalysts, conversion rates if mentioned");
-        sb.AppendLine("    * This is where you put the detailed information previously in description");
-        sb.AppendLine("    * Can be multiple sentences and comprehensive");
-        sb.AppendLine("- For 'Datapaper Tech ID': Generate a SHORT UNIQUE CODE based on:");
-        sb.AppendLine("    * Main input/output carriers (e.g., CO2, H2, electricity)");
-        sb.AppendLine("    * Key words from unit_operation and ProcessType");
-        sb.AppendLine("    * Example format: CO2_AEC_ELY (CO2 input, Alkaline Electrochemical Cell, Electrolysis)");
-        sb.AppendLine("    * Make it 3-5 uppercase parts separated by underscores");
-        sb.AppendLine("    * IF this technology has multiple time variants, APPEND the time to the ID:");
-        sb.AppendLine("      - CO2_AEC_ELY_2030 for 2030 variant with specific 2030 costs/performance");
-        sb.AppendLine("      - CO2_AEC_ELY_2050 for 2050 variant with specific 2050 costs/performance");
-        sb.AppendLine("      - CO2_AEC_ELY_NearTerm or CO2_AEC_ELY_LongTerm if years not specified");
-        sb.AppendLine("- For 'main_sector': Classify into broader industry sectors:");
-        sb.AppendLine("    * Examples: 'Energy', 'Chemicals', 'CCU', 'Materials', 'Transport', 'Heat Supply', 'Environmental'");
-        sb.AppendLine("    * Base on the primary application domain of the technology");
-        sb.AppendLine("- For 'main_category': Use specific technology categories:");
-        sb.AppendLine("    * Examples: 'Hydrogen Production', 'CO2 Capture', 'Fuel Synthesis', 'Chemical Synthesis', ");
-        sb.AppendLine("    *           'Electrolysis', 'Thermal Processing', 'Catalytic Conversion', 'Gas Separation'");
-        sb.AppendLine("    * Be descriptive of the main process type");
-        sb.AppendLine("- For 'category_spec': More specific subcategories:");
-        sb.AppendLine("    * Examples: 'Alkaline', 'PEM', 'SOEC', 'Fischer-Tropsch', 'Direct Synthesis', 'Water-Gas Shift'");
-        sb.AppendLine("    * Differentiate between similar technologies");
-        sb.AppendLine("- For 'tech_type': The specific technology name/type:");
-        sb.AppendLine("    * Examples: 'Alkaline Water Electrolysis', 'Solid Sorbent DAC', 'FT Synthesis via RWGS'");
-        sb.AppendLine("    * Use full descriptive names from industry standards or the paper");
-        sb.AppendLine("- For 'reference_unit_size_unit': The unit of the reference capacity:");
-        sb.AppendLine("    * Examples: 'MW', 'MWh', 'kt/y', 't/h', 'kW', 'kg/h', 'MJ/h'");
-        sb.AppendLine("    * If reference_unit_size is provided, this MUST be filled with the appropriate unit");
-        sb.AppendLine("- For 'cost_base_year': CRITICAL - The specific year from the paper that the cost/economic data refers to:");
-        sb.AppendLine("    * This is the year in which the technology costs were evaluated or estimated");
-        sb.AppendLine("    * Examples: 2020, 2025, 2030, 2050 (any year mentioned in the paper)");
-        sb.AppendLine("    * MUST match exactly with the year stated in the paper for that technology's data");
-        sb.AppendLine("    * This is NOT about when the paper was written, but when the data applies");
-        sb.AppendLine("- For 'Data Reference Year': The year of the reference document itself (the paper publication year):");
-        sb.AppendLine("    * This is when the paper/document was published or released");
-        sb.AppendLine("    * Examples: 2020, 2022, 2024 (the year of the document)");
-        sb.AppendLine("    * Different from cost_base_year which refers to when specific tech data applies");
-        sb.AppendLine("- For 'trl_(1-9)': Technology Readiness Level (1-9 scale):");
-        sb.AppendLine("    * If explicitly mentioned in the paper, extract that value");
-        sb.AppendLine("    * If NOT in the paper, use your knowledge to estimate based on the technology maturity:");
-        sb.AppendLine("    * Examples: TRL 3-4 for early-stage techs, TRL 7-8 for mature/commercial technologies");
-        sb.AppendLine("    * Alkaline electrolysis = mature = TRL 8-9");
-        sb.AppendLine("    * Direct Air Capture variations = developing = TRL 6-7");
-        sb.AppendLine("    * Novel synthesis routes = early-stage = TRL 4-5");
-        sb.AppendLine("- For 'tech_maturity': Text description of technology maturity:");
-        sb.AppendLine("    * If mentioned in the paper, extract that description");
-        sb.AppendLine("    * If NOT in the paper, assign based on TRL and your knowledge:");
-        sb.AppendLine("    * Examples: 'Early-stage', 'Developing', 'Near-commercial', 'Mature', 'Commercial'");
-        sb.AppendLine("    * Must be consistent with the TRL value assigned");
-        sb.AppendLine("- Use empty string when a value is truly unknown or not present in the paper.");
-        sb.AppendLine("- Use comma-separated strings for list fields (e.g., carriers_in, output_shares).");
-        sb.AppendLine("- Keep numeric fields as numbers (not words).");
-        sb.AppendLine();
-        sb.AppendLine("  CRITICAL - EXTRACT ALL TECHNOLOGIES FROM TABLES:");
-        sb.AppendLine("  * The PDF contains [TABLE REGION] and [TECHNOLOGY LIST TABLE] markers");
-        sb.AppendLine("  * [TABLE REGION - IMPORTANT NUMERICAL DATA] = extract data values (costs, efficiencies, capacities)");
-        sb.AppendLine("  * [TECHNOLOGY LIST TABLE - EXTRACT ALL TECHNOLOGIES] = EVERY technology name listed must become a row");
-        sb.AppendLine("  * For technology list tables: Create one JSON row per technology name, even if data is minimal");
-        sb.AppendLine("  * Do NOT skip technologies just because they lack numerical data in the table");
-        sb.AppendLine("  * Example: If Table 11 lists 50 technologies, extract all 50 as separate rows");
-        sb.AppendLine("  * Use table context (headers, captions) to fill in category/sector fields for listed technologies");
-        sb.AppendLine("  * For tables with multiple time periods (2030, 2040, 2050): create separate rows for each technology-year combination");
-        sb.AppendLine();
-        sb.AppendLine("- For formulas or calculated values: extract the numerical result, not the formula text");
-        sb.AppendLine("- Use your knowledge of these technologies to fill in sector/category/type even if not explicitly stated in the paper.");
-        sb.AppendLine("- Do not add extra commentary, only the JSON array.");
-        sb.AppendLine();
+        
+        // === GOAL & OVERVIEW ===
+        sb.AppendLine("You are extracting ALL individual technologies and sub-processes from a technical PDF.");
+        sb.AppendLine("GOAL: Extract EVERY distinct technology - return a JSON array with complete details.");
         sb.AppendLine();
 
+        // === JSON EXAMPLE (CRITICAL) ===
+        sb.AppendLine("EXAMPLE OUTPUT (exact JSON structure required):");
+        sb.AppendLine("[");
+        sb.AppendLine("  {");
+        sb.AppendLine("    \"Datapaper Tech ID\": \"H2O_AEC_ELY_2030\",");
+        sb.AppendLine("    \"description\": \"Alkaline water electrolysis\",");
+        sb.AppendLine("    \"summary\": \"Mature water electrolysis technology using alkaline cells at 60-80°C...\",");
+        sb.AppendLine("    \"unit_operation\": \"Electrolysis\",");
+        sb.AppendLine("    \"ProcessType\": \"Alkaline\",");
+        sb.AppendLine("    \"main_sector\": \"Energy\",");
+        sb.AppendLine("    \"main_category\": \"Hydrogen Production\",");
+        sb.AppendLine("    \"category_spec\": \"Alkaline\",");
+        sb.AppendLine("    \"tech_type\": \"Alkaline Water Electrolysis\",");
+        sb.AppendLine("    \"carriers_in\": \"water, electricity\",");
+        sb.AppendLine("    \"main_input\": \"water\",");
+        sb.AppendLine("    \"ratios_in\": \"9, 0.5\",");
+        sb.AppendLine("    \"units_in\": \"mol, MWh\",");
+        sb.AppendLine("    \"carriers_out\": \"hydrogen, oxygen\",");
+        sb.AppendLine("    \"main_out\": \"hydrogen\",");
+        sb.AppendLine("    \"ratios_out\": \"2, 1\",");
+        sb.AppendLine("    \"units_out\": \"mol, mol\",");
+        sb.AppendLine("    \"trl_(1-9)\": 8,");
+        sb.AppendLine("    \"tech_maturity\": \"Mature\",");
+        sb.AppendLine("    \"cost_base_year\": 2030,");
+        sb.AppendLine("    \"Currency\": \"EUR\",");
+        sb.AppendLine("    \"capex_power_capacity_eur_per_kw\": 1200,");
+        sb.AppendLine("    \"opex_fix_pct_of_capex\": 0.03,");
+        sb.AppendLine("    \"Data Reference Year\": 2024");
+        sb.AppendLine("  }");
+        sb.AppendLine("]");
+        sb.AppendLine();
+
+        // === WHAT IS A TECHNOLOGY? ===
+        sb.AppendLine("WHAT IS A 'TECHNOLOGY'?");
+        sb.AppendLine("- A single unit operation or process (e.g., 'Alkaline Electrolysis' OR 'PEM Electrolysis' - not both in one row)");
+        sb.AppendLine("- NOT brand names: 'Siemens Electrolyzer' → extract as 'Alkaline Water Electrolysis'");
+        sb.AppendLine("- NOT marketing terms: 'NextGen DAC v2.0' → extract as 'Adsorption-based Direct Air Capture'");
+        sb.AppendLine("- Break integrated pathways: 'Electrolysis + Fischer-Tropsch' → 2 separate rows");
+        sb.AppendLine("- DUPLICATES: Same name twice → extract once; Same name + different time horizons → extract twice with time suffix");
+        sb.AppendLine();
+
+        // === FIELD REQUIREMENTS ===
+        sb.AppendLine("REQUIRED FIELDS (must populate):");
+        sb.AppendLine("  description, unit_operation, main_sector, main_category, carriers_in, carriers_out");
+        sb.AppendLine();
+        sb.AppendLine("OPTIONAL FIELDS (if in paper):");
+        sb.AppendLine("  ratios_in, ratios_out, capex_*, opex_*, cost_base_year, lifetime_yr");
+        sb.AppendLine();
+        sb.AppendLine("ESTIMATABLE FIELDS (OK to estimate if not in paper):");
+        sb.AppendLine("  trl_(1-9), tech_maturity - use industry knowledge for well-known technologies");
+        sb.AppendLine();
+        sb.AppendLine("USE EMPTY STRING \"\" for optional fields not in paper - NEVER leave blank or use null");
+        sb.AppendLine();
+
+        // === CRITICAL RULES ===
+        sb.AppendLine("CRITICAL RULES:");
+        sb.AppendLine("1. COMPLETENESS: Extract EVERY technology from text, tables, figures, appendices");
+        sb.AppendLine("2. CARRIERS & RATIOS: NEVER mix numbers with carrier names");
+        sb.AppendLine("   - carriers_in: 'water, electricity' (names only)");
+        sb.AppendLine("   - ratios_in: '9, 0.5' (numbers only)");
+        sb.AppendLine("   - Both must have SAME count");
+        sb.AppendLine("3. TIME HORIZONS: Different data for 2030 vs 2050 → create separate rows");
+        sb.AppendLine("   - Add '_2030', '_2050' suffix to Datapaper Tech ID");
+        sb.AppendLine("4. CURRENCY: Always use 'EUR' for cost fields; convert if needed");
+        sb.AppendLine("5. TABLES: Extract ALL technologies from technology lists, even if minimal data");
+        sb.AppendLine("6. NUMERIC DATA: Extract values only (not formulas)");
+        sb.AppendLine();
+
+        // === FIELD DEFINITIONS (CONDENSED) ===
+        sb.AppendLine("FIELD GUIDANCE:");
+        sb.AppendLine("- Datapaper Tech ID: 3-5 uppercase words separated by _ (e.g., H2O_AEC_ELY_2030)");
+        sb.AppendLine("- description: Short name only (5-15 words)");
+        sb.AppendLine("- summary: Comprehensive details from the paper (operating conditions, parameters, context)");
+        sb.AppendLine("- unit_operation: The main unit of the process (AEC Electrolyzer, Geothermal CHP, H2-fired gas turbine, etc.)");
+        sb.AppendLine("- ProcessType: The process type (Fuel synthesis, Power Generation, Storage, CO2 Capture, etc.)");
+        sb.AppendLine("- main_sector: Broad category (Energy, Chemicals, CCU, Materials, Transport, Heat Supply)");
+        sb.AppendLine("- main_category: Process category (Hydrogen Production, CO2 Capture, etc.)");
+        sb.AppendLine("- category_spec: Specific type (Alkaline, PEM, SOEC, Fischer-Tropsch, etc.)");
+        sb.AppendLine("- tech_type: Full descriptive name (e.g., 'Alkaline Water Electrolysis')");
+        sb.AppendLine("- carriers_in: Comma-separated input materials (e.g., 'water, electricity')");
+        sb.AppendLine("- ratios_in: Comma-separated numeric coefficients ONLY (e.g., '9, 0.5' - NO UNITS)");
+        sb.AppendLine("- units_in: Units for each ratio (e.g., 'mol, MWh')");
+        sb.AppendLine("- main_input: Most important input (must be in carriers_in)");
+        sb.AppendLine("- carriers_out: Comma-separated products (e.g., 'hydrogen, oxygen')");
+        sb.AppendLine("- ratios_out: Comma-separated numeric coefficients ONLY (e.g., '2, 1')");
+        sb.AppendLine("- units_out: Units for each output ratio (e.g., 'mol, mol')");
+        sb.AppendLine("- main_out: Most important product (must be in carriers_out)");
+        sb.AppendLine("- trl_(1-9): Technology Readiness Level 1-9; estimate if needed (8-9=mature, 6-7=developing, 4-5=early)");
+        sb.AppendLine("- tech_maturity: Text description (Early-stage, Developing, Near-commercial, Mature, Commercial)");
+        sb.AppendLine("- overall_efficiency: Round-trip efficiency as decimal or percentage (0.85 or 85)");
+        sb.AppendLine("- reference_unit_size_unit: Capacity unit (MW, MWh, kt/y, t/h, kW, kg/h, MJ/h)");
+        sb.AppendLine("- cost_base_year: CRITICAL - Year costs apply to (2020, 2030, 2050, etc.)");
+        sb.AppendLine("- Currency: Always 'EUR'");
+        sb.AppendLine("- capex_one_time_eur: Fixed non-scalable capital cost per unit of capacity");
+        sb.AppendLine("- capex_power_capacity_eur_per_kw: Scalable capital cost; Total CAPEX = fixed + (per_kw x capacity)");
+        sb.AppendLine("- opex_one_time_eur: Initial one-time operating setup cost");
+        sb.AppendLine("- opex_fix_pct_of_capex: Annual fixed cost as % of CAPEX (e.g., 0.03 for 3%)");
+        sb.AppendLine("- opex_fix_power_capacity_eur_per_kw_yr: Annual fixed cost per kW capacity");
+        sb.AppendLine("- lifetime_yr: Expected operational lifetime in years");
+        sb.AppendLine("- Data Reference Year: Year the paper was published (2020, 2024, etc.)");
+        sb.AppendLine();
+
+        // === EDGE CASES ===
+        sb.AppendLine("EDGE CASES:");
+        sb.AppendLine("DUPLICATES: Same tech name appears twice");
+        sb.AppendLine("  → Extract once if same data; Extract twice if different costs/TRL for 2030 vs 2050");
+        sb.AppendLine("TIME HORIZONS: 'This technology projected for 2030 with cost X, 2050 with cost Y'");
+        sb.AppendLine("  → Create TWO rows: one with cost_base_year=2030, one with cost_base_year=2050");
+        sb.AppendLine("CONFLICTING DATA: Different sources give different TRL/costs");
+        sb.AppendLine("  → Use most recent or credible; note discrepancy in summary");
+        sb.AppendLine("COST RANGES: '€1000-1500/kW' → use midpoint (1250)");
+        sb.AppendLine("INCOMPLETE DATA: Missing some fields → OK; only use empty string for missing optional fields");
+        sb.AppendLine();
+
+        // === SPECIAL TABLE MAPPING ===
+        sb.AppendLine("SPECIAL TABLE MAPPING (LT DAC):");
+        sb.AppendLine("For low-temperature solid sorbent direct air capture (LT DAC) tables, ALWAYS extract numeric values and map as follows:");
+        sb.AppendLine("- carriers_in: 'electricity, low-temperature heat, sorbent'");
+        sb.AppendLine("- ratios_in: electricity demand, heat demand, sorbent consumption (numbers only, in table order)");
+        sb.AppendLine("- units_in: 'MWh/tCO2, GJ/tCO2, g/kgCO2'");
+        sb.AppendLine("- capex_one_time_eur: use the table CAPEX value (if given as €/tCO2/yr, keep numeric and note unit in summary)");
+        sb.AppendLine("- opex_one_time_eur: use the table sorbent cost (€/tCO2) numeric value and note unit in summary");
+        sb.AppendLine("If the table lists emissions (e.g., kgCO2e/kgCO2), include the numeric value in summary.");
+        sb.AppendLine();
+
+        // === PDF CONTENT ===
         if (chunks.Count == 1)
         {
             sb.AppendLine("PDF Content:");
@@ -513,6 +587,9 @@ public static class Commands
             }
         }
 
+        sb.AppendLine();
+        sb.AppendLine("Return ONLY valid JSON array. No commentary.");
+
         return sb.ToString();
     }
 
@@ -521,14 +598,21 @@ public static class Commands
         if (string.IsNullOrWhiteSpace(response))
             return string.Empty;
 
+        // Try markdown fence first
         var fenceMatch = Regex.Match(response, "```(?:json)?\\s*(?<json>[\\s\\S]*?)```", RegexOptions.IgnoreCase);
         if (fenceMatch.Success)
             return fenceMatch.Groups["json"].Value.Trim();
 
+        // Try direct JSON bracket match
         var start = response.IndexOf('[');
         var end = response.LastIndexOf(']');
         if (start >= 0 && end > start)
-            return response.Substring(start, end - start + 1).Trim();
+        {
+            var extracted = response.Substring(start, end - start + 1).Trim();
+            // Validate that we have balanced brackets
+            if (extracted.StartsWith("[") && extracted.EndsWith("]"))
+                return extracted;
+        }
 
         return response.Trim();
     }
@@ -626,7 +710,7 @@ public static class Commands
 
         var baseId = string.Join("_", parts).ToUpperInvariant();
         if (baseId.Length > 20)
-            baseId = baseId.Substring(0, 20);
+            baseId = baseId[..Math.Min(20, baseId.Length)];
 
         // Ensure uniqueness
         if (!usedIds.Contains(baseId))
@@ -705,38 +789,28 @@ public static class Commands
 
     private static bool HasMeaningfulData(TechnologyClassification tech)
     {
-        // Keep rows with any meaningful content beyond an empty shell.
-        if (!string.IsNullOrWhiteSpace(tech.Description))
-            return true;
-        if (!string.IsNullOrWhiteSpace(tech.UnitOperation))
-            return true;
-        if (!string.IsNullOrWhiteSpace(tech.Summary))
-            return true;
-        if (!string.IsNullOrWhiteSpace(tech.ProcessType))
-            return true;
-        if (!string.IsNullOrWhiteSpace(tech.MainSector))
-            return true;
-        if (!string.IsNullOrWhiteSpace(tech.MainCategory))
-            return true;
-        if (!string.IsNullOrWhiteSpace(tech.CategorySpec))
-            return true;
-        if (!string.IsNullOrWhiteSpace(tech.TechType))
-            return true;
-        if (tech.CostBaseYear.HasValue || tech.DataReferenceYear.HasValue || tech.Trl.HasValue)
-            return true;
-        if (!string.IsNullOrWhiteSpace(tech.TechMaturity))
-            return true;
-        if (tech.OverallEfficiency.HasValue)
-            return true;
-        if (tech.CarriersIn.Count > 0 || tech.CarriersOut.Count > 0)
-            return true;
-        if (!string.IsNullOrWhiteSpace(tech.MainInput) || !string.IsNullOrWhiteSpace(tech.MainOut))
-            return true;
-        if (tech.InputShares.Count > 0 || tech.RatiosIn.Count > 0 || tech.RatiosOut.Count > 0 || tech.OutputShares.Count > 0)
-            return true;
-        if (tech.LifetimeYears.HasValue || tech.CapexOneTimeEur.HasValue || tech.CapexPowerCapacityEurPerKw.HasValue || tech.OpexOneTimeEur.HasValue || tech.OpexFixPctOfCapex.HasValue)
-            return true;
+        // Require at least 2-3 meaningful fields to avoid keeping nearly-empty rows
+        int fieldCount = 0;
+        
+        if (!string.IsNullOrWhiteSpace(tech.Description)) fieldCount++;
+        if (!string.IsNullOrWhiteSpace(tech.UnitOperation)) fieldCount++;
+        if (!string.IsNullOrWhiteSpace(tech.Summary)) fieldCount++;
+        if (!string.IsNullOrWhiteSpace(tech.ProcessType)) fieldCount++;
+        if (!string.IsNullOrWhiteSpace(tech.MainSector)) fieldCount++;
+        if (!string.IsNullOrWhiteSpace(tech.MainCategory)) fieldCount++;
+        if (!string.IsNullOrWhiteSpace(tech.CategorySpec)) fieldCount++;
+        if (!string.IsNullOrWhiteSpace(tech.TechType)) fieldCount++;
+        if (tech.CostBaseYear.HasValue) fieldCount++;
+        if (tech.DataReferenceYear.HasValue) fieldCount++;
+        if (tech.Trl.HasValue) fieldCount++;
+        if (!string.IsNullOrWhiteSpace(tech.TechMaturity)) fieldCount++;
+        if (tech.OverallEfficiency.HasValue) fieldCount++;
+        if (tech.CarriersIn.Count > 0 || tech.CarriersOut.Count > 0) fieldCount++;
+        if (!string.IsNullOrWhiteSpace(tech.MainInput) || !string.IsNullOrWhiteSpace(tech.MainOut)) fieldCount++;
+        if (tech.InputShares.Count > 0 || tech.RatiosIn.Count > 0) fieldCount++;
+        if (tech.LifetimeYears.HasValue || tech.CapexOneTimeEur.HasValue || tech.OpexOneTimeEur.HasValue) fieldCount++;
 
-        return false;
+        // Require minimum 2 fields populated
+        return fieldCount >= 2;
     }
 }
