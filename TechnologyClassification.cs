@@ -243,24 +243,26 @@ public static class TechnologyClassifier
     {
         var sb = new StringBuilder();
         
-        sb.AppendLine("TASK: Extract a simple list of ALL technology names mentioned in this PDF.");
+        sb.AppendLine("Give me ALL the technologies you can find in this PDF.");
         sb.AppendLine();
-        sb.AppendLine("WHAT TO EXTRACT:");
-        sb.AppendLine("- All technologies: processes, unit operations, equipment types");
-        sb.AppendLine("- Examples: 'Alkaline Electrolysis', 'PEM Electrolysis', 'LT DAC', 'Fischer-Tropsch synthesis'");
-        sb.AppendLine("- Include variations/time horizons if they have different data (e.g., 'AEC 2035' and 'AEC 2050')");
+        sb.AppendLine("Be COMPREHENSIVE and include:");
+        sb.AppendLine("- Every process, unit operation, and equipment type mentioned");
+        sb.AppendLine("- ALL timeframes/years if specified (2020, 2030, 2035, 2050, etc.)");
+        sb.AppendLine("- ALL regional variations if mentioned");
+        sb.AppendLine("- ALL maturity levels (current, near-term, long-term, etc.)");
+        sb.AppendLine("- ALL technology variants and subtypes");
+        sb.AppendLine("- Technologies mentioned in tables, figures, and text");
+        sb.AppendLine("- Both main technologies and supporting/auxiliary technologies");
         sb.AppendLine();
-        sb.AppendLine("RULES:");
-        sb.AppendLine("- Extract generic technology names, not brand names");
-        sb.AppendLine("- If same technology appears for multiple years (2030, 2050), list separately");
+        sb.AppendLine("IMPORTANT:");
+        sb.AppendLine("- List EVERY technology separately - if a technology has data for 2030, 2035, and 2050, list all three");
+        sb.AppendLine("- Include the timeframe/year in parentheses if specified");
         sb.AppendLine("- One technology per line");
+        sb.AppendLine("- Do NOT include branding or company names unless they are the only identifier for the technology, but do include technology variants (e.g., 'Alkaline water electrolysis')");
         sb.AppendLine();
         sb.AppendLine("OUTPUT FORMAT (plain list, one per line):");
         sb.AppendLine("Alkaline water electrolysis (2035)");
         sb.AppendLine("Alkaline water electrolysis (2050)");
-        sb.AppendLine("PEM electrolysis (2035)");
-        sb.AppendLine("LT DAC (near-future)");
-        sb.AppendLine("LT DAC (long-term)");
         sb.AppendLine();
         
         if (chunks.Count == 1)
@@ -286,15 +288,20 @@ public static class TechnologyClassifier
     }
 
     /// <summary>
-    /// Stage 2: Builds prompt to extract detailed data for ONE specific technology.
+    /// Stage 2: Builds prompt to extract detailed data for MULTIPLE technologies at once (BATCHED).
     /// </summary>
-    public static string BuildDetailedExtractionPrompt(List<string> chunks, string technologyName)
+    public static string BuildBatchDetailedExtractionPrompt(List<string> chunks, List<string> technologyNames)
     {
         var sb = new StringBuilder();
         
-        sb.AppendLine($"TASK: Extract ALL data about '{technologyName}' from this PDF.");
+        sb.AppendLine($"TASK: Extract ALL data for these {technologyNames.Count} technologies from this PDF:");
         sb.AppendLine();
-        sb.AppendLine("Extract and report EVERYTHING you find:");
+        for (int i = 0; i < technologyNames.Count; i++)
+        {
+            sb.AppendLine($"{i + 1}. {technologyNames[i]}");
+        }
+        sb.AppendLine();
+        sb.AppendLine("For EACH technology listed above, extract and report EVERYTHING you find:");
         sb.AppendLine("- Process description and operating conditions");
         sb.AppendLine("- ALL inputs (materials, energy, consumables) with quantities and units");
         sb.AppendLine("- ALL outputs (products, byproducts) with quantities and units");
@@ -309,7 +316,17 @@ public static class TechnologyClassifier
         sb.AppendLine("- Include ALL numeric values you find (even if scattered across pages)");
         sb.AppendLine("- Report units exactly as stated (MWh/t, kg/t, EUR/kW, etc.)");
         sb.AppendLine("- If data varies by location, report baseline + variations");
-        sb.AppendLine("- Mention source context (table, figure, text paragraph)");
+        sb.AppendLine();
+        sb.AppendLine("OUTPUT FORMAT:");
+        sb.AppendLine("Organize your response with clear section headers for each technology:");
+        sb.AppendLine();
+        sb.AppendLine("=== TECHNOLOGY 1: [Name] ===");
+        sb.AppendLine("[All data for technology 1]");
+        sb.AppendLine();
+        sb.AppendLine("=== TECHNOLOGY 2: [Name] ===");
+        sb.AppendLine("[All data for technology 2]");
+        sb.AppendLine();
+        sb.AppendLine("etc.");
         sb.AppendLine();
         
         if (chunks.Count == 1)
@@ -329,9 +346,17 @@ public static class TechnologyClassifier
         }
         
         sb.AppendLine();
-        sb.AppendLine($"Return a comprehensive summary of ALL data found about '{technologyName}'.");
+        sb.AppendLine($"Return detailed summaries for ALL {technologyNames.Count} technologies listed above.");
         
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Stage 2 (Legacy): Builds prompt to extract detailed data for ONE specific technology.
+    /// </summary>
+    public static string BuildDetailedExtractionPrompt(List<string> chunks, string technologyName)
+    {
+        return BuildBatchDetailedExtractionPrompt(chunks, new List<string> { technologyName });
     }
 
     /// <summary>
@@ -357,7 +382,7 @@ public static class TechnologyClassifier
         sb.AppendLine("REQUIRED JSON STRUCTURE:");
         sb.AppendLine("[");
         sb.AppendLine("  {");
-        sb.AppendLine("    \"Datapaper Tech ID\": \"CO2_LT_DAC_2035\",");
+        sb.AppendLine("    \"Datapaper Tech ID\": \"LT_DAC_2035\",");
         sb.AppendLine("    \"description\": \"Low-temperature solid sorbent direct air capture\",");
         sb.AppendLine("    \"summary\": \"Complete summary from detailed extraction\",");
         sb.AppendLine("    \"unit_operation\": \"Direct air capture unit\",");
@@ -396,6 +421,14 @@ public static class TechnologyClassifier
         sb.AppendLine("- summary: Include the full detailed extraction text");
         sb.AppendLine("- If extraction failed or has no data, populate best you can with empty strings");
         sb.AppendLine();
+        sb.AppendLine("IMPORTANT - DEDUPLICATION RULES:");
+        sb.AppendLine("- Use the exact field names and data types as shown in the example");
+        sb.AppendLine("- INCLUDE ALL technology variants with distinct technical data (method, efficiency, cost)");
+        sb.AppendLine("- INCLUDE same technology with different timeframes (e.g., '2035 vs 2050') - these are different rows");
+        sb.AppendLine("- INCLUDE alternative names for the same core technology (e.g., 'Water electrolysis' vs 'Alkaline water electrolysis')");
+        sb.AppendLine("- ONLY exclude if: exact same technology name + exact same year + exact same data values");
+        sb.AppendLine("- Remove company/brand names ONLY if they duplicate the core technology (e.g., 'Company XYZ water electrolysis' → 'Water electrolysis')");
+        sb.AppendLine("- When in doubt, INCLUDE the entry - better to have a duplicate than lose a technology");
         
         sb.AppendLine("TECHNOLOGY SUMMARIES TO CONVERT:");
         sb.AppendLine();
@@ -448,6 +481,51 @@ public static class TechnologyClassifier
         }
         
         return names;
+    }
+
+    /// <summary>
+    /// Parses batched extraction response into individual technology details.
+    /// Expected format: sections separated by "=== TECHNOLOGY N: [Name] ==="
+    /// </summary>
+    public static List<string> ParseBatchedExtractionResponse(string response, int expectedCount)
+    {
+        var details = new List<string>();
+        if (string.IsNullOrWhiteSpace(response))
+        {
+            // Return empty placeholders
+            for (int i = 0; i < expectedCount; i++)
+                details.Add($"No data found for technology {i + 1}");
+            return details;
+        }
+
+        // Split by the section markers
+        var sections = Regex.Split(response, @"===\s*TECHNOLOGY\s+\d+:.*?===", RegexOptions.IgnoreCase);
+        
+        // First section is usually header/intro text before first technology, skip it
+        for (int i = 1; i < sections.Length; i++)
+        {
+            var section = sections[i].Trim();
+            if (!string.IsNullOrWhiteSpace(section))
+                details.Add(section);
+        }
+
+        // If parsing failed, try to split the response evenly
+        if (details.Count < expectedCount)
+        {
+            details.Clear();
+            var lines = response.Split('\n');
+            var linesPerTech = Math.Max(1, lines.Length / expectedCount);
+            
+            for (int i = 0; i < expectedCount; i++)
+            {
+                var start = i * linesPerTech;
+                var count = (i == expectedCount - 1) ? (lines.Length - start) : linesPerTech;
+                var section = string.Join('\n', lines.Skip(start).Take(count));
+                details.Add(section.Trim());
+            }
+        }
+
+        return details;
     }
 
     /// <summary>

@@ -287,66 +287,288 @@ public static class Commands
         }
 
         Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("🧠 Classifying technologies from PDF...\n");
+        Console.WriteLine("📋 Classifying with Copilot and writing to CSV...\n");
         Console.ResetColor();
 
         try
         {
             var pdfText = await PdfAnalyzer.ExtractTextFromPdfAsync(pdfFile);
             var chunks = PdfAnalyzer.ChunkPdfContent(pdfText);
-            var prompt = BuildClassificationPrompt(chunks);
 
-            Console.Write("  📤 Classifying with Copilot and writing to CSV... ");
-            var spinnerChars = new[] { '|', '/', '-', '\\' };
-            using var cts = new CancellationTokenSource();
-            var spinnerLeft = Console.CursorLeft;
-            var spinnerTop = Console.CursorTop;
-
-            var spinnerTask = Task.Run(async () =>
-            {
-                int i = 0;
-                while (!cts.Token.IsCancellationRequested)
-                {
-                    Console.SetCursorPosition(spinnerLeft, spinnerTop);
-                    Console.Write(spinnerChars[i++ % spinnerChars.Length]);
-                    try { await Task.Delay(100, cts.Token); } catch { break; }
-                }
-            });
-
-            string response = await Program.SendMessageAndCollectResponseSilentAsync(session, prompt);
+            // === STAGE 1: Find all technology names ===
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("   1. Finding technologies...");
+            Console.ResetColor();
             
-            cts.Cancel();
-            await spinnerTask;
-            Console.SetCursorPosition(spinnerLeft, spinnerTop);
-            Console.WriteLine(" Done\n");
-
-            var json = ExtractJson(response);
-            if (string.IsNullOrWhiteSpace(json))
+            var findNamesPrompt = TechnologyClassifier.BuildFindTechnologiesPrompt(chunks);
+            var namesResponse = await RunWithSpinner("   Scanning PDF", 
+                async () => await Program.SendMessageAndCollectResponseSilentAsync(session, findNamesPrompt));
+            
+            var technologyNames = TechnologyClassifier.ParseTechnologyNames(namesResponse);
+            
+            if (technologyNames.Count == 0)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("❌ Copilot response did not include JSON.");
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("⚠️  No technologies found in PDF.");
                 Console.ResetColor();
                 return null;
             }
 
-            var rows = ParseRowsFromJson(json);
-            if (rows.Count == 0)
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"   Found {technologyNames.Count} technologies:");
+            Console.ResetColor();
+            foreach (var techName in technologyNames)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine($"     • {techName}");
+                Console.ResetColor();
+            }
+            Console.WriteLine();
+
+            // === STAGE 2: Extract detailed data for each technology (BATCHED) ===
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("   2. Extracting data for each technology...\n");
+            Console.ResetColor();
+
+            var technologyDetails = new List<string>();
+            var failedExtractions = 0;
+            const int batchSize = 15; // Process 15 technologies per API call
+            int totalBatches = (int)Math.Ceiling((double)technologyNames.Count / batchSize);
+
+            for (int batchIndex = 0; batchIndex < totalBatches; batchIndex++)
+            {
+                var batchStart = batchIndex * batchSize;
+                var batchCount = Math.Min(batchSize, technologyNames.Count - batchStart);
+                var batchTechs = technologyNames.Skip(batchStart).Take(batchCount).ToList();
+                
+                Console.Write($"   Batch {batchIndex + 1}/{totalBatches} (technologies {batchStart + 1}-{batchStart + batchCount})... ");
+                
+                try
+                {
+                    var detailPrompt = TechnologyClassifier.BuildBatchDetailedExtractionPrompt(chunks, batchTechs);
+                    var detailResponse = await Program.SendMessageAndCollectResponseSilentAsync(session, detailPrompt);
+                    
+                    if (string.IsNullOrWhiteSpace(detailResponse))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("⚠️ Empty response");
+                        Console.ResetColor();
+                        
+                        // Add placeholders for failed batch
+                        for (int i = 0; i < batchTechs.Count; i++)
+                            technologyDetails.Add($"No data found for {batchTechs[i]}");
+                        failedExtractions += batchTechs.Count;
+                    }
+                    else
+                    {
+                        // Parse the batched response
+                        var batchDetails = TechnologyClassifier.ParseBatchedExtractionResponse(detailResponse, batchTechs.Count);
+                        
+                        // CRITICAL: Ensure we got exactly the expected count to avoid index mismatches
+                        if (batchDetails.Count < batchTechs.Count)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"⚠️ Partial ({batchDetails.Count}/{batchTechs.Count})");
+                            Console.ResetColor();
+                            
+                            // Pad with placeholders for missing technologies
+                            for (int i = batchDetails.Count; i < batchTechs.Count; i++)
+                                batchDetails.Add($"Incomplete data for {batchTechs[i]}");
+                            failedExtractions += (batchTechs.Count - batchDetails.Count);
+                        }
+                        else if (batchDetails.Count > batchTechs.Count)
+                        {
+                            // Trim excess items
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"⚠️ Excess data ({batchDetails.Count}/{batchTechs.Count})");
+                            Console.ResetColor();
+                            batchDetails = batchDetails.Take(batchTechs.Count).ToList();
+                        }
+                        else
+                        {
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine($"✓");
+                            Console.ResetColor();
+                        }
+                        
+                        technologyDetails.AddRange(batchDetails);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"✗ {ex.Message}");
+                    Console.ResetColor();
+                    
+                    // Add placeholders for failed batch
+                    for (int i = 0; i < batchTechs.Count; i++)
+                        technologyDetails.Add($"Extraction failed for {batchTechs[i]}: {ex.Message}");
+                    failedExtractions += batchTechs.Count;
+                }
+                
+                // Verify counts after each batch for debugging
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine($"       (Total extractions: {technologyDetails.Count}/{batchStart + batchCount})");
+                Console.ResetColor();
+            }
+            Console.WriteLine();
+            
+            if (failedExtractions > 0)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("⚠️  No technologies were found in the response.");
+                Console.WriteLine($"⚠️  {failedExtractions} extractions had issues - results may be incomplete");
+                Console.ResetColor();
+                Console.WriteLine();
+            }
+
+            // Verify data integrity before saving
+            if (technologyNames.Count != technologyDetails.Count)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\n❌ CRITICAL ERROR: Data count mismatch!");
+                Console.WriteLine($"   Expected: {technologyNames.Count} technologies");
+                Console.WriteLine($"   Extracted: {technologyDetails.Count} details");
+                Console.WriteLine($"   Missing: {technologyNames.Count - technologyDetails.Count}");
+                Console.ResetColor();
+                Console.WriteLine();
+                
+                // Pad with placeholders to continue processing
+                while (technologyDetails.Count < technologyNames.Count)
+                {
+                    var missingIndex = technologyDetails.Count;
+                    technologyDetails.Add($"ERROR: Missing data for {technologyNames[missingIndex]}");
+                }
+                
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"⚠️  Added {technologyNames.Count - technologyDetails.Count} placeholders to continue.");
+                Console.ResetColor();
+                Console.WriteLine();
+            }
+
+            // Save intermediate extraction data to TXT file
+            try
+            {
+                var txtPath = Path.Combine(outputFolder, $"{Path.GetFileNameWithoutExtension(pdfFile)}.txt");
+                var txtContent = new StringBuilder();
+                
+                txtContent.AppendLine("═══════════════════════════════════════════════════════════════");
+                txtContent.AppendLine($"Technology Extraction Data - {Path.GetFileName(pdfFile)}");
+                txtContent.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                txtContent.AppendLine($"Total Technologies: {technologyNames.Count}");
+                txtContent.AppendLine("═══════════════════════════════════════════════════════════════");
+                txtContent.AppendLine();
+                
+                for (int i = 0; i < Math.Min(technologyNames.Count, technologyDetails.Count); i++)
+                {
+                    txtContent.AppendLine($"═══ TECHNOLOGY {i + 1}: {technologyNames[i]} ═══");
+                    txtContent.AppendLine();
+                    txtContent.AppendLine(technologyDetails[i]);
+                    txtContent.AppendLine();
+                    txtContent.AppendLine("───────────────────────────────────────────────────────────────");
+                    txtContent.AppendLine();
+                }
+                
+                File.WriteAllText(txtPath, txtContent.ToString(), Encoding.UTF8);
+                
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine($"   💾 Saved extraction data: {Path.GetFileName(txtPath)}");
+                Console.ResetColor();
+                Console.WriteLine();
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"   ⚠️  Could not save TXT file: {ex.Message}");
+                Console.ResetColor();
+                Console.WriteLine();
+            }
+
+            // === STAGE 3: Convert to structured JSON (BATCHED) ===
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("   3. Creating CSV file...");
+            Console.ResetColor();
+
+            // Final validation (should already be synchronized from Stage 2)
+            if (technologyNames.Count != technologyDetails.Count)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"❌ UNEXPECTED: Data still mismatched after padding!");
+                Console.WriteLine($"   Names: {technologyNames.Count}, Details: {technologyDetails.Count}");
+                Console.ResetColor();
+                return null;
+            }
+
+            // Process in batches to avoid token limits (128k tokens)
+            var allRows = new List<IDictionary<string, string>>();
+            const int structureBatchSize = 15; // Convert 15 technologies per API call
+            int totalStructureBatches = (int)Math.Ceiling((double)technologyNames.Count / structureBatchSize);
+
+            for (int batchIndex = 0; batchIndex < totalStructureBatches; batchIndex++)
+            {
+                var batchStart = batchIndex * structureBatchSize;
+                var batchCount = Math.Min(structureBatchSize, technologyNames.Count - batchStart);
+                var batchNames = technologyNames.Skip(batchStart).Take(batchCount).ToList();
+                var batchDetails = technologyDetails.Skip(batchStart).Take(batchCount).ToList();
+
+                Console.Write($"   Converting batch {batchIndex + 1}/{totalStructureBatches} (techs {batchStart + 1}-{batchStart + batchCount})... ");
+
+                try
+                {
+                    var structurePrompt = TechnologyClassifier.BuildStructuringPrompt(batchNames, batchDetails);
+                    var jsonResponse = await Program.SendMessageAndCollectResponseSilentAsync(session, structurePrompt);
+
+                    var json = TechnologyClassifier.ExtractJson(jsonResponse);
+                    if (string.IsNullOrWhiteSpace(json))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("⚠️ No JSON returned");
+                        Console.ResetColor();
+                        continue;
+                    }
+
+                    var batchRows = TechnologyClassifier.ParseRowsFromJson(json);
+                    allRows.AddRange(batchRows);
+
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"✓");
+                    Console.ResetColor();
+                }
+                catch (Exception ex)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"✗ {ex.Message}");
+                    Console.ResetColor();
+                }
+            }
+            Console.WriteLine();
+
+            if (allRows.Count == 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("⚠️  No technologies were successfully structured.");
                 Console.ResetColor();
                 return null;
             }
 
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  📋 Found {rows.Count} technologies\n");
+            Console.WriteLine($"   📋 Total structured unique: {allRows.Count} technologies");
+            
+            // Show data flow summary
+            if (allRows.Count < technologyNames.Count)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"   ⚠️  Data loss detected: {technologyNames.Count} from Stage 2 → {allRows.Count} in Stage 3 (lost {technologyNames.Count - allRows.Count})");
+            }
             Console.ResetColor();
+            Console.WriteLine();
+            
+            var rows = allRows;
 
             var classifications = new List<TechnologyClassification>();
             var rowErrors = new List<string>();
             var usedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            Console.Write("  🔍 Parsing and validating...");
+            Console.Write("   🔍 Parsing and validating...");
             for (int i = 0; i < rows.Count; i++)
             {
                 if (TechnologyClassifier.TryClassify(rows[i], out var classification, out var errors))
@@ -354,7 +576,7 @@ public static class Commands
                     // Ensure Datapaper Tech ID is generated
                     if (string.IsNullOrWhiteSpace(classification.DatapaperTechId))
                     {
-                        classification.DatapaperTechId = GenerateTechId(classification, usedIds);
+                        classification.DatapaperTechId = TechnologyClassifier.GenerateTechId(classification, usedIds);
                     }
                     else if (usedIds.Contains(classification.DatapaperTechId))
                     {
@@ -378,7 +600,7 @@ public static class Commands
             Console.WriteLine(" Done\n");
 
             // Filter out incomplete technologies (only basic fields populated)
-            var completeClassifications = classifications.Where(c => HasMeaningfulData(c)).ToList();
+            var completeClassifications = classifications.Where(c => TechnologyClassifier.HasMeaningfulData(c)).ToList();
             var filteredCount = classifications.Count - completeClassifications.Count;
 
             if (completeClassifications.Count == 0)
@@ -395,7 +617,9 @@ public static class Commands
 
             try
             {
+                Console.Write("   💾 Writing CSV file...");
                 TechnologyClassificationCsv.WriteCsv(outputPath, completeClassifications);
+                Console.WriteLine(" Done\n");
             }
             catch (Exception ex)
             {
@@ -410,7 +634,7 @@ public static class Commands
             Console.WriteLine($"   📁 Saved to: {outputPath}");
             Console.WriteLine($"   ✓ {completeClassifications.Count} technologies exported");
             if (filteredCount > 0)
-                Console.WriteLine($"   ⊘ {filteredCount} incomplete records filtered out");
+                Console.WriteLine($"   ❌ {filteredCount} incomplete records filtered out");
             Console.ResetColor();
 
             if (rowErrors.Count > 0)
@@ -436,381 +660,55 @@ public static class Commands
         }
     }
 
-    private static string BuildClassificationPrompt(List<string> chunks)
+    private static async Task<T> RunWithSpinner<T>(string message, Func<Task<T>> action)
     {
-        var sb = new StringBuilder();
-        
-        // === GOAL & OVERVIEW ===
-        sb.AppendLine("You are extracting ALL individual technologies and sub-processes from a technical PDF.");
-        sb.AppendLine("GOAL: Extract EVERY distinct technology - return a JSON array with complete details.");
-        sb.AppendLine();
+        Console.Write($"{message}... ");
+        var spinnerChars = new[] { '|', '/', '-', '\\' };
+        using var cts = new CancellationTokenSource();
+        var spinnerLeft = Console.CursorLeft;
+        var spinnerTop = Console.CursorTop;
 
-        // === JSON EXAMPLE (CRITICAL) ===
-        sb.AppendLine("EXAMPLE OUTPUT (exact JSON structure required):");
-        sb.AppendLine("[");
-        sb.AppendLine("  {");
-        sb.AppendLine("    \"Datapaper Tech ID\": \"H2O_AEC_ELY_2030\",");
-        sb.AppendLine("    \"description\": \"Alkaline water electrolysis\",");
-        sb.AppendLine("    \"summary\": \"Mature water electrolysis technology using alkaline cells at 60-80°C...\",");
-        sb.AppendLine("    \"unit_operation\": \"Electrolysis\",");
-        sb.AppendLine("    \"ProcessType\": \"Alkaline\",");
-        sb.AppendLine("    \"main_sector\": \"Energy\",");
-        sb.AppendLine("    \"main_category\": \"Hydrogen Production\",");
-        sb.AppendLine("    \"category_spec\": \"Alkaline\",");
-        sb.AppendLine("    \"tech_type\": \"Alkaline Water Electrolysis\",");
-        sb.AppendLine("    \"carriers_in\": \"water, electricity\",");
-        sb.AppendLine("    \"main_input\": \"water\",");
-        sb.AppendLine("    \"ratios_in\": \"9, 0.5\",");
-        sb.AppendLine("    \"units_in\": \"mol, MWh\",");
-        sb.AppendLine("    \"carriers_out\": \"hydrogen, oxygen\",");
-        sb.AppendLine("    \"main_out\": \"hydrogen\",");
-        sb.AppendLine("    \"ratios_out\": \"2, 1\",");
-        sb.AppendLine("    \"units_out\": \"mol, mol\",");
-        sb.AppendLine("    \"trl_(1-9)\": 8,");
-        sb.AppendLine("    \"tech_maturity\": \"Mature\",");
-        sb.AppendLine("    \"cost_base_year\": 2030,");
-        sb.AppendLine("    \"Currency\": \"EUR\",");
-        sb.AppendLine("    \"capex_power_capacity_eur_per_kw\": 1200,");
-        sb.AppendLine("    \"opex_fix_pct_of_capex\": 0.03,");
-        sb.AppendLine("    \"Data Reference Year\": 2024");
-        sb.AppendLine("  }");
-        sb.AppendLine("]");
-        sb.AppendLine();
-
-        // === WHAT IS A TECHNOLOGY? ===
-        sb.AppendLine("WHAT IS A 'TECHNOLOGY'?");
-        sb.AppendLine("- A single unit operation or process (e.g., 'Alkaline Electrolysis' OR 'PEM Electrolysis' - not both in one row)");
-        sb.AppendLine("- NOT brand names: 'Siemens Electrolyzer' → extract as 'Alkaline Water Electrolysis'");
-        sb.AppendLine("- NOT marketing terms: 'NextGen DAC v2.0' → extract as 'Adsorption-based Direct Air Capture'");
-        sb.AppendLine("- Break integrated pathways: 'Electrolysis + Fischer-Tropsch' → 2 separate rows");
-        sb.AppendLine("- DUPLICATES: Same name twice → extract once; Same name + different time horizons → extract twice with time suffix");
-        sb.AppendLine();
-
-        // === FIELD REQUIREMENTS ===
-        sb.AppendLine("REQUIRED FIELDS (must populate):");
-        sb.AppendLine("  description, unit_operation, main_sector, main_category, carriers_in, carriers_out");
-        sb.AppendLine();
-        sb.AppendLine("OPTIONAL FIELDS (if in paper):");
-        sb.AppendLine("  ratios_in, ratios_out, capex_*, opex_*, cost_base_year, lifetime_yr");
-        sb.AppendLine();
-        sb.AppendLine("ESTIMATABLE FIELDS (OK to estimate if not in paper):");
-        sb.AppendLine("  trl_(1-9), tech_maturity - use industry knowledge for well-known technologies");
-        sb.AppendLine();
-        sb.AppendLine("USE EMPTY STRING \"\" for optional fields not in paper - NEVER leave blank or use null");
-        sb.AppendLine();
-
-        // === CRITICAL RULES ===
-        sb.AppendLine("CRITICAL RULES:");
-        sb.AppendLine("1. COMPLETENESS: Extract EVERY technology from text, tables, figures, appendices");
-        sb.AppendLine("2. CARRIERS & RATIOS: NEVER mix numbers with carrier names");
-        sb.AppendLine("   - carriers_in: 'water, electricity' (names only)");
-        sb.AppendLine("   - ratios_in: '9, 0.5' (numbers only)");
-        sb.AppendLine("   - Both must have SAME count");
-        sb.AppendLine("3. TIME HORIZONS: Different data for 2030 vs 2050 → create separate rows");
-        sb.AppendLine("   - Add '_2030', '_2050' suffix to Datapaper Tech ID");
-        sb.AppendLine("4. CURRENCY: Always use 'EUR' for cost fields; convert if needed");
-        sb.AppendLine("5. TABLES: Extract ALL technologies from technology lists, even if minimal data");
-        sb.AppendLine("6. NUMERIC DATA: Extract values only (not formulas)");
-        sb.AppendLine();
-
-        // === FIELD DEFINITIONS (CONDENSED) ===
-        sb.AppendLine("FIELD GUIDANCE:");
-        sb.AppendLine("- Datapaper Tech ID: 3-5 uppercase words separated by _ (e.g., H2O_AEC_ELY_2030)");
-        sb.AppendLine("- description: Short name only (5-15 words)");
-        sb.AppendLine("- summary: Comprehensive details from the paper (operating conditions, parameters, context)");
-        sb.AppendLine("- unit_operation: The main unit of the process (AEC Electrolyzer, Geothermal CHP, H2-fired gas turbine, etc.)");
-        sb.AppendLine("- ProcessType: The process type (Fuel synthesis, Power Generation, Storage, CO2 Capture, etc.)");
-        sb.AppendLine("- main_sector: Broad category (Energy, Chemicals, CCU, Materials, Transport, Heat Supply)");
-        sb.AppendLine("- main_category: Process category (Hydrogen Production, CO2 Capture, etc.)");
-        sb.AppendLine("- category_spec: Specific type (Alkaline, PEM, SOEC, Fischer-Tropsch, etc.)");
-        sb.AppendLine("- tech_type: Full descriptive name (e.g., 'Alkaline Water Electrolysis')");
-        sb.AppendLine("- carriers_in: Comma-separated input materials (e.g., 'water, electricity')");
-        sb.AppendLine("- ratios_in: Comma-separated numeric coefficients ONLY (e.g., '9, 0.5' - NO UNITS)");
-        sb.AppendLine("- units_in: Units for each ratio (e.g., 'mol, MWh')");
-        sb.AppendLine("- main_input: Most important input (must be in carriers_in)");
-        sb.AppendLine("- carriers_out: Comma-separated products (e.g., 'hydrogen, oxygen')");
-        sb.AppendLine("- ratios_out: Comma-separated numeric coefficients ONLY (e.g., '2, 1')");
-        sb.AppendLine("- units_out: Units for each output ratio (e.g., 'mol, mol')");
-        sb.AppendLine("- main_out: Most important product (must be in carriers_out)");
-        sb.AppendLine("- trl_(1-9): Technology Readiness Level 1-9; estimate if needed (8-9=mature, 6-7=developing, 4-5=early)");
-        sb.AppendLine("- tech_maturity: Text description (Early-stage, Developing, Near-commercial, Mature, Commercial)");
-        sb.AppendLine("- overall_efficiency: Round-trip efficiency as decimal or percentage (0.85 or 85)");
-        sb.AppendLine("- reference_unit_size_unit: Capacity unit (MW, MWh, kt/y, t/h, kW, kg/h, MJ/h)");
-        sb.AppendLine("- cost_base_year: CRITICAL - Year costs apply to (2020, 2030, 2050, etc.)");
-        sb.AppendLine("- Currency: Always 'EUR'");
-        sb.AppendLine("- capex_one_time_eur: Fixed non-scalable capital cost per unit of capacity");
-        sb.AppendLine("- capex_power_capacity_eur_per_kw: Scalable capital cost; Total CAPEX = fixed + (per_kw x capacity)");
-        sb.AppendLine("- opex_one_time_eur: Initial one-time operating setup cost");
-        sb.AppendLine("- opex_fix_pct_of_capex: Annual fixed cost as % of CAPEX (e.g., 0.03 for 3%)");
-        sb.AppendLine("- opex_fix_power_capacity_eur_per_kw_yr: Annual fixed cost per kW capacity");
-        sb.AppendLine("- lifetime_yr: Expected operational lifetime in years");
-        sb.AppendLine("- Data Reference Year: Year the paper was published (2020, 2024, etc.)");
-        sb.AppendLine();
-
-        // === EDGE CASES ===
-        sb.AppendLine("EDGE CASES:");
-        sb.AppendLine("DUPLICATES: Same tech name appears twice");
-        sb.AppendLine("  → Extract once if same data; Extract twice if different costs/TRL for 2030 vs 2050");
-        sb.AppendLine("TIME HORIZONS: 'This technology projected for 2030 with cost X, 2050 with cost Y'");
-        sb.AppendLine("  → Create TWO rows: one with cost_base_year=2030, one with cost_base_year=2050");
-        sb.AppendLine("CONFLICTING DATA: Different sources give different TRL/costs");
-        sb.AppendLine("  → Use most recent or credible; note discrepancy in summary");
-        sb.AppendLine("COST RANGES: '€1000-1500/kW' → use midpoint (1250)");
-        sb.AppendLine("INCOMPLETE DATA: Missing some fields → OK; only use empty string for missing optional fields");
-        sb.AppendLine();
-
-        // === SPECIAL TABLE MAPPING ===
-        sb.AppendLine("SPECIAL TABLE MAPPING (LT DAC):");
-        sb.AppendLine("For low-temperature solid sorbent direct air capture (LT DAC) tables, ALWAYS extract numeric values and map as follows:");
-        sb.AppendLine("- carriers_in: 'electricity, low-temperature heat, sorbent'");
-        sb.AppendLine("- ratios_in: electricity demand, heat demand, sorbent consumption (numbers only, in table order)");
-        sb.AppendLine("- units_in: 'MWh/tCO2, GJ/tCO2, g/kgCO2'");
-        sb.AppendLine("- capex_one_time_eur: use the table CAPEX value (if given as €/tCO2/yr, keep numeric and note unit in summary)");
-        sb.AppendLine("- opex_one_time_eur: use the table sorbent cost (€/tCO2) numeric value and note unit in summary");
-        sb.AppendLine("If the table lists emissions (e.g., kgCO2e/kgCO2), include the numeric value in summary.");
-        sb.AppendLine();
-
-        // === PDF CONTENT ===
-        if (chunks.Count == 1)
+        var spinnerTask = Task.Run(async () =>
         {
-            sb.AppendLine("PDF Content:");
-            sb.AppendLine(chunks[0]);
-        }
-        else
-        {
-            sb.AppendLine($"PDF Content split into {chunks.Count} parts:");
-            for (int i = 0; i < chunks.Count; i++)
+            var idx = 0;
+            while (!cts.Token.IsCancellationRequested)
             {
-                sb.AppendLine($"Part {i + 1}:");
-                sb.AppendLine(chunks[i]);
-                sb.AppendLine();
-            }
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("Return ONLY valid JSON array. No commentary.");
-
-        return sb.ToString();
-    }
-
-    private static string ExtractJson(string response)
-    {
-        if (string.IsNullOrWhiteSpace(response))
-            return string.Empty;
-
-        // Try markdown fence first
-        var fenceMatch = Regex.Match(response, "```(?:json)?\\s*(?<json>[\\s\\S]*?)```", RegexOptions.IgnoreCase);
-        if (fenceMatch.Success)
-            return fenceMatch.Groups["json"].Value.Trim();
-
-        // Try direct JSON bracket match
-        var start = response.IndexOf('[');
-        var end = response.LastIndexOf(']');
-        if (start >= 0 && end > start)
-        {
-            var extracted = response.Substring(start, end - start + 1).Trim();
-            // Validate that we have balanced brackets
-            if (extracted.StartsWith("[") && extracted.EndsWith("]"))
-                return extracted;
-        }
-
-        return response.Trim();
-    }
-
-    private static List<Dictionary<string, string>> ParseRowsFromJson(string json)
-    {
-        var rows = new List<Dictionary<string, string>>();
-        using var doc = JsonDocument.Parse(json);
-
-        if (doc.RootElement.ValueKind != JsonValueKind.Array)
-            return rows;
-
-        foreach (var element in doc.RootElement.EnumerateArray())
-        {
-            if (element.ValueKind != JsonValueKind.Object)
-                continue;
-
-            var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var prop in element.EnumerateObject())
-            {
-                var value = ConvertJsonValueToString(prop.Value);
-                if (value != null)
-                    row[prop.Name] = value;
-            }
-
-            rows.Add(row);
-        }
-
-        return rows;
-    }
-
-    private static string? ConvertJsonValueToString(JsonElement element)
-    {
-        switch (element.ValueKind)
-        {
-            case JsonValueKind.Null:
-            case JsonValueKind.Undefined:
-                return null;
-            case JsonValueKind.String:
-                return element.GetString();
-            case JsonValueKind.Number:
-                return element.GetRawText();
-            case JsonValueKind.True:
-            case JsonValueKind.False:
-                return element.GetBoolean() ? "true" : "false";
-            case JsonValueKind.Array:
-                var items = new List<string>();
-                foreach (var item in element.EnumerateArray())
+                Console.SetCursorPosition(spinnerLeft, spinnerTop);
+                Console.Write(spinnerChars[idx++ % spinnerChars.Length]);
+                try
                 {
-                    var value = ConvertJsonValueToString(item);
-                    if (!string.IsNullOrWhiteSpace(value))
-                        items.Add(value);
+                    await Task.Delay(100, cts.Token);
                 }
-                return string.Join(", ", items);
-            case JsonValueKind.Object:
-                return element.ToString();
-            default:
-                return element.ToString();
-        }
-    }
+                catch (TaskCanceledException)
+                {
+                    break;
+                }
+            }
+        }, cts.Token);
 
-    private static string GenerateTechId(TechnologyClassification tech, HashSet<string> usedIds)
-    {
-        var parts = new List<string>();
-
-        // Extract from main carriers
-        if (!string.IsNullOrWhiteSpace(tech.MainInput))
-            parts.Add(ExtractAbbreviation(tech.MainInput));
-        else if (tech.CarriersIn.Count > 0)
-            parts.Add(ExtractAbbreviation(tech.CarriersIn[0]));
-
-        // Extract from unit operation
-        if (!string.IsNullOrWhiteSpace(tech.UnitOperation))
+        try
         {
-            var abbrev = ExtractAbbreviation(tech.UnitOperation);
-            if (!parts.Contains(abbrev))
-                parts.Add(abbrev);
-        }
+            var result = await action();
+            cts.Cancel();
+            await spinnerTask;
 
-        // Extract key words from process type
-        if (!string.IsNullOrWhiteSpace(tech.ProcessType))
+            Console.SetCursorPosition(spinnerLeft, spinnerTop);
+            Console.Write("✓");
+            Console.WriteLine();
+            return result;
+        }
+        catch
         {
-            var abbrev = ExtractAbbreviation(tech.ProcessType);
-            if (!parts.Contains(abbrev))
-                parts.Add(abbrev);
+            cts.Cancel();
+            await spinnerTask;
+
+            Console.SetCursorPosition(spinnerLeft, spinnerTop);
+            Console.Write("✗");
+            Console.WriteLine();
+            throw;
         }
 
-        // Extract from main output if not already included
-        if (!string.IsNullOrWhiteSpace(tech.MainOut) && parts.Count < 4)
-        {
-            var abbrev = ExtractAbbreviation(tech.MainOut);
-            if (!parts.Contains(abbrev))
-                parts.Add(abbrev);
-        }
-
-        var baseId = string.Join("_", parts).ToUpperInvariant();
-        if (baseId.Length > 20)
-            baseId = baseId[..Math.Min(20, baseId.Length)];
-
-        // Ensure uniqueness
-        if (!usedIds.Contains(baseId))
-            return baseId;
-
-        var counter = 2;
-        while (usedIds.Contains($"{baseId}_{counter}"))
-            counter++;
-        return $"{baseId}_{counter}";
-    }
-
-    private static string ExtractAbbreviation(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return "UNK";
-
-        text = text.Trim();
-
-        // Known mappings (technology specific)
-        var mappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "Electrolysis", "ELY" },
-            { "Alkaline", "ALK" },
-            { "PEM", "PEM" },
-            { "SOEC", "SOEC" },
-            { "Fischer-Tropsch", "FT" },
-            { "FT", "FT" },
-            { "Methanation", "MET" },
-            { "Methane", "CH4" },
-            { "Ammonia", "NH3" },
-            { "Haber-Bosch", "HB" },
-            { "Direct Air Capture", "DAC" },
-            { "DAC", "DAC" },
-            { "Water-Gas Shift", "WGS" },
-            { "RWGS", "RWGS" },
-            { "CO2 reduction", "CO2R" },
-            { "Electrochemical", "ECH" },
-            { "Synthesis", "SYN" },
-            { "Conversion", "CNV" },
-            { "CO2", "CO2" },
-            { "H2", "H2" },
-            { "Hydrogen", "H2" },
-            { "Oxygen", "O2" },
-            { "Carbon monoxide", "CO" },
-            { "Urea", "UREA" },
-            { "Dimethyl ether", "DME" },
-            { "Methanol", "MEOH" }
-        };
-
-        // Check exact matches first
-        foreach (var kvp in mappings)
-        {
-            if (text.Equals(kvp.Key, StringComparison.OrdinalIgnoreCase))
-                return kvp.Value;
-        }
-
-        // Check if text contains known abbreviations
-        foreach (var kvp in mappings)
-        {
-            if (text.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase))
-                return kvp.Value;
-        }
-
-        // Generate abbreviation from first letters of words
-        var words = Regex.Split(text, @"\W+").Where(w => !string.IsNullOrEmpty(w)).ToList();
-        if (words.Count > 0)
-        {
-            if (words.Count == 1)
-                return words[0].Length > 3 ? words[0].Substring(0, 3).ToUpperInvariant() : words[0].ToUpperInvariant();
-            else
-                return string.Concat(words.Select(w => w[0])).ToUpperInvariant();
-        }
-
-        return "UNK";
-    }
-
-    private static bool HasMeaningfulData(TechnologyClassification tech)
-    {
-        // Require at least 2-3 meaningful fields to avoid keeping nearly-empty rows
-        int fieldCount = 0;
-        
-        if (!string.IsNullOrWhiteSpace(tech.Description)) fieldCount++;
-        if (!string.IsNullOrWhiteSpace(tech.UnitOperation)) fieldCount++;
-        if (!string.IsNullOrWhiteSpace(tech.Summary)) fieldCount++;
-        if (!string.IsNullOrWhiteSpace(tech.ProcessType)) fieldCount++;
-        if (!string.IsNullOrWhiteSpace(tech.MainSector)) fieldCount++;
-        if (!string.IsNullOrWhiteSpace(tech.MainCategory)) fieldCount++;
-        if (!string.IsNullOrWhiteSpace(tech.CategorySpec)) fieldCount++;
-        if (!string.IsNullOrWhiteSpace(tech.TechType)) fieldCount++;
-        if (tech.CostBaseYear.HasValue) fieldCount++;
-        if (tech.DataReferenceYear.HasValue) fieldCount++;
-        if (tech.Trl.HasValue) fieldCount++;
-        if (!string.IsNullOrWhiteSpace(tech.TechMaturity)) fieldCount++;
-        if (tech.OverallEfficiency.HasValue) fieldCount++;
-        if (tech.CarriersIn.Count > 0 || tech.CarriersOut.Count > 0) fieldCount++;
-        if (!string.IsNullOrWhiteSpace(tech.MainInput) || !string.IsNullOrWhiteSpace(tech.MainOut)) fieldCount++;
-        if (tech.InputShares.Count > 0 || tech.RatiosIn.Count > 0) fieldCount++;
-        if (tech.LifetimeYears.HasValue || tech.CapexOneTimeEur.HasValue || tech.OpexOneTimeEur.HasValue) fieldCount++;
-
-        // Require minimum 2 fields populated
-        return fieldCount >= 2;
-    }
 }
+
+}
+
