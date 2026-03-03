@@ -5,6 +5,5 @@ obj/
 *.dll
 *.pdb
 *.cache
-*.pdf
 *.csv
 *.txt
