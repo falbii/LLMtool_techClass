@@ -682,12 +682,10 @@ public static class TechnologyClassifier
         // Known mappings (technology specific)
         var mappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            { "Electrolysis", "ELY" },
-            { "Alkaline", "ALK" },
+            { "Alkaline", "AEC" },
             { "PEM", "PEM" },
             { "SOEC", "SOEC" },
             { "Fischer-Tropsch", "FT" },
-            { "FT", "FT" },
             { "Methanation", "MET" },
             { "Methane", "CH4" },
             { "Ammonia", "NH3" },
@@ -695,13 +693,8 @@ public static class TechnologyClassifier
             { "Direct Air Capture", "DAC" },
             { "DAC", "DAC" },
             { "Water-Gas Shift", "WGS" },
-            { "RWGS", "RWGS" },
             { "CO2 reduction", "CO2R" },
-            { "Electrochemical", "ECH" },
-            { "Synthesis", "SYN" },
-            { "Conversion", "CNV" },
-            { "CO2", "CO2" },
-            { "H2", "H2" },
+            { "Electrochemical", "EC" },
             { "Hydrogen", "H2" },
             { "Oxygen", "O2" },
             { "Carbon monoxide", "CO" },
