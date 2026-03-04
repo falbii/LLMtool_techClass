@@ -1,5 +1,3 @@
-// PDF Analysis Helper - Add this to a new file: PdfAnalyzer.cs
-
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
 
@@ -8,19 +6,18 @@ namespace PdfAnalysisApp;
 public static class PdfAnalyzer
 {
     /// <summary>
-    /// Extracts text from a PDF file with enhanced table detection and preservation of numerical data.
+    /// Extracts all text from a PDF file, annotating table-like regions
+    /// to help downstream AI prompts interpret numerical data correctly.
     /// </summary>
     public static async Task<string> ExtractTextFromPdfAsync(string filePath)
     {
-        // Validate file exists and is readable
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"PDF file not found: {filePath}");
-        
+
         var fileInfo = new FileInfo(filePath);
         if (fileInfo.Length == 0)
             throw new InvalidOperationException("PDF file is empty.");
-        
-        // Warn on very large files (over 50MB)
+
         if (fileInfo.Length > 50 * 1024 * 1024)
             Console.WriteLine("⚠️  Warning: PDF file is very large. Processing may take time or memory.");
         
@@ -71,7 +68,9 @@ public static class PdfAnalyzer
     }
 
     /// <summary>
-    /// Appends content with inline table region markers (doesn't duplicate content).
+    /// Scans each line looking for table-like patterns (high numeric density,
+    /// pipe/tab separators, or technology keyword lists) and wraps those regions
+    /// in marker tags so the AI model can treat them specially.
     /// </summary>
     private static void AppendContentWithTableMarkers(System.Text.StringBuilder output, string pageContent)
     {
@@ -155,13 +154,18 @@ public static class PdfAnalyzer
     }
 
     /// <summary>
-    /// Chunks PDF content into smaller pieces to avoid token limits.
+    /// Splits extracted PDF text into chunks of at most <paramref name="maxCharsPerChunk"/> characters,
+    /// with a small line overlap between consecutive chunks to preserve context.
     /// </summary>
-    public static List<string> ChunkPdfContent(string content, int maxCharsPerChunk = 30000)
+    public static List<string> ChunkPdfContent(string content, int maxCharsPerChunk = 30000, int overlapLines = 3)
     {
         var chunks = new List<string>();
         var lines = content.Split(new[] { "\n", "\r\n" }, StringSplitOptions.None);
         var currentChunk = new System.Text.StringBuilder();
+        var currentChunkLines = new List<string>();
+
+        if (overlapLines < 0)
+            overlapLines = 0;
 
         foreach (var line in lines)
         {
@@ -169,9 +173,22 @@ public static class PdfAnalyzer
             {
                 chunks.Add(currentChunk.ToString());
                 currentChunk.Clear();
+
+                // Add a small overlap to preserve context between chunks.
+                var overlap = currentChunkLines
+                    .Skip(Math.Max(0, currentChunkLines.Count - overlapLines))
+                    .ToList();
+
+                currentChunkLines.Clear();
+                foreach (var overlapLine in overlap)
+                {
+                    currentChunk.AppendLine(overlapLine);
+                    currentChunkLines.Add(overlapLine);
+                }
             }
 
             currentChunk.AppendLine(line);
+            currentChunkLines.Add(line);
         }
 
         if (currentChunk.Length > 0)

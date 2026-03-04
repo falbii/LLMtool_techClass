@@ -3,9 +3,10 @@ using GitHub.Copilot.SDK;
 using Refractored.GitHub.Copilot.SDK.Helpers;
 using PdfAnalysisApp;
 
-// Register encoding provider for PDF text extraction
+// Required for PDF text extraction (iText uses legacy code pages)
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
+// ──────────────── Banner ────────────────
 Console.ForegroundColor = ConsoleColor.Cyan;
 Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
 Console.WriteLine("║          Smart Document Analysis Tool - Copilot SDK          ║");
@@ -13,7 +14,7 @@ Console.WriteLine("╚═══════════════════�
 Console.ResetColor();
 Console.WriteLine();
 
-// Step 1: Check prerequisites
+// ──────────────── Prerequisites ────────────────
 Console.WriteLine("🔍 Checking prerequisites...\n");
 var status = await CliChecker.CheckCopilotStatusAsync();
 
@@ -26,7 +27,7 @@ if (!CliChecker.IsReady(status))
     return;
 }
 
-// Step 2: Display available models with billing info
+// ──────────────── Available models ────────────────
 Console.ForegroundColor = ConsoleColor.Cyan;
 Console.WriteLine("📊 Available Models & Billing Info:\n");
 Console.ResetColor();
@@ -56,7 +57,7 @@ try
         Console.WriteLine();
     }
 
-    // Step 3: Select model
+    // ──────────────── Model selection ────────────────
     var model = await ModelSelector.SelectModelAsync();
     if (model == null)
     {
@@ -68,7 +69,7 @@ try
     }
     Console.WriteLine();
 
-    // Step 4: Create session
+    // ──────────────── Session creation ────────────────
     await Program.RunWithSpinnerAsync($" Creating session with {model}", async () =>
     {
         session = await client.CreateSessionAsync(new SessionConfig
@@ -91,15 +92,15 @@ try
     Console.WriteLine($"   Session ID: {session.SessionId}\n");
     Console.ResetColor();
 
-    // Step 5: Create pdf_to_analyze and output folders
+    // ──────────────── Ensure working directories exist ────────────────
     string pdfFolder = Path.Combine(Directory.GetCurrentDirectory(), "pdf_to_analyze");
     Directory.CreateDirectory(pdfFolder);
     string outputFolder = Path.Combine(Directory.GetCurrentDirectory(), "output");
     Directory.CreateDirectory(outputFolder);
-    
+
     string? currentPdfFile = null;
 
-    // Step 6: Interactive chat
+    // ──────────────── Interactive chat loop ────────────────
     Console.ForegroundColor = ConsoleColor.Cyan;
     Console.WriteLine("💬 Interactive Chat - just ask something or use predefined commands:\n");
     Console.ResetColor();
@@ -112,9 +113,9 @@ try
     Console.WriteLine("  'list'               - List available PDFs");
     Console.WriteLine("  'analyze <file>'     - Analyze a PDF (use filename or list number)");
     Console.WriteLine("  'current'            - Show current PDF");
+    Console.WriteLine("  'auto-summarize'     - Extract technology summaries to TXT");
     Console.WriteLine("  'auto-classify'      - Classify technologies and export CSV");
     Console.WriteLine("  'batch-analyze <q>'  - Analyze all PDFs with a question\n");
-    Console.ResetColor();
 
     while (true)
     {
@@ -123,10 +124,10 @@ try
         Console.ResetColor();
 
         var input = Console.ReadLine()?.Trim();
-
         if (string.IsNullOrEmpty(input))
             continue;
 
+        // ── Exit ──
         if (input.Equals("exit", StringComparison.OrdinalIgnoreCase) ||
             input.Equals("quit", StringComparison.OrdinalIgnoreCase))
         {
@@ -134,7 +135,7 @@ try
             break;
         }
 
-    // Handle PDF commands
+        // ── List available PDFs ──
         if (input.Equals("list", StringComparison.OrdinalIgnoreCase))
         {
             var selected = await Commands.HandleListPdfsAsync(pdfFolder);
@@ -143,6 +144,7 @@ try
             continue;
         }
 
+        // ── Help / commands ──
         if (input.Equals("commands", StringComparison.OrdinalIgnoreCase) ||
             input.Equals("help", StringComparison.OrdinalIgnoreCase))
         {
@@ -150,12 +152,14 @@ try
             continue;
         }
 
+        // ── Show current PDF ──
         if (input.Equals("current", StringComparison.OrdinalIgnoreCase))
         {
             Commands.HandleCurrentCommand(currentPdfFile);
             continue;
         }
 
+        // ── Batch-analyze all PDFs ──
         if (input.StartsWith("batch-analyze ", StringComparison.OrdinalIgnoreCase))
         {
             var question = input.Length > 14 ? input[14..].Trim() : string.Empty;
@@ -166,6 +170,7 @@ try
                 Console.ResetColor();
                 continue;
             }
+
             try
             {
                 await Commands.HandleBatchAnalyzeAsync(session, pdfFolder, question);
@@ -179,12 +184,14 @@ try
             continue;
         }
 
+        // ── Upload a PDF ──
         if (input.StartsWith("upload ", StringComparison.OrdinalIgnoreCase))
         {
             var filePath = input.Length > 7 ? input[7..].Trim().Trim('"') : string.Empty;
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine($"   Checking: {filePath}");
             Console.ResetColor();
+
             if (File.Exists(filePath))
             {
                 currentPdfFile = await Commands.HandleUploadPdfAsync(filePath, pdfFolder);
@@ -198,6 +205,7 @@ try
             continue;
         }
 
+        // ── Analyze a specific PDF ──
         if (input.StartsWith("analyze ", StringComparison.OrdinalIgnoreCase))
         {
             var filename = input.Length > 8 ? input[8..].Trim() : string.Empty;
@@ -207,6 +215,22 @@ try
             continue;
         }
 
+        // ── Auto-summarize current PDF ──
+        if (input.Equals("auto-summarize", StringComparison.OrdinalIgnoreCase))
+        {
+            if (currentPdfFile == null)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("❌ No PDF loaded. Use 'upload' or 'analyze' to select one.");
+                Console.ResetColor();
+                continue;
+            }
+
+            await Commands.HandleAutoSummarizeAsync(session, currentPdfFile, outputFolder);
+            continue;
+        }
+
+        // ── Auto-classify current PDF ──
         if (input.Equals("auto-classify", StringComparison.OrdinalIgnoreCase))
         {
             if (currentPdfFile == null)
@@ -221,14 +245,13 @@ try
             continue;
         }
 
-        // If PDF is loaded, add context to the message
+        // ── Free-form question (with optional PDF context) ──
         string finalMessage = input;
         if (currentPdfFile != null && File.Exists(currentPdfFile))
         {
             finalMessage = await Commands.PrepareMessageWithPdfContextAsync(currentPdfFile, input);
         }
 
-        // Show spinner while waiting for response
         await Program.SendMessageWithSpinnerAsync(session, finalMessage);
     }
 }
@@ -249,6 +272,9 @@ finally
 
 public partial class Program
 {
+    /// <summary>
+    /// Runs <paramref name="action"/> while displaying a console spinner with <paramref name="message"/>.
+    /// </summary>
     public static async Task RunWithSpinnerAsync(string message, Func<Task> action)
     {
         var spinnerChars = new[] { '|', '/', '-', '\\' };
@@ -297,6 +323,10 @@ public partial class Program
         }
     }
 
+    /// <summary>
+    /// Sends a message to the Copilot session, streaming the response to the console
+    /// with a spinner shown while waiting for the first token.
+    /// </summary>
     public static async Task SendMessageWithSpinnerAsync(CopilotSession session, string message)
     {
         var spinnerChars = new[] { '|', '/', '-', '\\' };
@@ -419,6 +449,10 @@ public partial class Program
         }
     }
 
+    /// <summary>
+    /// Sends a message and collects the full response as a string.
+    /// The response is also printed to the console with a spinner.
+    /// </summary>
     public static async Task<string> SendMessageAndCollectResponseAsync(CopilotSession session, string message)
     {
         var done = new TaskCompletionSource();
@@ -483,12 +517,15 @@ public partial class Program
         }
     }
 
+    /// <summary>
+    /// Sends a message and collects the full response silently (no console output).
+    /// Times out after 15 minutes to guard against hung service calls.
+    /// </summary>
     public static async Task<string> SendMessageAndCollectResponseSilentAsync(CopilotSession session, string message)
     {
         var done = new TaskCompletionSource();
         var response = new StringBuilder();
         var hasDelta = false;
-        // 15 minute timeout for service calls (auto-classification can take time)
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(15));
 
         var subscription = session.On(evt =>

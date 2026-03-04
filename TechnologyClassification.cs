@@ -6,6 +6,10 @@ using System.Text.RegularExpressions;
 
 namespace PdfAnalysisApp;
 
+/// <summary>
+/// Represents a single technology record extracted from a PDF, covering
+/// process description, inputs/outputs, costs, efficiency, and maturity.
+/// </summary>
 public sealed class TechnologyClassification
 {
     public string? DatapaperTechId { get; set; }
@@ -50,8 +54,19 @@ public sealed class TechnologyClassification
     public decimal? OpexFixPowerCapacityEurPerKwYr { get; set; }
 }
 
+/// <summary>
+/// Provides parsing, validation, merging, and prompt-building logic
+/// for <see cref="TechnologyClassification"/> records.
+/// </summary>
 public static class TechnologyClassifier
 {
+    /// <summary>Case-insensitive comparer used for merge-key lookups.</summary>
+    private static readonly StringComparer KeyComparer = StringComparer.OrdinalIgnoreCase;
+
+    /// <summary>
+    /// Attempts to build a <see cref="TechnologyClassification"/> from a key/value row.
+    /// Returns <c>true</c> when no parse errors occurred; otherwise populates <paramref name="errors"/>.
+    /// </summary>
     public static bool TryClassify(
         IDictionary<string, string> row,
         out TechnologyClassification classification,
@@ -125,6 +140,9 @@ public static class TechnologyClassifier
         return errors.Count == 0;
     }
 
+    /// <summary>
+    /// Looks up a value from the row using one or more possible header names (case-insensitive, normalized).
+    /// </summary>
     private static string? GetValue(IDictionary<string, string> row, params string[] headers)
     {
         if (headers.Length == 0)
@@ -141,6 +159,10 @@ public static class TechnologyClassifier
         return null;
     }
 
+    /// <summary>
+    /// Strips non-alphanumeric characters and lowercases the header so that
+    /// "Cost Base Year", "cost_base_year", and "CostBaseYear" all match.
+    /// </summary>
     private static string NormalizeHeader(string header)
     {
         if (string.IsNullOrWhiteSpace(header))
@@ -152,6 +174,7 @@ public static class TechnologyClassifier
         return string.IsNullOrEmpty(normalized) ? header.ToLowerInvariant() : normalized;
     }
 
+    /// <summary>Splits a comma-separated string into a list of trimmed strings.</summary>
     private static List<string> ParseStringList(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -162,6 +185,7 @@ public static class TechnologyClassifier
             .ToList();
     }
 
+    /// <summary>Parses a comma-separated list of doubles, collecting errors for unparseable items.</summary>
     private static List<double> ParseDoubleList(string? value, string fieldName, List<string> errors)
     {
         var results = new List<double>();
@@ -196,6 +220,7 @@ public static class TechnologyClassifier
         return null;
     }
 
+    /// <summary>Parses an optional integer, recording an error when the value is present but invalid.</summary>
     private static int? ParseInt(string? value, string fieldName, List<string> errors)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -208,6 +233,7 @@ public static class TechnologyClassifier
         return null;
     }
 
+    /// <summary>Parses an optional decimal, recording an error when the value is present but invalid.</summary>
     private static decimal? ParseDecimal(string? value, string fieldName, List<string> errors)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -220,6 +246,7 @@ public static class TechnologyClassifier
         return null;
     }
 
+    /// <summary>Extracts a leading number and optional trailing unit text from a string like "100 MW".</summary>
     private static (double value, string unit)? ParseValueWithUnit(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -247,22 +274,26 @@ public static class TechnologyClassifier
         sb.AppendLine();
         sb.AppendLine("Be COMPREHENSIVE and include:");
         sb.AppendLine("- Every process, unit operation, and equipment type mentioned");
-        sb.AppendLine("- ALL timeframes/years if specified (2020, 2030, 2035, 2050, etc.)");
-        sb.AppendLine("- ALL regional variations if mentioned");
-        sb.AppendLine("- ALL maturity levels (current, near-term, long-term, etc.)");
         sb.AppendLine("- ALL technology variants and subtypes");
         sb.AppendLine("- Technologies mentioned in tables, figures, and text");
         sb.AppendLine("- Both main technologies and supporting/auxiliary technologies");
         sb.AppendLine();
-        sb.AppendLine("IMPORTANT:");
-        sb.AppendLine("- List EVERY technology separately - if a technology has data for 2030, 2035, and 2050, list all three");
-        sb.AppendLine("- Include the timeframe/year in parentheses if specified");
-        sb.AppendLine("- One technology per line");
-        sb.AppendLine("- Do NOT include branding or company names unless they are the only identifier for the technology, but do include technology variants (e.g., 'Alkaline water electrolysis')");
+        sb.AppendLine("CRITICAL RULES:");
+        sb.AppendLine("- List each technology ONLY ONCE by its base name");
+        sb.AppendLine("- Do NOT create separate entries for different years, timeframes, or scenarios");
+        sb.AppendLine("  (e.g. list 'Alkaline water electrolysis' once, NOT separately for 2030/2035/2050)");
+        sb.AppendLine("- Do NOT create separate entries for different regions or locations");
+        sb.AppendLine("  (e.g. list 'Photovoltaic systems' once, NOT separately for Spain/Chile/etc.)");
+        sb.AppendLine("- Do NOT add qualifiers like '(near future)', '(long-term)', '(2035)' to names");
+        sb.AppendLine("- Do NOT duplicate a technology under both a generic and a specific name");
+        sb.AppendLine("  (e.g. list 'Fischer-Tropsch synthesis' OR 'Fischer-Tropsch fuels', not both,");
+        sb.AppendLine("   unless the PDF truly treats them as distinct processes)");
+        sb.AppendLine("- One technology per line, plain name only");
         sb.AppendLine();
         sb.AppendLine("OUTPUT FORMAT (plain list, one per line):");
-        sb.AppendLine("Alkaline water electrolysis (2035)");
-        sb.AppendLine("Alkaline water electrolysis (2050)");
+        sb.AppendLine("Alkaline water electrolysis");
+        sb.AppendLine("Proton exchange membrane electrolysis");
+        sb.AppendLine("Solid oxide electrolysis");
         sb.AppendLine();
         
         if (chunks.Count == 1)
@@ -288,18 +319,17 @@ public static class TechnologyClassifier
     }
 
     /// <summary>
-    /// Stage 2: Builds prompt to extract detailed data for MULTIPLE technologies at once (BATCHED).
+    /// Builds a prompt to extract detailed free-text summaries for multiple
+    /// technologies at once. Used by the <c>auto-summarize</c> command.
     /// </summary>
     public static string BuildBatchDetailedExtractionPrompt(List<string> chunks, List<string> technologyNames)
     {
         var sb = new StringBuilder();
-        
+
         sb.AppendLine($"TASK: Extract ALL data for these {technologyNames.Count} technologies from this PDF:");
         sb.AppendLine();
         for (int i = 0; i < technologyNames.Count; i++)
-        {
             sb.AppendLine($"{i + 1}. {technologyNames[i]}");
-        }
         sb.AppendLine();
         sb.AppendLine("For EACH technology listed above, extract and report EVERYTHING you find:");
         sb.AppendLine("- Process description and operating conditions");
@@ -316,19 +346,26 @@ public static class TechnologyClassifier
         sb.AppendLine("- Include ALL numeric values you find (even if scattered across pages)");
         sb.AppendLine("- Report units exactly as stated (MWh/t, kg/t, EUR/kW, etc.)");
         sb.AppendLine("- If data varies by location, report baseline + variations");
+        sb.AppendLine("- Do NOT create separate technology sections for different years or scenarios");
+        sb.AppendLine("- Within each technology section, organise data into sub-sections by year/time horizon");
         sb.AppendLine();
         sb.AppendLine("OUTPUT FORMAT:");
-        sb.AppendLine("Organize your response with clear section headers for each technology:");
-        sb.AppendLine();
         sb.AppendLine("=== TECHNOLOGY 1: [Name] ===");
-        sb.AppendLine("[All data for technology 1]");
+        sb.AppendLine();
+        sb.AppendLine("--- Year: 2020 (current/baseline) ---");
+        sb.AppendLine("[All data for this technology at this year]");
+        sb.AppendLine();
+        sb.AppendLine("--- Year: 2035 (near future) ---");
+        sb.AppendLine("[All data for this technology at this year]");
+        sb.AppendLine();
+        sb.AppendLine("--- Year: 2050 (long-term) ---");
+        sb.AppendLine("[All data for this technology at this year]");
         sb.AppendLine();
         sb.AppendLine("=== TECHNOLOGY 2: [Name] ===");
-        sb.AppendLine("[All data for technology 2]");
-        sb.AppendLine();
+        sb.AppendLine("[same sub-section structure by year]");
         sb.AppendLine("etc.");
         sb.AppendLine();
-        
+
         if (chunks.Count == 1)
         {
             sb.AppendLine("PDF Content:");
@@ -344,108 +381,189 @@ public static class TechnologyClassifier
                 sb.AppendLine();
             }
         }
-        
+
         sb.AppendLine();
         sb.AppendLine($"Return detailed summaries for ALL {technologyNames.Count} technologies listed above.");
-        
         return sb.ToString();
     }
 
     /// <summary>
-    /// Stage 2 (Legacy): Builds prompt to extract detailed data for ONE specific technology.
+    /// Parses a batched extraction response into individual technology detail sections.
+    /// Expects sections separated by <c>=== TECHNOLOGY N: [Name] ===</c>.
     /// </summary>
-    public static string BuildDetailedExtractionPrompt(List<string> chunks, string technologyName)
+    public static List<string> ParseBatchedExtractionResponse(string response, int expectedCount)
     {
-        return BuildBatchDetailedExtractionPrompt(chunks, new List<string> { technologyName });
+        var details = new List<string>();
+        if (string.IsNullOrWhiteSpace(response))
+        {
+            for (int i = 0; i < expectedCount; i++)
+                details.Add($"No data found for technology {i + 1}");
+            return details;
+        }
+
+        // Split by the section markers
+        var sections = Regex.Split(response, @"===\s*TECHNOLOGY\s+\d+:.*?===", RegexOptions.IgnoreCase);
+
+        // First section is usually intro text before the first technology — skip it
+        for (int i = 1; i < sections.Length; i++)
+        {
+            var section = sections[i].Trim();
+            if (!string.IsNullOrWhiteSpace(section))
+                details.Add(section);
+        }
+
+        // Fallback: split the response evenly if markers were not found
+        if (details.Count < expectedCount)
+        {
+            details.Clear();
+            var lines = response.Split('\n');
+            var linesPerTech = Math.Max(1, lines.Length / expectedCount);
+            for (int i = 0; i < expectedCount; i++)
+            {
+                var start = i * linesPerTech;
+                var count = (i == expectedCount - 1) ? (lines.Length - start) : linesPerTech;
+                details.Add(string.Join('\n', lines.Skip(start).Take(count)).Trim());
+            }
+        }
+
+        return details;
     }
 
     /// <summary>
-    /// Stage 3: Builds prompt to convert detailed extractions into structured JSON.
+    /// Builds a single prompt that reads the PDF content and directly produces
+    /// structured JSON for a batch of technology names — replacing the old
+    /// Stage 2 (free-text extraction) + Stage 3 (JSON conversion) two-step flow.
+    /// The PDF content is sent only once per batch instead of twice.
     /// </summary>
-    public static string BuildStructuringPrompt(List<string> technologyNames, List<string> technologyDetails)
+    public static string BuildDirectExtractionPrompt(List<string> chunks, List<string> technologyNames)
     {
-        // Validate inputs
-        if (technologyNames == null || technologyDetails == null)
-            throw new ArgumentNullException("Technology names and details cannot be null");
-            
-        if (technologyNames.Count != technologyDetails.Count)
-            throw new ArgumentException($"Mismatch: {technologyNames.Count} names but {technologyDetails.Count} details");
-            
+        if (chunks == null || chunks.Count == 0)
+            throw new ArgumentException("PDF chunks cannot be null or empty");
+        if (technologyNames == null || technologyNames.Count == 0)
+            throw new ArgumentException("Technology names cannot be null or empty");
+
         var sb = new StringBuilder();
-        
-        sb.AppendLine("TASK: Convert the following technology summaries into structured JSON format.");
+
+        sb.AppendLine($"TASK: For each of the {technologyNames.Count} technologies listed below, find ALL relevant data in the PDF and return a JSON array.");
         sb.AppendLine();
-        sb.AppendLine("You have detailed summaries for each technology. Now structure them into this exact JSON schema:");
+
+        // Technology list
+        for (int i = 0; i < technologyNames.Count; i++)
+            sb.AppendLine($"  {i + 1}. {technologyNames[i]}");
         sb.AppendLine();
-        
-        // Show the JSON structure with one detailed example
-        sb.AppendLine("REQUIRED JSON STRUCTURE:");
+
+        AppendJsonSchemaAndRules(sb, "PDF");
+
+        // Append PDF content
+        if (chunks.Count == 1)
+        {
+            sb.AppendLine("PDF CONTENT:");
+            sb.AppendLine(chunks[0]);
+        }
+        else
+        {
+            sb.AppendLine($"PDF CONTENT ({chunks.Count} parts):");
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                sb.AppendLine($"--- Part {i + 1} ---");
+                sb.AppendLine(chunks[i]);
+                sb.AppendLine();
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Builds a prompt that classifies technologies from a pre-extracted TXT
+    /// summary (produced by <c>auto-summarize</c>) instead of raw PDF content.
+    /// </summary>
+    public static string BuildClassificationFromSummaryPrompt(
+        List<(string Name, string Content)> technologySections)
+    {
+        if (technologySections == null || technologySections.Count == 0)
+            throw new ArgumentException("Technology sections cannot be null or empty");
+
+        var sb = new StringBuilder();
+
+        sb.AppendLine($"TASK: Convert the following {technologySections.Count} technology summaries into a JSON array.");
+        sb.AppendLine("The summaries were previously extracted from a PDF and are organised by technology and year.");
+        sb.AppendLine();
+
+        AppendJsonSchemaAndRules(sb, "summary");
+
+        sb.AppendLine("TECHNOLOGY SUMMARIES:");
+        sb.AppendLine();
+        foreach (var (name, content) in technologySections)
+        {
+            sb.AppendLine($"=== {name} ===");
+            sb.AppendLine(content);
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Shared helper: appends the JSON schema and extraction rules to a prompt.
+    /// </summary>
+    private static void AppendJsonSchemaAndRules(StringBuilder sb, string sourceLabel)
+    {
+        sb.AppendLine("Return a JSON array with one object per technology. Use this exact schema:");
         sb.AppendLine("[");
         sb.AppendLine("  {");
-        sb.AppendLine("    \"Datapaper Tech ID\": \"LT_DAC_2035\",");
-        sb.AppendLine("    \"description\": \"Low-temperature solid sorbent direct air capture\",");
-        sb.AppendLine("    \"summary\": \"Complete summary from detailed extraction\",");
-        sb.AppendLine("    \"unit_operation\": \"Direct air capture unit\",");
-        sb.AppendLine("    \"ProcessType\": \"CO2 Capture\",");
-        sb.AppendLine("    \"main_sector\": \"CCU\",");
-        sb.AppendLine("    \"main_category\": \"CO2 Capture\",");
-        sb.AppendLine("    \"category_spec\": \"Low-temperature solid sorbent\",");
-        sb.AppendLine("    \"tech_type\": \"Low-temperature solid sorbent DAC\",");
-        sb.AppendLine("    \"carriers_in\": \"air, electricity, heat, sorbent\",");
-        sb.AppendLine("    \"main_input\": \"air\",");
-        sb.AppendLine("    \"ratios_in\": \"1, 0.48, 2.53, 7.5\",");
-        sb.AppendLine("    \"units_in\": \"t, MWh/t, MWh/t, kg/t\",");
-        sb.AppendLine("    \"carriers_out\": \"CO2\",");
-        sb.AppendLine("    \"main_out\": \"CO2\",");
-        sb.AppendLine("    \"ratios_out\": \"1\",");
-        sb.AppendLine("    \"units_out\": \"t\",");
-        sb.AppendLine("    \"reference_unit_size\": 1,");
-        sb.AppendLine("    \"reference_unit_size_unit\": \"t/yr\",");
-        sb.AppendLine("    \"trl_(1-9)\": 6,");
-        sb.AppendLine("    \"tech_maturity\": \"Developing\",");
-        sb.AppendLine("    \"cost_base_year\": 2035,");
+        sb.AppendLine("    \"Datapaper Tech ID\": \"<short_unique_id>\",");
+        sb.AppendLine("    \"description\": \"1-2 sentence technical description\",");
+        sb.AppendLine("    \"summary\": \"Longer paragraph summarising all extracted data for this technology\",");
+        sb.AppendLine("    \"unit_operation\": \"Equipment or process name\",");
+        sb.AppendLine("    \"ProcessType\": \"e.g. Electrolysis, Synthesis, Capture\",");
+        sb.AppendLine("    \"main_sector\": \"e.g. Hydrogen, CCU, Power\",");
+        sb.AppendLine("    \"main_category\": \"e.g. Electrolysis, CO2 Capture\",");
+        sb.AppendLine("    \"category_spec\": \"e.g. Alkaline, PEM, Solid sorbent\",");
+        sb.AppendLine("    \"tech_type\": \"Most specific technical name\",");
+        sb.AppendLine("    \"carriers_in\": \"carrier1, carrier2, ...\",");
+        sb.AppendLine("    \"main_input\": \"primary input carrier\",");
+        sb.AppendLine("    \"Input Shares\": \"share1, share2, ...\",");
+        sb.AppendLine("    \"Input Units - Shares\": \"unit1, unit2, ...\",");
+        sb.AppendLine("    \"ratios_in\": \"ratio1, ratio2, ...\",");
+        sb.AppendLine("    \"units_in\": \"unit1, unit2, ...\",");
+        sb.AppendLine("    \"carriers_out\": \"carrier1, carrier2, ...\",");
+        sb.AppendLine("    \"main_out\": \"primary output carrier\",");
+        sb.AppendLine("    \"Output Shares\": \"share1, share2, ...\",");
+        sb.AppendLine("    \"Output Units - Shares\": \"unit1, unit2, ...\",");
+        sb.AppendLine("    \"ratios_out\": \"ratio1, ratio2, ...\",");
+        sb.AppendLine("    \"units_out\": \"unit1, unit2, ...\",");
+        sb.AppendLine("    \"reference_unit_size\": <number or null>,");
+        sb.AppendLine("    \"reference_unit_size_unit\": \"e.g. MW, t/yr\",");
+        sb.AppendLine("    \"min_installation_size\": <number or null>,");
+        sb.AppendLine("    \"overall_efficiency\": <0-1 decimal or null>,");
+        sb.AppendLine("    \"Input, Output for Overall Efficiency\": \"input_carrier, output_carrier\",");
+        sb.AppendLine("    \"trl_(1-9)\": <1-9 integer or null>,");
+        sb.AppendLine("    \"tech_maturity\": \"e.g. Mature, Developing, Emerging\",");
+        sb.AppendLine("    \"cost_base_year\": <year integer or null>,");
+        sb.AppendLine("    \"Cost Base\": \"e.g. Germany, Europe\",");
         sb.AppendLine("    \"Currency\": \"EUR\",");
-        sb.AppendLine("    \"capex_power_capacity_eur_per_kw\": 730,");
-        sb.AppendLine("    \"Data Reference Year\": 2024");
+        sb.AppendLine("    \"capex_one_time_eur\": <number or null>,");
+        sb.AppendLine("    \"capex_power_capacity_eur_per_kw\": <number or null>,");
+        sb.AppendLine("    \"opex_one_time_eur\": <number or null>,");
+        sb.AppendLine("    \"opex_fix_pct_of_capex\": <number or null>,");
+        sb.AppendLine("    \"opex_fix_power_capacity_eur_per_kw_yr\": <number or null>,");
+        sb.AppendLine("    \"lifetime_yr\": <number or null>,");
+        sb.AppendLine("    \"Data Reference Year\": <year integer or null>");
         sb.AppendLine("  }");
         sb.AppendLine("]");
         sb.AppendLine();
-        
-        sb.AppendLine("FIELD MAPPING RULES:");
-        sb.AppendLine("- carriers_in: List all inputs (materials, energy, consumables)");
-        sb.AppendLine("- ratios_in: Numeric consumption values ONLY (e.g., from '0.48 MWh/t' use '0.48')");
-        sb.AppendLine("- units_in: Units for each ratio (e.g., 'MWh/t', 'kg/t')");
-        sb.AppendLine("- Same pattern for outputs (carriers_out, ratios_out, units_out)");
-        sb.AppendLine("- capex_power_capacity_eur_per_kw: Use for '€730/t-yr' or '€1200/kW' formats");
-        sb.AppendLine("- capex_one_time_eur: Use for large fixed costs like '€28.4M'");
-        sb.AppendLine("- summary: Include the full detailed extraction text");
-        sb.AppendLine("- If extraction failed or has no data, populate best you can with empty strings");
+
+        sb.AppendLine("RULES:");
+        sb.AppendLine("- One JSON object per technology. If a technology has data for MULTIPLE YEARS, emit SEPARATE objects (one per year).");
+        sb.AppendLine($"- Use null for any field where the {sourceLabel} provides no data — never guess.");
+        sb.AppendLine("- overall_efficiency must be a 0–1 decimal (convert percentages: 65% → 0.65).");
+        sb.AppendLine("- ratios_in / ratios_out: one numeric value per carrier, same order as carriers_in / carriers_out.");
+        sb.AppendLine("- Input Shares / Output Shares: fractional shares (0–1) if mentioned; otherwise null.");
+        sb.AppendLine("- Cost fields: convert to EUR numbers (e.g. '€28.4M' → 28400000).");
+        sb.AppendLine("- Include ALL technology variants with distinct data (method, efficiency, cost, year).");
+        sb.AppendLine("- Return ONLY the JSON array — no markdown fences, no commentary.");
         sb.AppendLine();
-        sb.AppendLine("IMPORTANT - DEDUPLICATION RULES:");
-        sb.AppendLine("- Use the exact field names and data types as shown in the example");
-        sb.AppendLine("- INCLUDE ALL technology variants with distinct technical data (method, efficiency, cost)");
-        sb.AppendLine("- INCLUDE same technology with different timeframes (e.g., '2035 vs 2050') - these are different rows");
-        sb.AppendLine("- INCLUDE alternative names for the same core technology (e.g., 'Water electrolysis' vs 'Alkaline water electrolysis')");
-        sb.AppendLine("- ONLY exclude if: exact same technology name + exact same year + exact same data values");
-        sb.AppendLine("- Remove company/brand names ONLY if they duplicate the core technology (e.g., 'Company XYZ water electrolysis' → 'Water electrolysis')");
-        sb.AppendLine("- When in doubt, INCLUDE the entry - better to have a duplicate than lose a technology");
-        
-        sb.AppendLine("TECHNOLOGY SUMMARIES TO CONVERT:");
-        sb.AppendLine();
-        
-        // Safe iteration with index bounds check
-        int count = Math.Min(technologyNames.Count, technologyDetails.Count);
-        for (int i = 0; i < count; i++)
-        {
-            sb.AppendLine($"=== Technology {i + 1}: {technologyNames[i]} ===");
-            sb.AppendLine(technologyDetails[i]);
-            sb.AppendLine();
-        }
-        
-        sb.AppendLine();
-        sb.AppendLine("Return ONLY valid JSON array with all technologies. No commentary.");
-        
-        return sb.ToString();
     }
 
     /// <summary>
@@ -484,51 +602,6 @@ public static class TechnologyClassifier
     }
 
     /// <summary>
-    /// Parses batched extraction response into individual technology details.
-    /// Expected format: sections separated by "=== TECHNOLOGY N: [Name] ==="
-    /// </summary>
-    public static List<string> ParseBatchedExtractionResponse(string response, int expectedCount)
-    {
-        var details = new List<string>();
-        if (string.IsNullOrWhiteSpace(response))
-        {
-            // Return empty placeholders
-            for (int i = 0; i < expectedCount; i++)
-                details.Add($"No data found for technology {i + 1}");
-            return details;
-        }
-
-        // Split by the section markers
-        var sections = Regex.Split(response, @"===\s*TECHNOLOGY\s+\d+:.*?===", RegexOptions.IgnoreCase);
-        
-        // First section is usually header/intro text before first technology, skip it
-        for (int i = 1; i < sections.Length; i++)
-        {
-            var section = sections[i].Trim();
-            if (!string.IsNullOrWhiteSpace(section))
-                details.Add(section);
-        }
-
-        // If parsing failed, try to split the response evenly
-        if (details.Count < expectedCount)
-        {
-            details.Clear();
-            var lines = response.Split('\n');
-            var linesPerTech = Math.Max(1, lines.Length / expectedCount);
-            
-            for (int i = 0; i < expectedCount; i++)
-            {
-                var start = i * linesPerTech;
-                var count = (i == expectedCount - 1) ? (lines.Length - start) : linesPerTech;
-                var section = string.Join('\n', lines.Skip(start).Take(count));
-                details.Add(section.Trim());
-            }
-        }
-
-        return details;
-    }
-
-    /// <summary>
     /// Extracts JSON from a Copilot response, handling markdown fences and direct JSON.
     /// </summary>
     public static string ExtractJson(string response)
@@ -536,23 +609,39 @@ public static class TechnologyClassifier
         if (string.IsNullOrWhiteSpace(response))
             return string.Empty;
 
-        // Try markdown fence first
-        var fenceMatch = Regex.Match(response, "```(?:json)?\\s*(?<json>[\\s\\S]*?)```", RegexOptions.IgnoreCase);
+        // Strip markdown code fences (```json ... ``` or ``` ... ```)
+        // Use a greedy inner match to capture the last closing fence.
+        var fenceMatch = Regex.Match(response,
+            @"```(?:\w*)\s*\r?\n?(?<json>[\s\S]*?)\r?\n?\s*```",
+            RegexOptions.IgnoreCase);
         if (fenceMatch.Success)
-            return fenceMatch.Groups["json"].Value.Trim();
+        {
+            var inner = fenceMatch.Groups["json"].Value.Trim();
+            if (inner.Length > 0)
+                return inner;
+        }
+
+        // Brute-force: strip all leading/trailing backticks and language tags
+        var cleaned = response.Trim();
+        while (cleaned.StartsWith("`"))
+            cleaned = cleaned.TrimStart('`');
+        cleaned = Regex.Replace(cleaned, @"^json\s*", "", RegexOptions.IgnoreCase).TrimStart();
+        while (cleaned.EndsWith("`"))
+            cleaned = cleaned.TrimEnd('`');
+        cleaned = cleaned.Trim();
 
         // Try direct JSON bracket match
-        var start = response.IndexOf('[');
-        var end = response.LastIndexOf(']');
+        var start = cleaned.IndexOf('[');
+        var end = cleaned.LastIndexOf(']');
         if (start >= 0 && end > start)
         {
-            var extracted = response.Substring(start, end - start + 1).Trim();
-            // Validate that we have balanced brackets
+            var extracted = cleaned.Substring(start, end - start + 1).Trim();
             if (extracted.StartsWith("[") && extracted.EndsWith("]"))
                 return extracted;
         }
 
-        return response.Trim();
+        // No valid JSON array found — return empty to avoid passing prose to the parser
+        return string.Empty;
     }
 
     /// <summary>
@@ -759,10 +848,226 @@ public static class TechnologyClassifier
         // Require minimum 2 fields populated
         return fieldCount >= 2;
     }
+
+    /// <summary>
+    /// Merges rows that describe the same technology/year combination, filling in
+    /// missing fields from duplicate entries rather than creating extra rows.
+    /// </summary>
+    public static List<TechnologyClassification> MergeByTechnologyAndYear(IEnumerable<TechnologyClassification> rows)
+    {
+        var merged = new List<TechnologyClassification>();
+        var indexByKey = new Dictionary<string, int>(KeyComparer);
+
+        foreach (var row in rows)
+        {
+            var key = BuildTechnologyYearKey(row);
+            if (indexByKey.TryGetValue(key, out var index))
+            {
+                MergeMissingFields(merged[index], row);
+            }
+            else
+            {
+                merged.Add(Clone(row));
+                indexByKey[key] = merged.Count - 1;
+            }
+        }
+
+        EnsureUniqueDatapaperIds(merged);
+        return merged;
+    }
+
+    /// <summary>
+    /// Builds a composite key from technology name + year (+ variant) to detect duplicates for merging.
+    /// </summary>
+    private static string BuildTechnologyYearKey(TechnologyClassification row)
+    {
+        var technologyName = FirstNonEmpty(
+            row.TechType,
+            row.Description,
+            row.UnitOperation,
+            row.MainCategory,
+            row.ProcessType,
+            row.DatapaperTechId,
+            "unknown");
+
+        var normalizedTechnology = NormalizeKeyText(technologyName);
+        
+        // CRITICAL: Use only valid years (>1900). If year is missing, add unique hash to prevent false merges.
+        var year = row.DataReferenceYear ?? row.CostBaseYear;
+        
+        if (!year.HasValue || year.Value < 1900)
+        {
+            // No valid year: add hash of description/summary to keep rows separate
+            var uniqueHash = GetHashCode(row.Description ?? row.Summary ?? "");
+            return $"{normalizedTechnology}|NOYEAR|{uniqueHash}";
+        }
+        
+        // IMPORTANT: Also include category_spec to distinguish variants within same year
+        var categorySpec = NormalizeKeyText(row.CategorySpec ?? "");
+        var variant = NormalizeKeyText(row.TechType ?? "");
+        
+        // If category_spec differs, treat as different row (e.g., "alkaline vs PEM electrolysis")
+        if (!string.IsNullOrWhiteSpace(categorySpec))
+            return $"{normalizedTechnology}|{year}|{categorySpec}";
+        
+        // If tech_type differs, treat as different row
+        if (!string.IsNullOrWhiteSpace(variant) && variant != normalizedTechnology)
+            return $"{normalizedTechnology}|{year}|{variant}";
+        
+        // Same tech, same year, no variant → merge these
+        return $"{normalizedTechnology}|{year}";
+    }
+
+    private static int GetHashCode(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return 0;
+        return Math.Abs(value.GetHashCode());
+    }
+
+    private static string FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                return value.Trim();
+        }
+
+        return string.Empty;
+    }
+
+    private static string NormalizeKeyText(string value)
+    {
+        var lowered = value.Trim().ToLowerInvariant();
+        return Regex.Replace(lowered, @"\s+", " ");
+    }
+
+    /// <summary>Creates a deep copy of a <see cref="TechnologyClassification"/>.</summary>
+    private static TechnologyClassification Clone(TechnologyClassification source)
+    {
+        return new TechnologyClassification
+        {
+            DatapaperTechId = source.DatapaperTechId,
+            ProcessType = source.ProcessType,
+            Description = source.Description,
+            UnitOperation = source.UnitOperation,
+            Summary = source.Summary,
+            MainSector = source.MainSector,
+            MainCategory = source.MainCategory,
+            CategorySpec = source.CategorySpec,
+            TechType = source.TechType,
+            ReferenceUnitSize = source.ReferenceUnitSize,
+            ReferenceUnitSizeUnit = source.ReferenceUnitSizeUnit,
+            CostBaseYear = source.CostBaseYear,
+            CostBaseLocation = source.CostBaseLocation,
+            Currency = source.Currency,
+            DataReferenceYear = source.DataReferenceYear,
+            Trl = source.Trl,
+            TechMaturity = source.TechMaturity,
+            OverallEfficiency = source.OverallEfficiency,
+            OverallEfficiencyInputCarrier = source.OverallEfficiencyInputCarrier,
+            OverallEfficiencyOutputCarrier = source.OverallEfficiencyOutputCarrier,
+            CarriersIn = new List<string>(source.CarriersIn),
+            MainInput = source.MainInput,
+            InputShares = new List<double>(source.InputShares),
+            InputShareUnits = new List<string>(source.InputShareUnits),
+            RatiosIn = new List<double>(source.RatiosIn),
+            UnitsIn = new List<string>(source.UnitsIn),
+            CarriersOut = new List<string>(source.CarriersOut),
+            MainOut = source.MainOut,
+            RatiosOut = new List<double>(source.RatiosOut),
+            UnitsOut = new List<string>(source.UnitsOut),
+            OutputShares = new List<double>(source.OutputShares),
+            OutputShareUnits = new List<string>(source.OutputShareUnits),
+            MinInstallationSize = source.MinInstallationSize,
+            MinInstallationSizeUnit = source.MinInstallationSizeUnit,
+            LifetimeYears = source.LifetimeYears,
+            CapexOneTimeEur = source.CapexOneTimeEur,
+            CapexPowerCapacityEurPerKw = source.CapexPowerCapacityEurPerKw,
+            OpexOneTimeEur = source.OpexOneTimeEur,
+            OpexFixPctOfCapex = source.OpexFixPctOfCapex,
+            OpexFixPowerCapacityEurPerKwYr = source.OpexFixPowerCapacityEurPerKwYr
+        };
+    }
+
+    /// <summary>Copies non-null scalar fields and non-empty lists from <paramref name="source"/> into <paramref name="target"/>.</summary>
+    private static void MergeMissingFields(TechnologyClassification target, TechnologyClassification source)
+    {
+        target.DatapaperTechId ??= source.DatapaperTechId;
+        target.ProcessType ??= source.ProcessType;
+        target.Description ??= source.Description;
+        target.UnitOperation ??= source.UnitOperation;
+        target.Summary ??= source.Summary;
+        target.MainSector ??= source.MainSector;
+        target.MainCategory ??= source.MainCategory;
+        target.CategorySpec ??= source.CategorySpec;
+        target.TechType ??= source.TechType;
+        target.ReferenceUnitSize ??= source.ReferenceUnitSize;
+        target.ReferenceUnitSizeUnit ??= source.ReferenceUnitSizeUnit;
+        target.CostBaseYear ??= source.CostBaseYear;
+        target.CostBaseLocation ??= source.CostBaseLocation;
+        target.Currency ??= source.Currency;
+        target.DataReferenceYear ??= source.DataReferenceYear;
+        target.Trl ??= source.Trl;
+        target.TechMaturity ??= source.TechMaturity;
+        target.OverallEfficiency ??= source.OverallEfficiency;
+        target.OverallEfficiencyInputCarrier ??= source.OverallEfficiencyInputCarrier;
+        target.OverallEfficiencyOutputCarrier ??= source.OverallEfficiencyOutputCarrier;
+        target.MainInput ??= source.MainInput;
+        target.MainOut ??= source.MainOut;
+        target.MinInstallationSize ??= source.MinInstallationSize;
+        target.MinInstallationSizeUnit ??= source.MinInstallationSizeUnit;
+        target.LifetimeYears ??= source.LifetimeYears;
+        target.CapexOneTimeEur ??= source.CapexOneTimeEur;
+        target.CapexPowerCapacityEurPerKw ??= source.CapexPowerCapacityEurPerKw;
+        target.OpexOneTimeEur ??= source.OpexOneTimeEur;
+        target.OpexFixPctOfCapex ??= source.OpexFixPctOfCapex;
+        target.OpexFixPowerCapacityEurPerKwYr ??= source.OpexFixPowerCapacityEurPerKwYr;
+
+        if (target.CarriersIn.Count == 0 && source.CarriersIn.Count > 0) target.CarriersIn = new List<string>(source.CarriersIn);
+        if (target.InputShares.Count == 0 && source.InputShares.Count > 0) target.InputShares = new List<double>(source.InputShares);
+        if (target.InputShareUnits.Count == 0 && source.InputShareUnits.Count > 0) target.InputShareUnits = new List<string>(source.InputShareUnits);
+        if (target.RatiosIn.Count == 0 && source.RatiosIn.Count > 0) target.RatiosIn = new List<double>(source.RatiosIn);
+        if (target.UnitsIn.Count == 0 && source.UnitsIn.Count > 0) target.UnitsIn = new List<string>(source.UnitsIn);
+        if (target.CarriersOut.Count == 0 && source.CarriersOut.Count > 0) target.CarriersOut = new List<string>(source.CarriersOut);
+        if (target.RatiosOut.Count == 0 && source.RatiosOut.Count > 0) target.RatiosOut = new List<double>(source.RatiosOut);
+        if (target.UnitsOut.Count == 0 && source.UnitsOut.Count > 0) target.UnitsOut = new List<string>(source.UnitsOut);
+        if (target.OutputShares.Count == 0 && source.OutputShares.Count > 0) target.OutputShares = new List<double>(source.OutputShares);
+        if (target.OutputShareUnits.Count == 0 && source.OutputShareUnits.Count > 0) target.OutputShareUnits = new List<string>(source.OutputShareUnits);
+    }
+
+    /// <summary>Ensures every row has a unique <c>DatapaperTechId</c>, appending a numeric suffix when needed.</summary>
+    private static void EnsureUniqueDatapaperIds(List<TechnologyClassification> rows)
+    {
+        var usedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in rows)
+        {
+            if (string.IsNullOrWhiteSpace(row.DatapaperTechId))
+                row.DatapaperTechId = GenerateTechId(row, usedIds);
+
+            var id = row.DatapaperTechId!;
+            if (!usedIds.Add(id))
+            {
+                var counter = 2;
+                var candidate = $"{id}_{counter}";
+                while (!usedIds.Add(candidate))
+                {
+                    counter++;
+                    candidate = $"{id}_{counter}";
+                }
+                row.DatapaperTechId = candidate;
+            }
+        }
+    }
 }
 
+/// <summary>
+/// Reads and writes <see cref="TechnologyClassification"/> records as RFC-4180 CSV files.
+/// </summary>
 public static class TechnologyClassificationCsv
 {
+    /// <summary>Column order used in the output CSV header row.</summary>
     public static readonly string[] HeaderOrder =
     {
         "Datapaper Tech ID",
@@ -804,6 +1109,7 @@ public static class TechnologyClassificationCsv
         "summary"
     };
 
+    /// <summary>Writes a collection of classification records to a UTF-8 CSV file.</summary>
     public static void WriteCsv(string filePath, IEnumerable<TechnologyClassification> rows)
     {
         var sb = new StringBuilder();
@@ -856,6 +1162,99 @@ public static class TechnologyClassificationCsv
         }
 
         File.WriteAllText(filePath, sb.ToString(), Encoding.UTF8);
+    }
+
+    /// <summary>Reads an existing CSV back into a list of classification records.</summary>
+    public static List<TechnologyClassification> ReadCsv(string filePath)
+    {
+        var results = new List<TechnologyClassification>();
+
+        if (!File.Exists(filePath))
+            return results;
+
+        var content = File.ReadAllText(filePath, Encoding.UTF8);
+        var records = ParseCsvRecords(content);
+        if (records.Count <= 1)
+            return results;
+
+        var headers = records[0];
+        for (int i = 1; i < records.Count; i++)
+        {
+            var values = records[i];
+            if (values.All(string.IsNullOrWhiteSpace))
+                continue;
+
+            var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            for (int col = 0; col < headers.Count; col++)
+            {
+                var value = col < values.Count ? values[col] : string.Empty;
+                row[headers[col]] = value;
+            }
+
+            if (TechnologyClassifier.TryClassify(row, out var classification, out _))
+                results.Add(classification);
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Hand-rolled CSV parser that correctly handles quoted fields containing
+    /// commas, newlines, and escaped double-quotes.
+    /// </summary>
+    private static List<List<string>> ParseCsvRecords(string content)
+    {
+        var records = new List<List<string>>();
+        var currentRecord = new List<string>();
+        var current = new StringBuilder();
+        var inQuotes = false;
+
+        for (int i = 0; i < content.Length; i++)
+        {
+            var ch = content[i];
+
+            if (ch == '"')
+            {
+                if (inQuotes && i + 1 < content.Length && content[i + 1] == '"')
+                {
+                    current.Append('"');
+                    i++;
+                }
+                else
+                {
+                    inQuotes = !inQuotes;
+                }
+            }
+            else if (ch == ',' && !inQuotes)
+            {
+                currentRecord.Add(current.ToString());
+                current.Clear();
+            }
+            else if ((ch == '\n' || ch == '\r') && !inQuotes)
+            {
+                if (ch == '\r' && i + 1 < content.Length && content[i + 1] == '\n')
+                    i++;
+
+                currentRecord.Add(current.ToString());
+                current.Clear();
+
+                if (currentRecord.Count > 1 || !string.IsNullOrWhiteSpace(currentRecord[0]))
+                    records.Add(currentRecord);
+
+                currentRecord = new List<string>();
+            }
+            else
+            {
+                current.Append(ch);
+            }
+        }
+
+        currentRecord.Add(current.ToString());
+        if (currentRecord.Count > 1 || !string.IsNullOrWhiteSpace(currentRecord[0]))
+            records.Add(currentRecord);
+
+        return records;
     }
 
     private static string EscapeCsv(string? value)

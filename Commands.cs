@@ -1,9 +1,6 @@
-using System.Linq;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using GitHub.Copilot.SDK;
-using PdfAnalysisApp;
 
 namespace PdfAnalysisApp;
 
@@ -11,7 +8,7 @@ public static class Commands
 {
     /// <summary>
     /// Displays all available PDFs in the folder and optionally lets the user pick one to analyze.
-    /// Returns the selected file path or null if none selected.
+    /// Returns the selected file path, or <c>null</c> if no valid selection was made.
     /// </summary>
     public static async Task<string?> HandleListPdfsAsync(string pdfFolder)
     {
@@ -20,37 +17,40 @@ public static class Commands
             Console.WriteLine("📁 PDF folder not found or not accessible.");
             return null;
         }
-        
+
         var pdfs = Directory.GetFiles(pdfFolder, "*.pdf")
             .OrderBy(f => Path.GetFileName(f))
             .ToArray();
+
         if (pdfs.Length == 0)
         {
             Console.WriteLine("📁 No PDFs found in pdf_to_analyze folder.");
             return null;
         }
-        
+
+        // Print each PDF with a 1-based index and file size
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine("📁 Available PDFs:");
         Console.ResetColor();
+
         for (int i = 0; i < pdfs.Length; i++)
         {
-            var fileInfo = new FileInfo(pdfs[i]);
-            var sizeKb = fileInfo.Length / 1024;
+            var sizeKb = new FileInfo(pdfs[i]).Length / 1024;
             Console.WriteLine($"   {i + 1}. {Path.GetFileName(pdfs[i])} ({sizeKb} KB)");
         }
-        
+
         Console.WriteLine();
         Console.Write("Enter number or filename to analyze, or press Enter to cancel: ");
         var choice = Console.ReadLine()?.Trim();
+
         if (string.IsNullOrEmpty(choice))
             return null;
-        
-        // Try to analyze the selected file
+
+        // Delegate to HandleAnalyzeCommand which resolves index or name
         var selected = HandleAnalyzeCommand(choice, pdfFolder);
         if (selected != null)
             return selected;
-        
+
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine("No valid selection made.");
         Console.ResetColor();
@@ -69,7 +69,7 @@ public static class Commands
     }
 
     /// <summary>
-    /// Displays all available commands.
+    /// Prints the full list of available commands and usage tips to the console.
     /// </summary>
     public static void HandleCommandsCommand()
     {
@@ -83,22 +83,23 @@ public static class Commands
         Console.WriteLine("  'list'               - List available PDFs");
         Console.WriteLine("  'analyze <file>'     - Analyze a PDF (use filename or list number)");
         Console.WriteLine("  'current'            - Show current PDF");
+        Console.WriteLine("  'auto-summarize'     - Extract technology summaries to TXT");
         Console.WriteLine("  'auto-classify'      - Classify technologies and export CSV");
-        Console.WriteLine("  'batch-analyze <q>'  - Analyze all PDFs with a question\n");
-        Console.ResetColor();
+        Console.WriteLine("  'batch-analyze <q>'  - Analyze all PDFs with a question");
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine("💡 Tips:");
         Console.ResetColor();
         Console.WriteLine("  • Or just ask a question normally for AI analysis");
-        if (File.Exists("./pdf_to_analyze"))
+        if (Directory.Exists("./pdf_to_analyze"))
             Console.WriteLine("  • Drop PDFs in the ./pdf_to_analyze/ folder for quick access");
         Console.WriteLine();
     }
 
     /// <summary>
-    /// Uploads a PDF file to the pdf_to_analyze folder.
+    /// Copies a PDF file into the <paramref name="pdfFolder"/> for analysis.
+    /// Returns the destination path on success, or <c>null</c> on failure.
     /// </summary>
     public static async Task<string?> HandleUploadPdfAsync(string sourceFile, string pdfFolder)
     {
@@ -109,18 +110,20 @@ public static class Commands
             Console.ResetColor();
             return null;
         }
-        
+
         try
         {
+            var destFile = Path.Combine(pdfFolder, Path.GetFileName(sourceFile));
+
             await Program.RunWithSpinnerAsync($" Uploading {Path.GetFileName(sourceFile)}", async () =>
             {
-                string destFile = Path.Combine(pdfFolder, Path.GetFileName(sourceFile));
                 await Task.Run(() => File.Copy(sourceFile, destFile, true));
             });
+
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Loaded: {Path.GetFileName(sourceFile)}");
             Console.ResetColor();
-            return Path.Combine(pdfFolder, Path.GetFileName(sourceFile));
+            return destFile;
         }
         catch (Exception ex)
         {
@@ -132,8 +135,8 @@ public static class Commands
     }
 
     /// <summary>
-    /// Loads a PDF file for analysis.
-    /// Accepts: full filename, filename without extension, or list number.
+    /// Resolves a PDF file from user input (1-based index, full filename, or name without extension)
+    /// and returns its full path. Returns <c>null</c> if no match is found.
     /// </summary>
     public static string? HandleAnalyzeCommand(string input, string pdfFolder)
     {
@@ -144,7 +147,7 @@ public static class Commands
             Console.ResetColor();
             return null;
         }
-        
+
         var pdfFiles = Directory.GetFiles(pdfFolder, "*.pdf")
             .OrderBy(f => Path.GetFileName(f))
             .ToArray();
@@ -159,23 +162,20 @@ public static class Commands
 
         string? selectedFile = null;
 
-        // Try to parse as number (1-indexed list position)
+        // 1) Try numeric index (1-based position from the 'list' command)
         if (int.TryParse(input, out int listNumber) && listNumber >= 1 && listNumber <= pdfFiles.Length)
         {
             selectedFile = pdfFiles[listNumber - 1];
         }
         else
         {
-            // Try exact match with .pdf extension
-            selectedFile = pdfFiles.FirstOrDefault(f => 
+            // 2) Try exact filename match (with .pdf)
+            selectedFile = pdfFiles.FirstOrDefault(f =>
                 Path.GetFileName(f).Equals(input, StringComparison.OrdinalIgnoreCase));
 
-            // If not found, try matching without extension
-            if (selectedFile == null)
-            {
-                selectedFile = pdfFiles.FirstOrDefault(f => 
-                    Path.GetFileNameWithoutExtension(f).Equals(input, StringComparison.OrdinalIgnoreCase));
-            }
+            // 3) Try match without the .pdf extension
+            selectedFile ??= pdfFiles.FirstOrDefault(f =>
+                Path.GetFileNameWithoutExtension(f).Equals(input, StringComparison.OrdinalIgnoreCase));
         }
 
         if (selectedFile != null && File.Exists(selectedFile))
@@ -185,13 +185,11 @@ public static class Commands
             Console.ResetColor();
             return selectedFile;
         }
-        else
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"❌ PDF '{input}' not found. Use 'list' to see available PDFs.");
-            Console.ResetColor();
-            return null;
-        }
+
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"❌ PDF '{input}' not found. Use 'list' to see available PDFs.");
+        Console.ResetColor();
+        return null;
     }
 
     /// <summary>
@@ -217,7 +215,8 @@ public static class Commands
     }
 
     /// <summary>
-    /// Handles batch analysis of all PDFs in the folder.
+    /// Extracts text from every PDF in <paramref name="pdfFolder"/>, builds a combined prompt
+    /// with the user's <paramref name="question"/>, and sends it to Copilot for analysis.
     /// </summary>
     public static async Task HandleBatchAnalyzeAsync(CopilotSession session, string pdfFolder, string question)
     {
@@ -228,7 +227,7 @@ public static class Commands
             Console.ResetColor();
             return;
         }
-        
+
         var pdfFiles = Directory.GetFiles(pdfFolder, "*.pdf");
         if (pdfFiles.Length == 0)
         {
@@ -244,13 +243,12 @@ public static class Commands
 
         try
         {
+            // Extract and chunk each PDF in sequence
             var pdfChunks = new Dictionary<string, List<string>>();
-            
             foreach (var pdfFile in pdfFiles)
             {
                 var pdfText = await PdfAnalyzer.ExtractTextFromPdfAsync(pdfFile);
-                var chunks = PdfAnalyzer.ChunkPdfContent(pdfText);
-                pdfChunks[pdfFile] = chunks;
+                pdfChunks[pdfFile] = PdfAnalyzer.ChunkPdfContent(pdfText);
             }
 
             var prompt = PdfAnalyzer.BuildBatchAnalysisPrompt(pdfChunks, question);
@@ -264,7 +262,15 @@ public static class Commands
         }
     }
 
-    public static async Task<string?> HandleAutoClassifyAsync(CopilotSession session, string pdfFile, string outputFolder)
+    /// <summary>
+    /// Runs the <c>auto-summarize</c> pipeline on a single PDF:
+    ///   Stage 1 – Discover technology names.
+    ///   Stage 2 – Extract detailed free-text summaries per technology (batched).
+    /// Saves the combined extraction to a TXT file in <paramref name="outputFolder"/>.
+    /// Returns the TXT path on success, or <c>null</c> on failure.
+    /// </summary>
+    public static async Task<string?> HandleAutoSummarizeAsync(
+        CopilotSession session, string pdfFile, string outputFolder)
     {
         if (string.IsNullOrWhiteSpace(pdfFile) || !File.Exists(pdfFile))
         {
@@ -274,10 +280,7 @@ public static class Commands
             return null;
         }
 
-        try
-        {
-            Directory.CreateDirectory(outputFolder);
-        }
+        try { Directory.CreateDirectory(outputFolder); }
         catch (Exception ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
@@ -287,7 +290,7 @@ public static class Commands
         }
 
         Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("📋 Classifying with Copilot and writing to CSV...\n");
+        Console.WriteLine("📝 Summarising technologies from PDF...\n");
         Console.ResetColor();
 
         try
@@ -295,17 +298,16 @@ public static class Commands
             var pdfText = await PdfAnalyzer.ExtractTextFromPdfAsync(pdfFile);
             var chunks = PdfAnalyzer.ChunkPdfContent(pdfText);
 
-            // === STAGE 1: Find all technology names ===
+            // ── Stage 1: Find all technology names ──
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("   1. Finding technologies...");
             Console.ResetColor();
-            
+
             var findNamesPrompt = TechnologyClassifier.BuildFindTechnologiesPrompt(chunks);
-            var namesResponse = await RunWithSpinner("   Scanning PDF", 
+            var namesResponse = await RunWithSpinner("   Scanning PDF",
                 async () => await Program.SendMessageAndCollectResponseSilentAsync(session, findNamesPrompt));
-            
+
             var technologyNames = TechnologyClassifier.ParseTechnologyNames(namesResponse);
-            
             if (technologyNames.Count == 0)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
@@ -317,22 +319,21 @@ public static class Commands
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"   Found {technologyNames.Count} technologies:");
             Console.ResetColor();
-            foreach (var techName in technologyNames)
+            foreach (var name in technologyNames)
             {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"     • {techName}");
+                Console.WriteLine($"     • {name}");
                 Console.ResetColor();
             }
             Console.WriteLine();
 
-            // === STAGE 2: Extract detailed data for each technology (BATCHED) ===
+            // ── Stage 2: Extract detailed data per technology (batched) ──
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("   2. Extracting data for each technology...\n");
+            Console.WriteLine("   2. Generating detailed summaries...\n");
             Console.ResetColor();
 
             var technologyDetails = new List<string>();
-            var failedExtractions = 0;
-            const int batchSize = 15; // Process 15 technologies per API call
+            const int batchSize = 10;
             int totalBatches = (int)Math.Ceiling((double)technologyNames.Count / batchSize);
 
             for (int batchIndex = 0; batchIndex < totalBatches; batchIndex++)
@@ -340,58 +341,35 @@ public static class Commands
                 var batchStart = batchIndex * batchSize;
                 var batchCount = Math.Min(batchSize, technologyNames.Count - batchStart);
                 var batchTechs = technologyNames.Skip(batchStart).Take(batchCount).ToList();
-                
+
                 Console.Write($"   Batch {batchIndex + 1}/{totalBatches} (technologies {batchStart + 1}-{batchStart + batchCount})... ");
-                
+
                 try
                 {
-                    var detailPrompt = TechnologyClassifier.BuildBatchDetailedExtractionPrompt(chunks, batchTechs);
-                    var detailResponse = await Program.SendMessageAndCollectResponseSilentAsync(session, detailPrompt);
-                    
-                    if (string.IsNullOrWhiteSpace(detailResponse))
+                    var prompt = TechnologyClassifier.BuildBatchDetailedExtractionPrompt(chunks, batchTechs);
+                    var response = await Program.SendMessageAndCollectResponseSilentAsync(session, prompt);
+
+                    if (string.IsNullOrWhiteSpace(response))
                     {
                         Console.ForegroundColor = ConsoleColor.Yellow;
                         Console.WriteLine("⚠️ Empty response");
                         Console.ResetColor();
-                        
-                        // Add placeholders for failed batch
-                        for (int i = 0; i < batchTechs.Count; i++)
+                        for (int i = 0; i < batchCount; i++)
                             technologyDetails.Add($"No data found for {batchTechs[i]}");
-                        failedExtractions += batchTechs.Count;
                     }
                     else
                     {
-                        // Parse the batched response
-                        var batchDetails = TechnologyClassifier.ParseBatchedExtractionResponse(detailResponse, batchTechs.Count);
-                        
-                        // CRITICAL: Ensure we got exactly the expected count to avoid index mismatches
-                        if (batchDetails.Count < batchTechs.Count)
-                        {
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine($"⚠️ Partial ({batchDetails.Count}/{batchTechs.Count})");
-                            Console.ResetColor();
-                            
-                            // Pad with placeholders for missing technologies
-                            for (int i = batchDetails.Count; i < batchTechs.Count; i++)
-                                batchDetails.Add($"Incomplete data for {batchTechs[i]}");
-                            failedExtractions += (batchTechs.Count - batchDetails.Count);
-                        }
-                        else if (batchDetails.Count > batchTechs.Count)
-                        {
-                            // Trim excess items
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine($"⚠️ Excess data ({batchDetails.Count}/{batchTechs.Count})");
-                            Console.ResetColor();
-                            batchDetails = batchDetails.Take(batchTechs.Count).ToList();
-                        }
-                        else
-                        {
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            Console.WriteLine($"✓");
-                            Console.ResetColor();
-                        }
-                        
-                        technologyDetails.AddRange(batchDetails);
+                        var parsed = TechnologyClassifier.ParseBatchedExtractionResponse(response, batchCount);
+                        // Pad or trim to match expected count
+                        while (parsed.Count < batchCount)
+                            parsed.Add($"Incomplete data for {batchTechs[parsed.Count]}");
+                        if (parsed.Count > batchCount)
+                            parsed = parsed.Take(batchCount).ToList();
+                        technologyDetails.AddRange(parsed);
+
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("✓");
+                        Console.ResetColor();
                     }
                 }
                 catch (Exception ex)
@@ -399,138 +377,175 @@ public static class Commands
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine($"✗ {ex.Message}");
                     Console.ResetColor();
-                    
-                    // Add placeholders for failed batch
-                    for (int i = 0; i < batchTechs.Count; i++)
+                    for (int i = 0; i < batchCount; i++)
                         technologyDetails.Add($"Extraction failed for {batchTechs[i]}: {ex.Message}");
-                    failedExtractions += batchTechs.Count;
                 }
-                
-                // Verify counts after each batch for debugging
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"       (Total extractions: {technologyDetails.Count}/{batchStart + batchCount})");
-                Console.ResetColor();
             }
             Console.WriteLine();
-            
-            if (failedExtractions > 0)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"⚠️  {failedExtractions} extractions had issues - results may be incomplete");
-                Console.ResetColor();
-                Console.WriteLine();
-            }
 
-            // Verify data integrity before saving
-            if (technologyNames.Count != technologyDetails.Count)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\n❌ CRITICAL ERROR: Data count mismatch!");
-                Console.WriteLine($"   Expected: {technologyNames.Count} technologies");
-                Console.WriteLine($"   Extracted: {technologyDetails.Count} details");
-                Console.WriteLine($"   Missing: {technologyNames.Count - technologyDetails.Count}");
-                Console.ResetColor();
-                Console.WriteLine();
-                
-                // Pad with placeholders to continue processing
-                while (technologyDetails.Count < technologyNames.Count)
-                {
-                    var missingIndex = technologyDetails.Count;
-                    technologyDetails.Add($"ERROR: Missing data for {technologyNames[missingIndex]}");
-                }
-                
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"⚠️  Added {technologyNames.Count - technologyDetails.Count} placeholders to continue.");
-                Console.ResetColor();
-                Console.WriteLine();
-            }
+            // Pad if needed
+            while (technologyDetails.Count < technologyNames.Count)
+                technologyDetails.Add($"ERROR: Missing data for {technologyNames[technologyDetails.Count]}");
 
-            // Save intermediate extraction data to TXT file
-            try
+            // ── Save to TXT ──
+            var txtPath = Path.Combine(outputFolder,
+                $"{Path.GetFileNameWithoutExtension(pdfFile)}.txt");
+
+            var txtContent = new StringBuilder();
+            txtContent.AppendLine("═══════════════════════════════════════════════════════════════");
+            txtContent.AppendLine($"Technology Extraction Data - {Path.GetFileName(pdfFile)}");
+            txtContent.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            txtContent.AppendLine($"Total Technologies: {technologyNames.Count}");
+            txtContent.AppendLine("═══════════════════════════════════════════════════════════════");
+            txtContent.AppendLine();
+
+            for (int i = 0; i < technologyNames.Count; i++)
             {
-                var txtPath = Path.Combine(outputFolder, $"{Path.GetFileNameWithoutExtension(pdfFile)}.txt");
-                var txtContent = new StringBuilder();
-                
-                txtContent.AppendLine("═══════════════════════════════════════════════════════════════");
-                txtContent.AppendLine($"Technology Extraction Data - {Path.GetFileName(pdfFile)}");
-                txtContent.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                txtContent.AppendLine($"Total Technologies: {technologyNames.Count}");
-                txtContent.AppendLine("═══════════════════════════════════════════════════════════════");
+                txtContent.AppendLine($"═══ TECHNOLOGY {i + 1}: {technologyNames[i]} ═══");
                 txtContent.AppendLine();
-                
-                for (int i = 0; i < Math.Min(technologyNames.Count, technologyDetails.Count); i++)
-                {
-                    txtContent.AppendLine($"═══ TECHNOLOGY {i + 1}: {technologyNames[i]} ═══");
-                    txtContent.AppendLine();
-                    txtContent.AppendLine(technologyDetails[i]);
-                    txtContent.AppendLine();
-                    txtContent.AppendLine("───────────────────────────────────────────────────────────────");
-                    txtContent.AppendLine();
-                }
-                
-                File.WriteAllText(txtPath, txtContent.ToString(), Encoding.UTF8);
-                
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"   💾 Saved extraction data: {Path.GetFileName(txtPath)}");
-                Console.ResetColor();
-                Console.WriteLine();
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"   ⚠️  Could not save TXT file: {ex.Message}");
-                Console.ResetColor();
-                Console.WriteLine();
+                txtContent.AppendLine(technologyDetails[i]);
+                txtContent.AppendLine();
+                txtContent.AppendLine("───────────────────────────────────────────────────────────────");
+                txtContent.AppendLine();
             }
 
-            // === STAGE 3: Convert to structured JSON (BATCHED) ===
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("   3. Creating CSV file...");
+            File.WriteAllText(txtPath, txtContent.ToString(), Encoding.UTF8);
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine();
+            Console.WriteLine($"   📁 Saved to: {txtPath}");
+            Console.WriteLine($"   ✓ {technologyNames.Count} technologies extracted and summarised");
+            Console.WriteLine();
+            Console.WriteLine($"✅ Summarisation complete!");
             Console.ResetColor();
 
-            // Final validation (should already be synchronized from Stage 2)
-            if (technologyNames.Count != technologyDetails.Count)
+            return txtPath;
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"❌ Auto-summarize failed: {ex.Message}");
+            Console.ResetColor();
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Runs the <c>auto-classify</c> pipeline using the TXT summary produced
+    /// by <c>auto-summarize</c>. Reads the TXT, splits it into technology
+    /// sections, and converts each batch to structured JSON → CSV.
+    /// If the TXT does not exist, prompts the user to run <c>auto-summarize</c> first.
+    /// Returns the output CSV path on success, or <c>null</c> on failure.
+    /// </summary>
+    public static async Task<string?> HandleAutoClassifyAsync(CopilotSession session, string pdfFile, string outputFolder)
+    {
+        if (string.IsNullOrWhiteSpace(pdfFile) || !File.Exists(pdfFile))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("❌ PDF not found or invalid path.");
+            Console.ResetColor();
+            return null;
+        }
+
+        // Derive expected TXT path from the PDF name
+        var txtPath = Path.Combine(outputFolder,
+            $"{Path.GetFileNameWithoutExtension(pdfFile)}.txt");
+
+        if (!File.Exists(txtPath))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"❌ Please run 'auto-summarize' first to extract technology summaries.");
+            Console.WriteLine($"    No summary file found at: {txtPath}");
+            Console.ResetColor();
+            return null;
+        }
+
+        try { Directory.CreateDirectory(outputFolder); }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"❌ Cannot create output folder: {ex.Message}");
+            Console.ResetColor();
+            return null;
+        }
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("📋 Classifying from TXT summary and writing to CSV...\n");
+        Console.ResetColor();
+
+        try
+        {
+            // Read and parse TXT into technology sections
+            var txtContent = File.ReadAllText(txtPath, Encoding.UTF8);
+            var sections = ParseTxtIntoSections(txtContent);
+
+            if (sections.Count == 0)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"❌ UNEXPECTED: Data still mismatched after padding!");
-                Console.WriteLine($"   Names: {technologyNames.Count}, Details: {technologyDetails.Count}");
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("⚠️  No technology sections found in TXT file.");
                 Console.ResetColor();
                 return null;
             }
-
-            // Process in batches to avoid token limits (128k tokens)
-            var allRows = new List<IDictionary<string, string>>();
-            const int structureBatchSize = 15; // Convert 15 technologies per API call
-            int totalStructureBatches = (int)Math.Ceiling((double)technologyNames.Count / structureBatchSize);
-
-            for (int batchIndex = 0; batchIndex < totalStructureBatches; batchIndex++)
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("   1. Parsing TXT sections...");
+            Console.ResetColor();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"   Found {sections.Count} technology sections in TXT");
+            Console.ResetColor();
+            foreach (var (name, _) in sections)
             {
-                var batchStart = batchIndex * structureBatchSize;
-                var batchCount = Math.Min(structureBatchSize, technologyNames.Count - batchStart);
-                var batchNames = technologyNames.Skip(batchStart).Take(batchCount).ToList();
-                var batchDetails = technologyDetails.Skip(batchStart).Take(batchCount).ToList();
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine($"     • {name}");
+                Console.ResetColor();
+            }
+            Console.WriteLine();
 
-                Console.Write($"   Converting batch {batchIndex + 1}/{totalStructureBatches} (techs {batchStart + 1}-{batchStart + batchCount})... ");
+            // === Convert TXT sections to structured JSON in batches ===
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("   2. Converting summaries to structured data...\n");
+            Console.ResetColor();
+
+            var allRows = new List<IDictionary<string, string>>();
+            const int batchSize = 10;
+            int totalBatches = (int)Math.Ceiling((double)sections.Count / batchSize);
+
+            for (int batchIndex = 0; batchIndex < totalBatches; batchIndex++)
+            {
+                var batchStart = batchIndex * batchSize;
+                var batchCount = Math.Min(batchSize, sections.Count - batchStart);
+                var batchSections = sections.Skip(batchStart).Take(batchCount).ToList();
+
+                Console.Write($"   Batch {batchIndex + 1}/{totalBatches} (technologies {batchStart + 1}-{batchStart + batchCount})... ");
 
                 try
                 {
-                    var structurePrompt = TechnologyClassifier.BuildStructuringPrompt(batchNames, batchDetails);
-                    var jsonResponse = await Program.SendMessageAndCollectResponseSilentAsync(session, structurePrompt);
+                    var prompt = TechnologyClassifier.BuildClassificationFromSummaryPrompt(batchSections);
+                    var jsonResponse = await Program.SendMessageAndCollectResponseSilentAsync(session, prompt);
 
                     var json = TechnologyClassifier.ExtractJson(jsonResponse);
-                    if (string.IsNullOrWhiteSpace(json))
+                    if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith("["))
                     {
                         Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine("⚠️ No JSON returned");
+                        Console.WriteLine($"⚠️ No valid JSON returned — retrying");
                         Console.ResetColor();
-                        continue;
+
+                        // Retry once
+                        jsonResponse = await Program.SendMessageAndCollectResponseSilentAsync(session, prompt);
+                        json = TechnologyClassifier.ExtractJson(jsonResponse);
+                        if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith("["))
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine($"   ✗ Retry also failed — skipping batch");
+                            Console.ResetColor();
+                            continue;
+                        }
                     }
 
                     var batchRows = TechnologyClassifier.ParseRowsFromJson(json);
                     allRows.AddRange(batchRows);
 
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"✓");
+                    Console.WriteLine($"✓ ({batchRows.Count} rows)");
                     Console.ResetColor();
                 }
                 catch (Exception ex)
@@ -545,25 +560,19 @@ public static class Commands
             if (allRows.Count == 0)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("⚠️  No technologies were successfully structured.");
+                Console.WriteLine("⚠️  No technologies were successfully extracted.");
                 Console.ResetColor();
                 return null;
             }
 
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"   📋 Total structured unique: {allRows.Count} technologies");
-            
-            // Show data flow summary
-            if (allRows.Count < technologyNames.Count)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"   ⚠️  Data loss detected: {technologyNames.Count} from Stage 2 → {allRows.Count} in Stage 3 (lost {technologyNames.Count - allRows.Count})");
-            }
+            Console.WriteLine($"   📋 Total extracted rows: {allRows.Count}");
             Console.ResetColor();
             Console.WriteLine();
-            
+
             var rows = allRows;
 
+            // Parse each JSON row into a strongly-typed classification record
             var classifications = new List<TechnologyClassification>();
             var rowErrors = new List<string>();
             var usedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -599,8 +608,10 @@ public static class Commands
             }
             Console.WriteLine(" Done\n");
 
-            // Filter out incomplete technologies (only basic fields populated)
-            var completeClassifications = classifications.Where(c => TechnologyClassifier.HasMeaningfulData(c)).ToList();
+            // Drop records that lack enough populated fields to be useful
+            var completeClassifications = classifications
+                .Where(TechnologyClassifier.HasMeaningfulData)
+                .ToList();
             var filteredCount = classifications.Count - completeClassifications.Count;
 
             if (completeClassifications.Count == 0)
@@ -615,10 +626,26 @@ public static class Commands
                 outputFolder,
                 $"{Path.GetFileNameWithoutExtension(pdfFile)}_classification.csv");
 
+            // Always merge rows that share the same technology + year,
+            // combining any missing fields from duplicate entries.
+            // Different years for the same technology remain as separate rows.
+            var mergedClassifications = TechnologyClassifier.MergeByTechnologyAndYear(completeClassifications);
+
+            // If a CSV already exists, merge the new results with the existing data as well
+            if (File.Exists(outputPath))
+            {
+                var existingRows = TechnologyClassificationCsv.ReadCsv(outputPath);
+                if (existingRows.Count > 0)
+                {
+                    mergedClassifications = TechnologyClassifier.MergeByTechnologyAndYear(
+                        existingRows.Concat(mergedClassifications));
+                }
+            }
+
             try
             {
                 Console.Write("   💾 Writing CSV file...");
-                TechnologyClassificationCsv.WriteCsv(outputPath, completeClassifications);
+                TechnologyClassificationCsv.WriteCsv(outputPath, mergedClassifications);
                 Console.WriteLine(" Done\n");
             }
             catch (Exception ex)
@@ -630,9 +657,11 @@ public static class Commands
             }
 
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"✅ Classification complete!");
+            Console.WriteLine();
             Console.WriteLine($"   📁 Saved to: {outputPath}");
-            Console.WriteLine($"   ✓ {completeClassifications.Count} technologies exported");
+            Console.WriteLine($"   ✓ {mergedClassifications.Count} rows exported");
+            Console.WriteLine();
+            Console.WriteLine($"✅ Classification complete!");
             if (filteredCount > 0)
                 Console.WriteLine($"   ❌ {filteredCount} incomplete records filtered out");
             Console.ResetColor();
@@ -658,6 +687,45 @@ public static class Commands
             Console.ResetColor();
             return null;
         }
+    }
+
+    /// <summary>
+    /// Parses a TXT file (produced by <c>auto-summarize</c>) into named
+    /// technology sections. Expects headers like
+    /// <c>═══ TECHNOLOGY N: [Name] ═══</c>.
+    /// </summary>
+    private static List<(string Name, string Content)> ParseTxtIntoSections(string txtContent)
+    {
+        var sections = new List<(string Name, string Content)>();
+        if (string.IsNullOrWhiteSpace(txtContent))
+            return sections;
+
+        // Match section headers produced by HandleAutoSummarizeAsync
+        var headerPattern = new Regex(
+            @"═{3,}\s*TECHNOLOGY\s+\d+:\s*(?<name>.+?)\s*═{3,}",
+            RegexOptions.IgnoreCase);
+
+        var matches = headerPattern.Matches(txtContent);
+        for (int i = 0; i < matches.Count; i++)
+        {
+            string name = matches[i].Groups["name"].Value.Trim();
+            var contentStart = matches[i].Index + matches[i].Length;
+            var contentEnd = (i + 1 < matches.Count)
+                ? matches[i + 1].Index
+                : txtContent.Length;
+
+            var content = txtContent.Substring(contentStart, contentEnd - contentStart).Trim();
+
+            // Skip the separator line (───…) at the end of each section
+            var separatorIdx = content.LastIndexOf("───");
+            if (separatorIdx >= 0)
+                content = content.Substring(0, separatorIdx).Trim();
+
+            if (!string.IsNullOrWhiteSpace(content))
+                sections.Add((name, content));
+        }
+
+        return sections;
     }
 
     private static async Task<T> RunWithSpinner<T>(string message, Func<Task<T>> action)
@@ -707,8 +775,6 @@ public static class Commands
             Console.WriteLine();
             throw;
         }
-
-}
-
+    }
 }
 
