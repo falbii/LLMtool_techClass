@@ -24,13 +24,14 @@ dotnet run
 
 ## Features Overview
 
-This application provides **5 core features**:
+This application provides **6 core features**:
 
 1. **Interactive Chat** - Real-time conversation with Copilot
 2. **PDF Upload & Management** - Manage, list, and select PDFs
 3. **PDF Analysis** - Ask questions about PDF content with context injection
 4. **Batch Analysis** - Analyze multiple PDFs at once with a single question
-5. **Auto-Classification** - Automatically extract and classify technologies from PDFs into CSV
+5. **Auto-Summarize** - Extract comprehensive technology summaries from a PDF into a TXT file
+6. **Auto-Classify** - Convert technology summaries into a structured CSV
 
 ---
 
@@ -60,6 +61,9 @@ Type `exit` or `quit` to exit the program.
 | `current` | Show which PDF is currently loaded |
 | `upload <path>` | Upload a PDF from your computer to analyze |
 | `analyze <file>` | Load and analyze a specific PDF (by name or file number) |
+| `auto-summarize` | Extract technology summaries from PDF into a TXT file |
+| `auto-classify` | Convert TXT summaries into a structured CSV |
+| `batch-analyze <q>` | Analyze all PDFs with a question |
 | `commands` or `help` | Display all available commands |
 
 ### Example Workflow
@@ -131,9 +135,62 @@ Copilot: [Provides analysis combining insights from all PDFs]
 
 ---
 
-## Feature 5: Auto-Classification (NEW!)
+## Feature 5: Auto-Summarize
 
-Automatically extract and classify all technologies mentioned in a PDF into a **CSV file** with structured data.
+Extract comprehensive, structured technology summaries from a PDF into a TXT file.
+
+### Command
+
+```
+You: auto-summarize
+```
+
+### How It Works
+
+1. **Stage 1 – Find Technologies**: Scans the entire PDF and identifies all unique technology names (no year/region duplicates)
+2. **Stage 2 – Extract Summaries**: For each technology, extracts all data from the PDF organised by year
+
+### TXT Output Structure
+
+Each technology gets its own section with year sub-sections:
+
+```
+═══ TECHNOLOGY 1: Alkaline water electrolysis ═══
+
+--- Year: 2020 (current/baseline) ---
+Efficiency: 63–70% (LHV)
+CAPEX: 500–1400 EUR/kW
+Lifetime: 80,000 hours
+TRL: 9
+...
+
+--- Year: 2035 (near future) ---
+Efficiency: 65–72% (LHV)
+CAPEX: 400–800 EUR/kW
+...
+
+--- Year: 2050 (long-term) ---
+Efficiency: 70–80% (LHV)
+...
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 2: Proton exchange membrane electrolysis ═══
+...
+```
+
+### Key Features
+
+- **Year-organised**: Data for different time horizons is grouped under year sub-sections within each technology
+- **Comprehensive**: Captures all inputs/outputs, costs, efficiencies, TRL, and process details
+- **Human-readable**: The TXT serves as a standalone reference and as input for `auto-classify`
+- **Batched extraction**: Technologies are processed in batches of 10 to manage token limits
+
+---
+
+## Feature 6: Auto-Classify
+
+Convert technology summaries (from the TXT file) into a structured **CSV file**.
 
 ### Command
 
@@ -141,11 +198,15 @@ Automatically extract and classify all technologies mentioned in a PDF into a **
 You: auto-classify
 ```
 
-This will:
-1. ✅ Extract ALL technologies from the loaded PDF
-2. ✅ Classify each technology with detailed metadata
-3. ✅ Generate a CSV file in the `output/` folder
-4. ✅ Create separate rows for different time horizons (2030, 2050, etc.)
+> **Prerequisite**: You must run `auto-summarize` first. If the TXT file doesn't exist, the tool will prompt you:
+> `⚠️ Please run 'auto-summarize' first to extract technology summaries.`
+
+### How It Works
+
+1. **Reads the TXT** produced by `auto-summarize`
+2. **Parses technology sections** from the `═══ TECHNOLOGY N: Name ═══` headers
+3. **Converts each batch** to structured JSON via Copilot (with automatic retry on failure)
+4. **Validates and merges** rows, then writes to CSV
 
 ### CSV Output Structure
 
@@ -176,23 +237,44 @@ The generated CSV includes:
 You: current
 📄 Current PDF: energy_technologies_2024.pdf
 
+You: auto-summarize
+📝 Summarising technologies from PDF...
+   1. Finding technologies...
+   Found 35 technologies
+   2. Extracting detailed summaries...
+   Batch 1/4 (technologies 1-10)... ✓
+   Batch 2/4 (technologies 11-20)... ✓
+   Batch 3/4 (technologies 21-30)... ✓
+   Batch 4/4 (technologies 31-35)... ✓
+✅ Summarisation complete!
+   📁 Saved to: output/energy_technologies_2024.txt
+   ✓ 35 technologies extracted
+
 You: auto-classify
-🧠 Classifying technologies from PDF...
-✅ Classification complete!
+📋 Classifying from TXT summary and writing to CSV...
+   Found 35 technology sections in TXT
+   Converting summaries to structured data...
+   Batch 1/4 (technologies 1-10)... ✓ (28 rows)
+   Batch 2/4 (technologies 11-20)... ✓ (25 rows)
+   Batch 3/4 (technologies 21-30)... ✓ (30 rows)
+   Batch 4/4 (technologies 31-35)... ✓ (12 rows)
+
    📁 Saved to: output/energy_technologies_2024_classification.csv
-   ✓ 47 technologies exported
-   ⊘ 3 incomplete records filtered out
+   ✓ 95 rows exported
+✅ Classification complete!
 ```
 
 ### Key Features
 
-- **Time Horizon Handling**: For technologies with data for 2030 and 2050, creates separate rows:
+- **Two-step workflow**: Summarize first (human-reviewable TXT), then classify (structured CSV)
+- **TXT as source of truth**: Classification reads from the curated TXT, not the raw PDF — better accuracy
+- **Time Horizon Handling**: Technologies with data for multiple years produce separate CSV rows:
   ```
   ALK_ELY_2030    (with 2030-specific data)
   ALK_ELY_2050    (with 2050-specific data)
   ```
-- **Integrated Technology Breakdown**: Decomposes complex pathways into individual unit operations
-- **Table Extraction**: Automatically identifies and extracts ALL technologies from tables
+- **Merge logic**: Same technology + same year → merged; same technology + different year → separate rows
+- **Automatic retry**: Failed JSON batches are retried once before skipping
 - **Data Validation**: Filters out incomplete records, shows parsing notes
 
 ---
@@ -222,10 +304,17 @@ You: list
 You: analyze hydrogen_production_2024.pdf
 ✓ Loaded: hydrogen_production_2024.pdf
 
+You: auto-summarize
+📝 Summarising technologies from PDF...
+✅ Summarisation complete!
+   📁 Saved to: output/hydrogen_production_2024.txt
+   ✓ 23 technologies extracted
+
 You: auto-classify
-🧠 Classifying technologies...
-✅ Saved to: output/hydrogen_production_2024_classification.csv
-   ✓ 23 technologies exported
+📋 Classifying from TXT summary and writing to CSV...
+✅ Classification complete!
+   📁 Saved to: output/hydrogen_production_2024_classification.csv
+   ✓ 58 rows exported
 
 You: What technologies had the highest TRL mentioned?
 Copilot: The following technologies had the highest TRL values...
@@ -257,6 +346,7 @@ You: Provide a comprehensive summary of this entire PDF
 ### Technology Intelligence
 ```
 You: What are all the emerging technologies mentioned?
+You: auto-summarize
 You: auto-classify
 ```
 
@@ -285,14 +375,16 @@ You: Identify any unclear or outdated technical information
 - ✅ If analysis seems incomplete, ask follow-up questions
 
 ### Technology Classification
-- ✅ Use `auto-classify` on research papers and technical documents
+- ✅ Run `auto-summarize` first, review the TXT, then run `auto-classify`
+- ✅ The TXT file is human-readable — review and edit it before classifying if needed
 - ✅ Review CSV output to identify extraction confidence
 - ✅ Incorrect TRL values can be manually corrected in the CSV
-- ✅ Time-specific variants (2030 vs 2050) are automatically separated
+- ✅ Time-specific variants (2030 vs 2050) are automatically separated into rows
+- ✅ Re-running `auto-classify` merges new results with the existing CSV
 
 ### File Organization
 - ✅ PDFs stored in `./pdf_to_analyze/` (auto-created)
-- ✅ CSV exports in `./output/` (auto-created)
+- ✅ TXT summaries and CSV exports in `./output/` (auto-created)
 - ✅ Use `list` to discover available PDFs
 - ✅ Use `analyze` to quickly select PDFs
 
@@ -346,11 +438,15 @@ copilot /version
 - ✅ Try uploading a smaller test PDF first
 - ✅ Consider using OCR for scanned documents
 
-### "No technologies found in auto-classify"
+### "No technologies found in auto-summarize"
 - ✅ PDF may not contain technology descriptions
 - ✅ Technology keywords might use different terminology
-- ✅ Check the generated CSV to see partial matches
 - ✅ Ask Copilot: "What technologies are mentioned?" for verification
+
+### "Please run 'auto-summarize' first"
+- ✅ `auto-classify` requires a TXT file produced by `auto-summarize`
+- ✅ Run `auto-summarize` on the currently loaded PDF first
+- ✅ The TXT file is expected at `output/<pdfname>.txt`
 
 ### "CSV file not created"
 - ✅ Check that `output/` folder can be created
@@ -401,30 +497,37 @@ Results combined for complete analysis
 ```
 PDF Input
     ↓
-Text Extraction with Table Detection
+auto-summarize:
+  Stage 1 – Find unique technology names
     ↓
-Copilot AI Analysis & Technology Recognition
+  Stage 2 – Extract detailed summaries (batched, by year)
     ↓
-JSON Data Extraction
+  TXT Output (human-reviewable)
     ↓
-Validation & De-duplication
+auto-classify:
+  Read TXT → Parse technology sections
     ↓
-CSV Export
+  Convert each batch to structured JSON via Copilot
+    ↓
+  Validate, merge by technology+year, de-duplicate
+    ↓
+  CSV Export
 ```
 
 ### File Structure
 
 ```
 CopilotSDK_techClass/
-├── Program.cs                    (Main entry point)
+├── Program.cs                    (Main entry point & interactive loop)
 ├── Commands.cs                   (Command handlers)
-├── PdfAnalyzer.cs               (PDF extraction & analysis)
-├── TechnologyClassification.cs   (Technology classifier)
+├── PdfAnalyzer.cs               (PDF extraction & chunking)
+├── TechnologyClassification.cs   (Data model, classifier, prompt builders, CSV I/O)
 ├── TestApp.csproj               (Project file)
 ├── README.md                    (This file)
-├── pdf_to_analyze/              (PDF storage - auto-created)
+├── pdf_to_analyze/              (PDF storage – auto-created)
 │   └── your_documents.pdf
-└── output/                      (CSV exports - auto-created)
+└── output/                      (TXT summaries & CSV exports – auto-created)
+    ├── document.txt
     └── document_classification.csv
 ```
 
@@ -451,12 +554,17 @@ The application includes **robust error handling**:
 | PDF Upload | < 1 second |
 | Text Extraction (20 pages) | 2-5 seconds |
 | Single Question Analysis | 5-15 seconds |
-| Auto-Classification (30 techs) | 15-30 seconds |
+| Auto-Summarize (35 techs) | 2-5 minutes |
+| Auto-Classify (35 techs) | 1-3 minutes |
 | Batch Analysis (3 PDFs) | 20-45 seconds |
 
 ---
 
 ## Tips & Tricks
+
+💡 **Two-step workflow** - Run `auto-summarize` first, review the TXT, then `auto-classify` for best results
+
+💡 **Edit the TXT** - You can manually edit the TXT file before classifying to fix errors or add data
 
 💡 **Smart Commands** - Use `batch-analyze` to compare findings across multiple documents
 
@@ -479,8 +587,9 @@ The application includes **robust error handling**:
 3. ✅ Try interactive chat first
 4. ✅ Upload a sample PDF using `upload <path>`
 5. ✅ Ask questions about the PDF
-6. ✅ Try `auto-classify` on a technical document
-7. ✅ Experiment with `batch-analyze` on multiple PDFs
+6. ✅ Try `auto-summarize` on a technical document
+7. ✅ Review the TXT output, then run `auto-classify`
+8. ✅ Experiment with `batch-analyze` on multiple PDFs
 
 ---
 
@@ -514,8 +623,9 @@ This tool is provided as-is for use with GitHub Copilot SDK.
 
 ## Version History
 
-- **v2.0** - Added auto-classification, batch analysis, improved error handling
-- **v1.0** - Initial release with chat and PDF analysis features
+- **v0.1** - First working version, Two-step workflow: `auto-summarize` (PDF→TXT) + `auto-classify` (TXT→CSV), improved prompts, batch retry logic
+- **v0.0** - Created first template and commands with auto-classification, batch analysis, improved error handling
+- **----** - Initial release with chat and PDF analysis features
 
 ---
 
