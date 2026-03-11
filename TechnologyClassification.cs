@@ -23,8 +23,8 @@ public sealed class TechnologyClassification
     public string? TechType { get; set; }
     public double? ReferenceUnitSize { get; set; }
     public string? ReferenceUnitSizeUnit { get; set; }
-    public int? CostBaseYear { get; set; }
-    public string? CostBaseLocation { get; set; }
+    public int? BaseYear { get; set; }
+    public string? Location { get; set; }
     public string? Currency { get; set; }
     public int? DataReferenceYear { get; set; }
     public int? Trl { get; set; }
@@ -64,8 +64,9 @@ public static class TechnologyClassifier
     private static readonly StringComparer KeyComparer = StringComparer.OrdinalIgnoreCase;
 
     /// <summary>
-    /// Attempts to build a <see cref="TechnologyClassification"/> from a key/value row.
-    /// Returns <c>true</c> when no parse errors occurred; otherwise populates <paramref name="errors"/>.
+    /// Builds a <see cref="TechnologyClassification"/> from a key/value row.
+    /// Always returns <c>true</c> with the populated record; any fields that could
+    /// not be parsed are left <c>null</c> and a warning is added to <paramref name="errors"/>.
     /// </summary>
     public static bool TryClassify(
         IDictionary<string, string> row,
@@ -74,47 +75,53 @@ public static class TechnologyClassifier
     {
         errors = new List<string>();
 
+        // Build the normalised lookup once so GetValue doesn't repeat the work per call.
+        var lookup = row.ToDictionary(
+            k => NormalizeHeader(k.Key),
+            v => v.Value,
+            StringComparer.OrdinalIgnoreCase);
+
         var tech = new TechnologyClassification
         {
-            DatapaperTechId = GetValue(row, "Datapaper Tech ID", "tech_id"),
-            ProcessType = GetValue(row, "ProcessType", "process_type"),
-            Description = GetValue(row, "description"),
-            UnitOperation = GetValue(row, "unit_operation"),
-            Summary = GetValue(row, "summary"),
-            MainSector = GetValue(row, "main_sector"),
-            MainCategory = GetValue(row, "main_category"),
-            CategorySpec = GetValue(row, "category_spec"),
-            TechType = GetValue(row, "tech_type"),
-            ReferenceUnitSize = ParseDouble(GetValue(row, "reference_unit_size"), "reference_unit_size", errors),
-            ReferenceUnitSizeUnit = GetValue(row, "reference_unit_size_unit", "Reference Unit Size Unit"),
-            CostBaseYear = ParseInt(GetValue(row, "cost_base_year"), "cost_base_year", errors),
-            CostBaseLocation = GetValue(row, "Cost Base", "cost_base", "CostBase", "Location"),
-            Currency = GetValue(row, "Currency", "currency"),
-            DataReferenceYear = ParseInt(GetValue(row, "Data Reference Year", "data_reference_year"), "data_reference_year", errors),
-            Trl = ParseInt(GetValue(row, "trl_(1-9)", "trl"), "trl_(1-9)", errors),
-            TechMaturity = GetValue(row, "tech_maturity"),
-            OverallEfficiency = ParseDouble(GetValue(row, "overall_efficiency"), "overall_efficiency", errors),
-            CarriersIn = ParseStringList(GetValue(row, "carriers_in")),
-            MainInput = GetValue(row, "main_input"),
-            InputShares = ParseDoubleList(GetValue(row, "Input Shares", "input_shares"), "input_shares", errors),
-            InputShareUnits = ParseStringList(GetValue(row, "Input Units - Shares", "input_units_shares")),
-            RatiosIn = ParseDoubleList(GetValue(row, "ratios_in"), "ratios_in", errors),
-            UnitsIn = ParseStringList(GetValue(row, "units_in")),
-            CarriersOut = ParseStringList(GetValue(row, "carriers_out")),
-            MainOut = GetValue(row, "main_out"),
-            RatiosOut = ParseDoubleList(GetValue(row, "ratios_out"), "ratios_out", errors),
-            UnitsOut = ParseStringList(GetValue(row, "units_out")),
-            OutputShares = ParseDoubleList(GetValue(row, "Output Shares", "output_shares"), "output_shares", errors),
-            OutputShareUnits = ParseStringList(GetValue(row, "Output Units - Shares", "output_units_shares")),
-            LifetimeYears = ParseDouble(GetValue(row, "lifetime_yr"), "lifetime_yr", errors),
-            CapexOneTimeEur = ParseDecimal(GetValue(row, "capex_one_time_eur"), "capex_one_time_eur", errors),
-            CapexPowerCapacityEurPerKw = ParseDecimal(GetValue(row, "capex_power_capacity_eur_per_kw"), "capex_power_capacity_eur_per_kw", errors),
-            OpexOneTimeEur = ParseDecimal(GetValue(row, "opex_one_time_eur"), "opex_one_time_eur", errors),
-            OpexFixPctOfCapex = ParseDouble(GetValue(row, "opex_fix_pct_of_capex"), "opex_fix_pct_of_capex", errors),
-            OpexFixPowerCapacityEurPerKwYr = ParseDecimal(GetValue(row, "opex_fix_power_capacity_eur_per_kw_yr"), "opex_fix_power_capacity_eur_per_kw_yr", errors)
+            DatapaperTechId = GetValue(lookup, "Datapaper Tech ID", "tech_id"),
+            ProcessType = GetValue(lookup, "ProcessType", "process_type"),
+            Description = GetValue(lookup, "description"),
+            UnitOperation = GetValue(lookup, "unit_operation"),
+            Summary = GetValue(lookup, "summary"),
+            MainSector = GetValue(lookup, "main_sector"),
+            MainCategory = GetValue(lookup, "main_category"),
+            CategorySpec = GetValue(lookup, "category_spec"),
+            TechType = GetValue(lookup, "tech_type"),
+            ReferenceUnitSize = ParseDouble(GetValue(lookup, "reference_unit_size"), "reference_unit_size", errors),
+            ReferenceUnitSizeUnit = GetValue(lookup, "reference_unit_size_unit", "Reference Unit Size Unit"),
+            BaseYear = ParseInt(GetValue(lookup, "base year", "cost_base_year"), "cost_base_year", errors),
+            Location = GetValue(lookup, "Location"),
+            Currency = GetValue(lookup, "Currency", "currency"),
+            DataReferenceYear = ParseInt(GetValue(lookup, "Data Reference Year", "data_reference_year"), "data_reference_year", errors),
+            Trl = ParseInt(GetValue(lookup, "trl_(1-9)", "trl"), "trl_(1-9)", errors),
+            TechMaturity = GetValue(lookup, "tech_maturity"),
+            OverallEfficiency = ParseDouble(GetValue(lookup, "efficiency", "lhv_efficiency", "overall_efficiency"), "efficiency", errors),
+            CarriersIn = ParseStringList(GetValue(lookup, "carriers_in")),
+            MainInput = GetValue(lookup, "main_input"),
+            InputShares = ParseDoubleList(GetValue(lookup, "Input Shares", "input_shares"), "input_shares", errors),
+            InputShareUnits = ParseStringList(GetValue(lookup, "Input Units - Shares", "input_units_shares")),
+            RatiosIn = ParseDoubleList(GetValue(lookup, "ratios_in"), "ratios_in", errors),
+            UnitsIn = ParseStringList(GetValue(lookup, "units_in")),
+            CarriersOut = ParseStringList(GetValue(lookup, "carriers_out")),
+            MainOut = GetValue(lookup, "main_out"),
+            RatiosOut = ParseDoubleList(GetValue(lookup, "ratios_out"), "ratios_out", errors),
+            UnitsOut = ParseStringList(GetValue(lookup, "units_out")),
+            OutputShares = ParseDoubleList(GetValue(lookup, "Output Shares", "output_shares"), "output_shares", errors),
+            OutputShareUnits = ParseStringList(GetValue(lookup, "Output Units - Shares", "output_units_shares")),
+            LifetimeYears = ParseDouble(GetValue(lookup, "lifetime_yr"), "lifetime_yr", errors),
+            CapexOneTimeEur = ParseDecimal(GetValue(lookup, "capex_one_time_eur"), "capex_one_time_eur", errors),
+            CapexPowerCapacityEurPerKw = ParseDecimal(GetValue(lookup, "capex_power_capacity_eur_per_kw"), "capex_power_capacity_eur_per_kw", errors),
+            OpexOneTimeEur = ParseDecimal(GetValue(lookup, "opex_one_time_eur"), "opex_one_time_eur", errors),
+            OpexFixPctOfCapex = ParseDouble(GetValue(lookup, "opex_fix_pct_of_capex"), "opex_fix_pct_of_capex", errors),
+            OpexFixPowerCapacityEurPerKwYr = ParseDecimal(GetValue(lookup, "opex_fix_power_capacity_eur_per_kw_yr"), "opex_fix_power_capacity_eur_per_kw_yr", errors)
         };
 
-        var overallIo = GetValue(row, "Input, Output for Overall Efficiency", "overall_efficiency_io");
+        var overallIo = GetValue(lookup, "Input, Output for Overall Efficiency", "overall_efficiency_io");
         if (!string.IsNullOrWhiteSpace(overallIo))
         {
             var parts = overallIo.Split(',', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -124,7 +131,7 @@ public static class TechnologyClassifier
                 tech.OverallEfficiencyOutputCarrier = parts[1];
         }
 
-        var minInstallRaw = GetValue(row, "min_installation_size");
+        var minInstallRaw = GetValue(lookup, "min_installation_size");
         var minInstallParsed = ParseValueWithUnit(minInstallRaw);
         if (minInstallParsed != null)
         {
@@ -136,19 +143,17 @@ public static class TechnologyClassifier
             errors.Add("min_installation_size: unable to parse numeric value and unit");
         }
 
+        // Always return the record — parse errors are warnings, not fatal.
+        // Unparseable optional fields are left null; HasMeaningfulData filters incomplete records.
         classification = tech;
-        return errors.Count == 0;
+        return true;
     }
 
     /// <summary>
-    /// Looks up a value from the row using one or more possible header names (case-insensitive, normalized).
+    /// Looks up a value from a pre-normalised lookup dictionary using one or more possible header names.
     /// </summary>
-    private static string? GetValue(IDictionary<string, string> row, params string[] headers)
+    private static string? GetValue(Dictionary<string, string> lookup, params string[] headers)
     {
-        if (headers.Length == 0)
-            return null;
-
-        var lookup = row.ToDictionary(k => NormalizeHeader(k.Key), v => v.Value, StringComparer.OrdinalIgnoreCase);
         foreach (var header in headers)
         {
             var key = NormalizeHeader(header);
@@ -536,12 +541,12 @@ public static class TechnologyClassifier
         sb.AppendLine("    \"reference_unit_size\": <number or null>,");
         sb.AppendLine("    \"reference_unit_size_unit\": \"e.g. MW, t/yr\",");
         sb.AppendLine("    \"min_installation_size\": <number or null>,");
-        sb.AppendLine("    \"overall_efficiency\": <0-1 decimal or null>,");
+        sb.AppendLine("    \"efficiency\": \"<0-1 decimal or null> (use LHV efficiency when available)\",");
         sb.AppendLine("    \"Input, Output for Overall Efficiency\": \"input_carrier, output_carrier\",");
         sb.AppendLine("    \"trl_(1-9)\": <1-9 integer or null>,");
         sb.AppendLine("    \"tech_maturity\": \"e.g. Mature, Developing, Emerging\",");
-        sb.AppendLine("    \"cost_base_year\": <year integer or null>,");
-        sb.AppendLine("    \"Cost Base\": \"e.g. Germany, Europe\",");
+        sb.AppendLine("    \"base_year\": <year integer or null>, (year that cost data applies to)");
+        sb.AppendLine("    \"location\": \"e.g. Germany, Europe\",");
         sb.AppendLine("    \"Currency\": \"EUR\",");
         sb.AppendLine("    \"capex_one_time_eur\": <number or null>,");
         sb.AppendLine("    \"capex_power_capacity_eur_per_kw\": <number or null>,");
@@ -549,7 +554,7 @@ public static class TechnologyClassifier
         sb.AppendLine("    \"opex_fix_pct_of_capex\": <number or null>,");
         sb.AppendLine("    \"opex_fix_power_capacity_eur_per_kw_yr\": <number or null>,");
         sb.AppendLine("    \"lifetime_yr\": <number or null>,");
-        sb.AppendLine("    \"Data Reference Year\": <year integer or null>");
+        sb.AppendLine("    \"Data Reference Year\": <year integer or null> (year of the paper)");
         sb.AppendLine("  }");
         sb.AppendLine("]");
         sb.AppendLine();
@@ -557,9 +562,9 @@ public static class TechnologyClassifier
         sb.AppendLine("RULES:");
         sb.AppendLine("- One JSON object per technology. If a technology has data for MULTIPLE YEARS, emit SEPARATE objects (one per year).");
         sb.AppendLine($"- Use null for any field where the {sourceLabel} provides no data — never guess.");
-        sb.AppendLine("- overall_efficiency must be a 0–1 decimal (convert percentages: 65% → 0.65).");
+        sb.AppendLine("- efficiency must be a 0-1 decimal (convert percentages: 65% → 0.65). Prefer LHV efficiency when available.");
         sb.AppendLine("- ratios_in / ratios_out: one numeric value per carrier, same order as carriers_in / carriers_out.");
-        sb.AppendLine("- Input Shares / Output Shares: fractional shares (0–1) if mentioned; otherwise null.");
+        sb.AppendLine("- Input Shares / Output Shares: fractional shares (0-1) if mentioned; otherwise null.");
         sb.AppendLine("- Cost fields: convert to EUR numbers (e.g. '€28.4M' → 28400000).");
         sb.AppendLine("- Include ALL technology variants with distinct data (method, efficiency, cost, year).");
         sb.AppendLine("- Return ONLY the JSON array — no markdown fences, no commentary.");
@@ -835,7 +840,7 @@ public static class TechnologyClassifier
         if (!string.IsNullOrWhiteSpace(tech.MainCategory)) fieldCount++;
         if (!string.IsNullOrWhiteSpace(tech.CategorySpec)) fieldCount++;
         if (!string.IsNullOrWhiteSpace(tech.TechType)) fieldCount++;
-        if (tech.CostBaseYear.HasValue) fieldCount++;
+        if (tech.BaseYear.HasValue) fieldCount++;
         if (tech.DataReferenceYear.HasValue) fieldCount++;
         if (tech.Trl.HasValue) fieldCount++;
         if (!string.IsNullOrWhiteSpace(tech.TechMaturity)) fieldCount++;
@@ -893,7 +898,7 @@ public static class TechnologyClassifier
         var normalizedTechnology = NormalizeKeyText(technologyName);
         
         // CRITICAL: Use only valid years (>1900). If year is missing, add unique hash to prevent false merges.
-        var year = row.DataReferenceYear ?? row.CostBaseYear;
+        var year = row.DataReferenceYear ?? row.BaseYear;
         
         if (!year.HasValue || year.Value < 1900)
         {
@@ -958,8 +963,8 @@ public static class TechnologyClassifier
             TechType = source.TechType,
             ReferenceUnitSize = source.ReferenceUnitSize,
             ReferenceUnitSizeUnit = source.ReferenceUnitSizeUnit,
-            CostBaseYear = source.CostBaseYear,
-            CostBaseLocation = source.CostBaseLocation,
+            BaseYear = source.BaseYear,
+            Location = source.Location,
             Currency = source.Currency,
             DataReferenceYear = source.DataReferenceYear,
             Trl = source.Trl,
@@ -1004,8 +1009,8 @@ public static class TechnologyClassifier
         target.TechType ??= source.TechType;
         target.ReferenceUnitSize ??= source.ReferenceUnitSize;
         target.ReferenceUnitSizeUnit ??= source.ReferenceUnitSizeUnit;
-        target.CostBaseYear ??= source.CostBaseYear;
-        target.CostBaseLocation ??= source.CostBaseLocation;
+        target.BaseYear ??= source.BaseYear;
+        target.Location ??= source.Location;
         target.Currency ??= source.Currency;
         target.DataReferenceYear ??= source.DataReferenceYear;
         target.Trl ??= source.Trl;
@@ -1080,11 +1085,12 @@ public static class TechnologyClassificationCsv
         "tech_type",
         "reference_unit_size",
         "reference_unit_size_unit",
-        "cost_base_year",
+        "base_year",
+        "location",
         "Currency",
         "trl_(1-9)",
         "tech_maturity",
-        "overall_efficiency",
+        "efficiency",
         "Input, Output for Overall Efficiency",
         "carriers_in",
         "main_input",
@@ -1129,7 +1135,8 @@ public static class TechnologyClassificationCsv
                 row.TechType ?? string.Empty,
                 FormatDouble(row.ReferenceUnitSize),
                 row.ReferenceUnitSizeUnit ?? string.Empty,
-                FormatInt(row.CostBaseYear),
+                FormatInt(row.BaseYear),
+                row.Location ?? string.Empty,
                 row.Currency ?? string.Empty,
                 FormatInt(row.Trl),
                 row.TechMaturity ?? string.Empty,

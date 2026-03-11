@@ -111,11 +111,11 @@ try
     Console.WriteLine("  'exit' or 'quit'     - Exit the program");
     Console.WriteLine("  'upload <path>'      - Upload a PDF to analyze (or drop PDFs in ./pdf_to_analyze/)");
     Console.WriteLine("  'list'               - List available PDFs");
-    Console.WriteLine("  'analyze <file>'     - Analyze a PDF (use filename or list number)");
     Console.WriteLine("  'current'            - Show current PDF");
     Console.WriteLine("  'auto-summarize'     - Extract technology summaries to TXT");
     Console.WriteLine("  'auto-classify'      - Classify technologies and export CSV");
-    Console.WriteLine("  'batch-analyze <q>'  - Analyze all PDFs with a question\n");
+    Console.WriteLine("  'batch-analyze <q>'  - Analyze all PDFs with a question");
+    Console.WriteLine("  'benchmark'          - Compare all models on the Allgoewer paper\n");
 
     while (true)
     {
@@ -205,23 +205,13 @@ try
             continue;
         }
 
-        // ── Analyze a specific PDF ──
-        if (input.StartsWith("analyze ", StringComparison.OrdinalIgnoreCase))
-        {
-            var filename = input.Length > 8 ? input[8..].Trim() : string.Empty;
-            var result = Commands.HandleAnalyzeCommand(filename, pdfFolder);
-            if (result != null)
-                currentPdfFile = result;
-            continue;
-        }
-
         // ── Auto-summarize current PDF ──
         if (input.Equals("auto-summarize", StringComparison.OrdinalIgnoreCase))
         {
             if (currentPdfFile == null)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("❌ No PDF loaded. Use 'upload' or 'analyze' to select one.");
+                Console.WriteLine("❌ No PDF loaded. Use 'upload' or 'list' to select one.");
                 Console.ResetColor();
                 continue;
             }
@@ -236,12 +226,19 @@ try
             if (currentPdfFile == null)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("❌ No PDF loaded. Use 'upload' or 'analyze' to select one.");
+                Console.WriteLine("❌ No PDF loaded. Use 'upload' or 'list' to select one.");
                 Console.ResetColor();
                 continue;
             }
 
             await Commands.HandleAutoClassifyAsync(session, currentPdfFile, outputFolder);
+            continue;
+        }
+
+        // ── Benchmark all models ──
+        if (input.Equals("benchmark", StringComparison.OrdinalIgnoreCase))
+        {
+            await Commands.HandleBenchmarkAsync(client!, pdfFolder, outputFolder);
             continue;
         }
 

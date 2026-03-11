@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using GitHub.Copilot.SDK;
+using Refractored.GitHub.Copilot.SDK.Helpers;
 
 namespace PdfAnalysisApp;
 
@@ -65,7 +66,7 @@ public static class Commands
         if (currentPdfFile != null)
             Console.WriteLine($"📄 Current PDF: {Path.GetFileName(currentPdfFile)}");
         else
-            Console.WriteLine("❌ No PDF loaded. Use 'upload' or 'analyze' to select one.");
+            Console.WriteLine("❌ No PDF loaded. Use 'upload' or 'list' to select one.");
     }
 
     /// <summary>
@@ -81,11 +82,11 @@ public static class Commands
         Console.WriteLine("  'exit' or 'quit'     - Exit the program");
         Console.WriteLine("  'upload <path>'      - Upload a PDF to analyze (or drop PDFs in ./pdf_to_analyze/)");
         Console.WriteLine("  'list'               - List available PDFs");
-        Console.WriteLine("  'analyze <file>'     - Analyze a PDF (use filename or list number)");
         Console.WriteLine("  'current'            - Show current PDF");
         Console.WriteLine("  'auto-summarize'     - Extract technology summaries to TXT");
         Console.WriteLine("  'auto-classify'      - Classify technologies and export CSV");
         Console.WriteLine("  'batch-analyze <q>'  - Analyze all PDFs with a question");
+        Console.WriteLine("  'benchmark'          - Compare all models on the Allgoewer paper");
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.DarkGray;
@@ -626,21 +627,9 @@ public static class Commands
                 outputFolder,
                 $"{Path.GetFileNameWithoutExtension(pdfFile)}_classification.csv");
 
-            // Always merge rows that share the same technology + year,
-            // combining any missing fields from duplicate entries.
+            // Merge rows that share the same technology + year within the current run.
             // Different years for the same technology remain as separate rows.
             var mergedClassifications = TechnologyClassifier.MergeByTechnologyAndYear(completeClassifications);
-
-            // If a CSV already exists, merge the new results with the existing data as well
-            if (File.Exists(outputPath))
-            {
-                var existingRows = TechnologyClassificationCsv.ReadCsv(outputPath);
-                if (existingRows.Count > 0)
-                {
-                    mergedClassifications = TechnologyClassifier.MergeByTechnologyAndYear(
-                        existingRows.Concat(mergedClassifications));
-                }
-            }
 
             try
             {
@@ -656,14 +645,26 @@ public static class Commands
                 return null;
             }
 
+            var mergedCount = completeClassifications.Count - mergedClassifications.Count;
+
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine();
             Console.WriteLine($"   📁 Saved to: {outputPath}");
             Console.WriteLine($"   ✓ {mergedClassifications.Count} rows exported");
+            if (filteredCount > 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"   ⚠️  {filteredCount} incomplete records filtered out (too few populated fields)");
+                Console.ForegroundColor = ConsoleColor.Green;
+            }
+            if (mergedCount > 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"   ⚠️  {mergedCount} duplicate rows merged (same technology + year)");
+                Console.ForegroundColor = ConsoleColor.Green;
+            }
             Console.WriteLine();
             Console.WriteLine($"✅ Classification complete!");
-            if (filteredCount > 0)
-                Console.WriteLine($"   ❌ {filteredCount} incomplete records filtered out");
             Console.ResetColor();
 
             if (rowErrors.Count > 0)
@@ -726,6 +727,158 @@ public static class Commands
         }
 
         return sections;
+    }
+
+    /// Benchmark constants
+
+    private const string BenchmarkPdfName = "Allgoewer_2024.pdf";
+
+    private const string BenchmarkPrompt =
+        "Based on this paper, list the main low-carbon hydrogen production technologies discussed. " +
+        "For each technology provide: (1) Technology Readiness Level (TRL), " +
+        "(2) production cost range in USD/kg H2, and (3) key efficiency metric. " +
+        "Be concise and use a structured format.";
+
+    /// <summary>
+    /// Runs the same benchmark prompt against every available model using the Allgoewer paper,
+    /// prints a comparison table, and saves results to a CSV in <paramref name="outputFolder"/>.
+    /// </summary>
+    public static async Task HandleBenchmarkAsync(CopilotClient client, string pdfFolder, string outputFolder)
+    {
+        // Resolve the Allgoewer PDF
+        var pdfPath = Path.Combine(pdfFolder, BenchmarkPdfName);
+        if (!File.Exists(pdfPath))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"❌ Benchmark PDF not found: {BenchmarkPdfName}");
+            Console.ResetColor();
+            return;
+        }
+
+        // Build the prompt with PDF context once (same for all models)
+        string fullPrompt = string.Empty;
+        await Program.RunWithSpinnerAsync(" Extracting PDF text", async () =>
+        {
+            fullPrompt = await PrepareMessageWithPdfContextAsync(pdfPath, BenchmarkPrompt);
+        });
+
+        // Get available models
+        var modelsWithInfo = await ModelSelector.GetModelsWithInfoAsync(client);
+        if (modelsWithInfo == null || modelsWithInfo.Length == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("❌ No models available.");
+            Console.ResetColor();
+            return;
+        }
+
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"🏁 Benchmarking {modelsWithInfo.Length} models on: {BenchmarkPdfName}");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        var results = new List<(string Model, double Multiplier, long LatencyMs, int WordCount, string Response, string Status)>();
+
+        foreach (var modelInfo in modelsWithInfo)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write($"   ▶ {modelInfo.Id,-35}");
+            Console.ResetColor();
+
+            CopilotSession? benchSession = null;
+            try
+            {
+                benchSession = await client.CreateSessionAsync(new SessionConfig
+                {
+                    Model = modelInfo.Id,
+                    Streaming = true
+                });
+
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var response = await Program.SendMessageAndCollectResponseSilentAsync(benchSession, fullPrompt);
+                sw.Stop();
+
+                var words = response.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+                var multiplier = modelInfo.Billing?.Multiplier ?? 1.0;
+                results.Add((modelInfo.Id, multiplier, sw.ElapsedMilliseconds, (int)words, response, "OK"));
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  {sw.ElapsedMilliseconds,6} ms  {words,5} words");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                results.Add((modelInfo.Id, modelInfo.Billing?.Multiplier ?? 1.0, 0, 0, string.Empty, $"ERROR: {ex.Message}"));
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  ❌ {ex.Message}");
+                Console.ResetColor();
+            }
+            finally
+            {
+                if (benchSession != null)
+                    await benchSession.DisposeAsync();
+            }
+        }
+
+        // ── Summary table ──
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("📊 Benchmark Results:");
+        Console.ResetColor();
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine($"   {"Model",-35} {"Multiplier",10}  {"Latency (ms)",13}  {"Words",6}  {"Est.Cost*",10}  Status");
+        Console.WriteLine($"   {"─────────────────────────────────",35} {"──────────",10}  {"─────────────",13}  {"─────",6}  {"──────────",10}  ──────");
+        Console.ResetColor();
+
+        foreach (var r in results)
+        {
+            var estCost = r.Status == "OK" ? (r.Multiplier * r.WordCount / 1000.0).ToString("F3") : "N/A";
+            Console.WriteLine($"   {r.Model,-35} {r.Multiplier,10:F2}  {r.LatencyMs,13}  {r.WordCount,6}  {estCost,10}  {r.Status}");
+        }
+
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine("\n   * Est.Cost = multiplier × words/1000 (relative proxy, not real billing)");
+        Console.ResetColor();
+
+        // ── Save CSV ──
+        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        var csvPath = Path.Combine(outputFolder, $"benchmark_{timestamp}.csv");
+        var csv = new StringBuilder();
+        csv.AppendLine("Model,Multiplier,LatencyMs,WordCount,EstCostProxy,Status");
+        foreach (var r in results)
+        {
+            var estCost = r.Status == "OK" ? (r.Multiplier * r.WordCount / 1000.0).ToString("F3") : "N/A";
+            csv.AppendLine($"{r.Model},{r.Multiplier:F2},{r.LatencyMs},{r.WordCount},{estCost},{r.Status}");
+        }
+        await File.WriteAllTextAsync(csvPath, csv.ToString());
+
+        // ── Save TXT with full responses ──
+        var txtPath = Path.Combine(outputFolder, $"benchmark_{timestamp}.txt");
+        var txt = new StringBuilder();
+        txt.AppendLine("═══════════════════════════════════════════════════════════════");
+        txt.AppendLine($"Benchmark Responses - {BenchmarkPdfName}");
+        txt.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        txt.AppendLine($"Prompt: {BenchmarkPrompt}");
+        txt.AppendLine("═══════════════════════════════════════════════════════════════");
+        txt.AppendLine();
+        foreach (var r in results)
+        {
+            txt.AppendLine($"═══ MODEL: {r.Model} ═══");
+            txt.AppendLine($"Status: {r.Status}  |  Latency: {r.LatencyMs} ms  |  Words: {r.WordCount}");
+            txt.AppendLine();
+            txt.AppendLine(r.Status == "OK" ? r.Response : $"(no response — {r.Status})");
+            txt.AppendLine();
+            txt.AppendLine("───────────────────────────────────────────────────────────────");
+            txt.AppendLine();
+        }
+        await File.WriteAllTextAsync(txtPath, txt.ToString(), Encoding.UTF8);
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"\n💾 Results saved → {csvPath}");
+        Console.WriteLine($"💾 Responses saved → {txtPath}");
+        Console.ResetColor();
+        Console.WriteLine();
     }
 
     private static async Task<T> RunWithSpinner<T>(string message, Func<Task<T>> action)
