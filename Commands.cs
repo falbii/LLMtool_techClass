@@ -81,7 +81,7 @@ public static class Commands
         Console.WriteLine("  'commands' or 'help' - Display all available commands");
         Console.WriteLine("  'exit' or 'quit'     - Exit the program");
         Console.WriteLine("  'upload <path>'      - Upload a PDF to analyze (or drop PDFs in ./pdf_to_analyze/)");
-        Console.WriteLine("  'list'               - List available PDFs");
+        Console.WriteLine("  'list'               - List available PDFs and choose one to analyze");
         Console.WriteLine("  'current'            - Show current PDF");
         Console.WriteLine("  'auto-summarize'     - Extract technology summaries to TXT");
         Console.WriteLine("  'auto-classify'      - Classify technologies and export CSV");
@@ -339,6 +339,9 @@ public static class Commands
 
             for (int batchIndex = 0; batchIndex < totalBatches; batchIndex++)
             {
+                if (batchIndex > 0)
+                    await Task.Delay(3000); // avoid Copilot rate limits
+
                 var batchStart = batchIndex * batchSize;
                 var batchCount = Math.Min(batchSize, technologyNames.Count - batchStart);
                 var batchTechs = technologyNames.Skip(batchStart).Take(batchCount).ToList();
@@ -512,6 +515,9 @@ public static class Commands
 
             for (int batchIndex = 0; batchIndex < totalBatches; batchIndex++)
             {
+                if (batchIndex > 0)
+                    await Task.Delay(3000); // avoid Copilot rate limits
+
                 var batchStart = batchIndex * batchSize;
                 var batchCount = Math.Min(batchSize, sections.Count - batchStart);
                 var batchSections = sections.Skip(batchStart).Take(batchCount).ToList();

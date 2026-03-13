@@ -110,7 +110,7 @@ try
     Console.WriteLine("  'commands' or 'help' - Display all available commands");
     Console.WriteLine("  'exit' or 'quit'     - Exit the program");
     Console.WriteLine("  'upload <path>'      - Upload a PDF to analyze (or drop PDFs in ./pdf_to_analyze/)");
-    Console.WriteLine("  'list'               - List available PDFs");
+    Console.WriteLine("  'list'               - List available PDFs and choose one to analyze");
     Console.WriteLine("  'current'            - Show current PDF");
     Console.WriteLine("  'auto-summarize'     - Extract technology summaries to TXT");
     Console.WriteLine("  'auto-classify'      - Classify technologies and export CSV");
