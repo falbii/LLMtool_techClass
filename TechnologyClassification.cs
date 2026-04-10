@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -30,28 +29,23 @@ public sealed class TechnologyClassification
     public int? Trl { get; set; }
     public string? TechMaturity { get; set; }
     public double? OverallEfficiency { get; set; }
-    public string? OverallEfficiencyInputCarrier { get; set; }
-    public string? OverallEfficiencyOutputCarrier { get; set; }
+    public string? EfficiencyUnit { get; set; }
     public List<string> CarriersIn { get; set; } = new();
     public string? MainInput { get; set; }
-    public List<double> InputShares { get; set; } = new();
-    public List<string> InputShareUnits { get; set; } = new();
     public List<double> RatiosIn { get; set; } = new();
     public List<string> UnitsIn { get; set; } = new();
     public List<string> CarriersOut { get; set; } = new();
     public string? MainOut { get; set; }
     public List<double> RatiosOut { get; set; } = new();
     public List<string> UnitsOut { get; set; } = new();
-    public List<double> OutputShares { get; set; } = new();
-    public List<string> OutputShareUnits { get; set; } = new();
     public double? MinInstallationSize { get; set; }
     public string? MinInstallationSizeUnit { get; set; }
     public double? LifetimeYears { get; set; }
-    public decimal? CapexOneTimeEur { get; set; }
-    public decimal? CapexPowerCapacityEurPerKw { get; set; }
-    public decimal? OpexOneTimeEur { get; set; }
-    public double? OpexFixPctOfCapex { get; set; }
-    public decimal? OpexFixPowerCapacityEurPerKwYr { get; set; }
+    public decimal? Capex { get; set; }
+    public string? CapexUnit { get; set; }
+    public decimal? OpexFix { get; set; }
+    public string? OpexFixUnit { get; set; }
+
 }
 
 /// <summary>
@@ -101,35 +95,21 @@ public static class TechnologyClassifier
             Trl = ParseInt(GetValue(lookup, "trl_(1-9)", "trl"), "trl_(1-9)", errors),
             TechMaturity = GetValue(lookup, "tech_maturity"),
             OverallEfficiency = ParseDouble(GetValue(lookup, "efficiency", "lhv_efficiency", "overall_efficiency"), "efficiency", errors),
+            EfficiencyUnit = GetValue(lookup, "efficiency_unit"),
             CarriersIn = ParseStringList(GetValue(lookup, "carriers_in")),
             MainInput = GetValue(lookup, "main_input"),
-            InputShares = ParseDoubleList(GetValue(lookup, "Input Shares", "input_shares"), "input_shares", errors),
-            InputShareUnits = ParseStringList(GetValue(lookup, "Input Units - Shares", "input_units_shares")),
             RatiosIn = ParseDoubleList(GetValue(lookup, "ratios_in"), "ratios_in", errors),
             UnitsIn = ParseStringList(GetValue(lookup, "units_in")),
             CarriersOut = ParseStringList(GetValue(lookup, "carriers_out")),
             MainOut = GetValue(lookup, "main_out"),
             RatiosOut = ParseDoubleList(GetValue(lookup, "ratios_out"), "ratios_out", errors),
             UnitsOut = ParseStringList(GetValue(lookup, "units_out")),
-            OutputShares = ParseDoubleList(GetValue(lookup, "Output Shares", "output_shares"), "output_shares", errors),
-            OutputShareUnits = ParseStringList(GetValue(lookup, "Output Units - Shares", "output_units_shares")),
             LifetimeYears = ParseDouble(GetValue(lookup, "lifetime_yr"), "lifetime_yr", errors),
-            CapexOneTimeEur = ParseDecimal(GetValue(lookup, "capex_one_time_eur"), "capex_one_time_eur", errors),
-            CapexPowerCapacityEurPerKw = ParseDecimal(GetValue(lookup, "capex_power_capacity_eur_per_kw"), "capex_power_capacity_eur_per_kw", errors),
-            OpexOneTimeEur = ParseDecimal(GetValue(lookup, "opex_one_time_eur"), "opex_one_time_eur", errors),
-            OpexFixPctOfCapex = ParseDouble(GetValue(lookup, "opex_fix_pct_of_capex"), "opex_fix_pct_of_capex", errors),
-            OpexFixPowerCapacityEurPerKwYr = ParseDecimal(GetValue(lookup, "opex_fix_power_capacity_eur_per_kw_yr"), "opex_fix_power_capacity_eur_per_kw_yr", errors)
+            Capex = ParseDecimal(GetValue(lookup, "capex"), "capex", errors),
+            CapexUnit = GetValue(lookup, "capex_unit"),
+            OpexFix = ParseDecimal(GetValue(lookup, "opex_fix"), "opex_fix", errors),
+            OpexFixUnit = GetValue(lookup, "opex_fix_unit"),
         };
-
-        var overallIo = GetValue(lookup, "Input, Output for Overall Efficiency", "overall_efficiency_io");
-        if (!string.IsNullOrWhiteSpace(overallIo))
-        {
-            var parts = overallIo.Split(',', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length > 0)
-                tech.OverallEfficiencyInputCarrier = parts[0];
-            if (parts.Length > 1)
-                tech.OverallEfficiencyOutputCarrier = parts[1];
-        }
 
         var minInstallRaw = GetValue(lookup, "min_installation_size");
         var minInstallParsed = ParseValueWithUnit(minInstallRaw);
@@ -342,10 +322,13 @@ public static class TechnologyClassifier
         sb.AppendLine("- ALL outputs (products, byproducts) with quantities and units");
         sb.AppendLine("- CAPEX (capital costs) in any format mentioned");
         sb.AppendLine("- OPEX (operating costs) as % or absolute values");
-        sb.AppendLine("- Efficiency values");
+        sb.AppendLine("- Efficiency values and units");
         sb.AppendLine("- Technology readiness level (TRL) or maturity");
         sb.AppendLine("- Lifetime, reference capacity, or scale information");
         sb.AppendLine("- Year/time horizon the data applies to");
+        sb.AppendLine("- Location or region if specified");
+        sb.AppendLine("- LCA or environmental impact data if mentioned, like GHG emissions");
+        sb.AppendLine("- Any other technical or economic data you find relevant, like unit size, energy requirements, etc.");
         sb.AppendLine();
         sb.AppendLine("BE COMPREHENSIVE:");
         sb.AppendLine("- Include ALL numeric values you find (even if scattered across pages)");
@@ -517,7 +500,7 @@ public static class TechnologyClassifier
         sb.AppendLine("Return a JSON array with one object per technology. Use this exact schema:");
         sb.AppendLine("[");
         sb.AppendLine("  {");
-        sb.AppendLine("    \"Datapaper Tech ID\": \"<short_unique_id>\",");
+        sb.AppendLine("    \"Datapaper Tech ID\": \"short_unique_id\",");
         sb.AppendLine("    \"description\": \"1-2 sentence technical description\",");
         sb.AppendLine("    \"summary\": \"Longer paragraph summarising all extracted data for this technology\",");
         sb.AppendLine("    \"unit_operation\": \"Equipment or process name\",");
@@ -528,31 +511,25 @@ public static class TechnologyClassifier
         sb.AppendLine("    \"tech_type\": \"Most specific technical name\",");
         sb.AppendLine("    \"carriers_in\": \"carrier1, carrier2, ...\",");
         sb.AppendLine("    \"main_input\": \"primary input carrier\",");
-        sb.AppendLine("    \"Input Shares\": \"share1, share2, ...\",");
-        sb.AppendLine("    \"Input Units - Shares\": \"unit1, unit2, ...\",");
         sb.AppendLine("    \"ratios_in\": \"ratio1, ratio2, ...\",");
         sb.AppendLine("    \"units_in\": \"unit1, unit2, ...\",");
         sb.AppendLine("    \"carriers_out\": \"carrier1, carrier2, ...\",");
         sb.AppendLine("    \"main_out\": \"primary output carrier\",");
-        sb.AppendLine("    \"Output Shares\": \"share1, share2, ...\",");
-        sb.AppendLine("    \"Output Units - Shares\": \"unit1, unit2, ...\",");
         sb.AppendLine("    \"ratios_out\": \"ratio1, ratio2, ...\",");
         sb.AppendLine("    \"units_out\": \"unit1, unit2, ...\",");
-        sb.AppendLine("    \"reference_unit_size\": <number or null>,");
+        sb.AppendLine("    \"reference_unit_size\": \"<number or null> (size of the reference unit)\",");
         sb.AppendLine("    \"reference_unit_size_unit\": \"e.g. MW, t/yr\",");
-        sb.AppendLine("    \"min_installation_size\": <number or null>,");
-        sb.AppendLine("    \"efficiency\": \"<0-1 decimal or null> (use LHV efficiency when available)\",");
-        sb.AppendLine("    \"Input, Output for Overall Efficiency\": \"input_carrier, output_carrier\",");
+        sb.AppendLine("    \"efficiency\": \"<number or null> (use LHV efficiency when available)\",");
+        sb.AppendLine("    \"efficiency_unit\": \"e.g. %, kWh/kg\",");
         sb.AppendLine("    \"trl_(1-9)\": <1-9 integer or null>,");
         sb.AppendLine("    \"tech_maturity\": \"e.g. Mature, Developing, Emerging\",");
         sb.AppendLine("    \"base_year\": <year integer or null>, (year that cost data applies to)");
         sb.AppendLine("    \"location\": \"e.g. Germany, Europe\",");
-        sb.AppendLine("    \"Currency\": \"EUR\",");
-        sb.AppendLine("    \"capex_one_time_eur\": <number or null>,");
-        sb.AppendLine("    \"capex_power_capacity_eur_per_kw\": <number or null>,");
-        sb.AppendLine("    \"opex_one_time_eur\": <number or null>,");
-        sb.AppendLine("    \"opex_fix_pct_of_capex\": <number or null>,");
-        sb.AppendLine("    \"opex_fix_power_capacity_eur_per_kw_yr\": <number or null>,");
+        sb.AppendLine("    \"Currency\": \"e.g. EUR\",");
+        sb.AppendLine("    \"capex\": <number or null>,");
+        sb.AppendLine("    \"capex_unit\": \"e.g. EUR, EUR/kW\",");
+        sb.AppendLine("    \"opex_fix\": <number or null>,");
+        sb.AppendLine("    \"opex_fix_unit\": \"e.g. % of Capex, EUR/year, EUR/kW/year\",");
         sb.AppendLine("    \"lifetime_yr\": <number or null>,");
         sb.AppendLine("    \"Data Reference Year\": <year integer or null> (year of the paper)");
         sb.AppendLine("  }");
@@ -564,7 +541,6 @@ public static class TechnologyClassifier
         sb.AppendLine($"- Use null for any field where the {sourceLabel} provides no data — never guess.");
         sb.AppendLine("- efficiency must be a 0-1 decimal (convert percentages: 65% → 0.65). Prefer LHV efficiency when available.");
         sb.AppendLine("- ratios_in / ratios_out: one numeric value per carrier, same order as carriers_in / carriers_out.");
-        sb.AppendLine("- Input Shares / Output Shares: fractional shares (0-1) if mentioned; otherwise null.");
         sb.AppendLine("- Cost fields: convert to EUR numbers (e.g. '€28.4M' → 28400000).");
         sb.AppendLine("- Include ALL technology variants with distinct data (method, efficiency, cost, year).");
         sb.AppendLine("- Return ONLY the JSON array — no markdown fences, no commentary.");
@@ -847,8 +823,7 @@ public static class TechnologyClassifier
         if (tech.OverallEfficiency.HasValue) fieldCount++;
         if (tech.CarriersIn.Count > 0 || tech.CarriersOut.Count > 0) fieldCount++;
         if (!string.IsNullOrWhiteSpace(tech.MainInput) || !string.IsNullOrWhiteSpace(tech.MainOut)) fieldCount++;
-        if (tech.InputShares.Count > 0 || tech.RatiosIn.Count > 0) fieldCount++;
-        if (tech.LifetimeYears.HasValue || tech.CapexOneTimeEur.HasValue || tech.OpexOneTimeEur.HasValue) fieldCount++;
+        if (tech.LifetimeYears.HasValue || tech.Capex.HasValue || tech.OpexFix.HasValue) fieldCount++;
 
         // Require minimum 2 fields populated
         return fieldCount >= 2;
@@ -970,28 +945,22 @@ public static class TechnologyClassifier
             Trl = source.Trl,
             TechMaturity = source.TechMaturity,
             OverallEfficiency = source.OverallEfficiency,
-            OverallEfficiencyInputCarrier = source.OverallEfficiencyInputCarrier,
-            OverallEfficiencyOutputCarrier = source.OverallEfficiencyOutputCarrier,
+            EfficiencyUnit = source.EfficiencyUnit,
             CarriersIn = new List<string>(source.CarriersIn),
             MainInput = source.MainInput,
-            InputShares = new List<double>(source.InputShares),
-            InputShareUnits = new List<string>(source.InputShareUnits),
             RatiosIn = new List<double>(source.RatiosIn),
             UnitsIn = new List<string>(source.UnitsIn),
             CarriersOut = new List<string>(source.CarriersOut),
             MainOut = source.MainOut,
             RatiosOut = new List<double>(source.RatiosOut),
             UnitsOut = new List<string>(source.UnitsOut),
-            OutputShares = new List<double>(source.OutputShares),
-            OutputShareUnits = new List<string>(source.OutputShareUnits),
             MinInstallationSize = source.MinInstallationSize,
             MinInstallationSizeUnit = source.MinInstallationSizeUnit,
             LifetimeYears = source.LifetimeYears,
-            CapexOneTimeEur = source.CapexOneTimeEur,
-            CapexPowerCapacityEurPerKw = source.CapexPowerCapacityEurPerKw,
-            OpexOneTimeEur = source.OpexOneTimeEur,
-            OpexFixPctOfCapex = source.OpexFixPctOfCapex,
-            OpexFixPowerCapacityEurPerKwYr = source.OpexFixPowerCapacityEurPerKwYr
+            Capex = source.Capex,
+            CapexUnit = source.CapexUnit,
+            OpexFix = source.OpexFix,
+            OpexFixUnit = source.OpexFixUnit
         };
     }
 
@@ -1016,29 +985,23 @@ public static class TechnologyClassifier
         target.Trl ??= source.Trl;
         target.TechMaturity ??= source.TechMaturity;
         target.OverallEfficiency ??= source.OverallEfficiency;
-        target.OverallEfficiencyInputCarrier ??= source.OverallEfficiencyInputCarrier;
-        target.OverallEfficiencyOutputCarrier ??= source.OverallEfficiencyOutputCarrier;
+        target.EfficiencyUnit ??= source.EfficiencyUnit;
         target.MainInput ??= source.MainInput;
         target.MainOut ??= source.MainOut;
         target.MinInstallationSize ??= source.MinInstallationSize;
         target.MinInstallationSizeUnit ??= source.MinInstallationSizeUnit;
         target.LifetimeYears ??= source.LifetimeYears;
-        target.CapexOneTimeEur ??= source.CapexOneTimeEur;
-        target.CapexPowerCapacityEurPerKw ??= source.CapexPowerCapacityEurPerKw;
-        target.OpexOneTimeEur ??= source.OpexOneTimeEur;
-        target.OpexFixPctOfCapex ??= source.OpexFixPctOfCapex;
-        target.OpexFixPowerCapacityEurPerKwYr ??= source.OpexFixPowerCapacityEurPerKwYr;
+        target.Capex ??= source.Capex;
+        target.CapexUnit ??= source.CapexUnit;
+        target.OpexFix ??= source.OpexFix;
+        target.OpexFixUnit ??= source.OpexFixUnit;
 
         if (target.CarriersIn.Count == 0 && source.CarriersIn.Count > 0) target.CarriersIn = new List<string>(source.CarriersIn);
-        if (target.InputShares.Count == 0 && source.InputShares.Count > 0) target.InputShares = new List<double>(source.InputShares);
-        if (target.InputShareUnits.Count == 0 && source.InputShareUnits.Count > 0) target.InputShareUnits = new List<string>(source.InputShareUnits);
         if (target.RatiosIn.Count == 0 && source.RatiosIn.Count > 0) target.RatiosIn = new List<double>(source.RatiosIn);
         if (target.UnitsIn.Count == 0 && source.UnitsIn.Count > 0) target.UnitsIn = new List<string>(source.UnitsIn);
         if (target.CarriersOut.Count == 0 && source.CarriersOut.Count > 0) target.CarriersOut = new List<string>(source.CarriersOut);
         if (target.RatiosOut.Count == 0 && source.RatiosOut.Count > 0) target.RatiosOut = new List<double>(source.RatiosOut);
         if (target.UnitsOut.Count == 0 && source.UnitsOut.Count > 0) target.UnitsOut = new List<string>(source.UnitsOut);
-        if (target.OutputShares.Count == 0 && source.OutputShares.Count > 0) target.OutputShares = new List<double>(source.OutputShares);
-        if (target.OutputShareUnits.Count == 0 && source.OutputShareUnits.Count > 0) target.OutputShareUnits = new List<string>(source.OutputShareUnits);
     }
 
     /// <summary>Ensures every row has a unique <c>DatapaperTechId</c>, appending a numeric suffix when needed.</summary>
@@ -1083,34 +1046,28 @@ public static class TechnologyClassificationCsv
         "main_category",
         "category_spec",
         "tech_type",
+        "base_year",
         "reference_unit_size",
         "reference_unit_size_unit",
-        "base_year",
         "location",
         "Currency",
         "trl_(1-9)",
         "tech_maturity",
         "efficiency",
-        "Input, Output for Overall Efficiency",
+        "efficiency_unit",
         "carriers_in",
         "main_input",
-        "Input Shares",
-        "Input Units - Shares",
         "ratios_in",
         "units_in",
         "carriers_out",
         "main_out",
         "ratios_out",
         "units_out",
-        "Output Shares",
-        "Output Units - Shares",
-        "min_installation_size",
+        "capex",
+        "capex_unit",
+        "opex_fix",
+        "opex_fix_unit",
         "lifetime_yr",
-        "capex_one_time_eur",
-        "capex_power_capacity_eur_per_kw",
-        "opex_one_time_eur",
-        "opex_fix_pct_of_capex",
-        "opex_fix_power_capacity_eur_per_kw_yr",
         "Data Reference Year",
         "summary"
     };
@@ -1133,34 +1090,28 @@ public static class TechnologyClassificationCsv
                 row.MainCategory ?? string.Empty,
                 row.CategorySpec ?? string.Empty,
                 row.TechType ?? string.Empty,
+                FormatInt(row.BaseYear),
                 FormatDouble(row.ReferenceUnitSize),
                 row.ReferenceUnitSizeUnit ?? string.Empty,
-                FormatInt(row.BaseYear),
                 row.Location ?? string.Empty,
                 row.Currency ?? string.Empty,
                 FormatInt(row.Trl),
                 row.TechMaturity ?? string.Empty,
                 FormatDouble(row.OverallEfficiency),
-                FormatOverallEfficiencyIo(row.OverallEfficiencyInputCarrier, row.OverallEfficiencyOutputCarrier),
+                row.EfficiencyUnit ?? string.Empty, 
                 JoinList(row.CarriersIn.Cast<string?>()),
                 row.MainInput ?? string.Empty,
-                JoinList(row.InputShares.Select(d => FormatDouble(d)).Cast<string?>()),
-                JoinList(row.InputShareUnits.Cast<string?>()),
                 JoinList(row.RatiosIn.Select(d => FormatDouble(d)).Cast<string?>()),
                 JoinList(row.UnitsIn.Cast<string?>()),
                 JoinList(row.CarriersOut.Cast<string?>()),
                 row.MainOut ?? string.Empty,
                 JoinList(row.RatiosOut.Select(d => FormatDouble(d)).Cast<string?>()),
                 JoinList(row.UnitsOut.Cast<string?>()),
-                JoinList(row.OutputShares.Select(d => FormatDouble(d)).Cast<string?>()),
-                JoinList(row.OutputShareUnits.Cast<string?>()),
-                FormatValueWithUnit(row.MinInstallationSize, row.MinInstallationSizeUnit),
+                FormatDecimal(row.Capex),     
+                row.CapexUnit ?? string.Empty, 
+                FormatDecimal(row.OpexFix),   
+                row.OpexFixUnit ?? string.Empty,
                 FormatDouble(row.LifetimeYears),
-                FormatDecimal(row.CapexOneTimeEur),
-                FormatDecimal(row.CapexPowerCapacityEurPerKw),
-                FormatDecimal(row.OpexOneTimeEur),
-                FormatDouble(row.OpexFixPctOfCapex),
-                FormatDecimal(row.OpexFixPowerCapacityEurPerKwYr),
                 FormatInt(row.DataReferenceYear),
                 row.Summary ?? string.Empty
             };

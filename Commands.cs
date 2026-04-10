@@ -84,7 +84,7 @@ public static class Commands
         Console.WriteLine("  'list'                 - List available PDFs and choose one to analyze");
         Console.WriteLine("  'current'              - Show current PDF");
         Console.WriteLine("  'auto-summarize'       - Extract technology summaries to TXT");
-        Console.WriteLine("  'auto-classify (beta)' - Classify technologies and export CSV");
+        Console.WriteLine("  'auto-classify' (beta) - Classify technologies and export CSV");
         Console.WriteLine("  'batch-analyze <q>'    - Analyze all PDFs with a question");
         Console.WriteLine("  'benchmark'            - Compare all models on the Allgoewer paper");
 
