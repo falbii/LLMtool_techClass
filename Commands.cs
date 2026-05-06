@@ -769,8 +769,8 @@ public static class Commands
         });
 
         // Get available models
-        var modelsWithInfo = await ModelSelector.GetModelsWithInfoAsync(client);
-        if (modelsWithInfo == null || modelsWithInfo.Length == 0)
+        var modelsWithInfo = await client.ListModelsAsync();
+        if (modelsWithInfo == null || modelsWithInfo.Count == 0)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("❌ No models available.");
@@ -780,7 +780,7 @@ public static class Commands
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"🏁 Benchmarking {modelsWithInfo.Length} models on: {BenchmarkPdfName}");
+        Console.WriteLine($"🏁 Benchmarking {modelsWithInfo.Count} models on: {BenchmarkPdfName}");
         Console.ResetColor();
         Console.WriteLine();
 
