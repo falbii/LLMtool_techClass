@@ -37,10 +37,11 @@ CopilotSession? session = null;
 
 try
 {
-    client = new CopilotClient();
+    client = new CopilotClient(new CopilotClientOptions());
+    
     await client.StartAsync();
     
-    var modelsWithInfo = await ModelSelector.GetModelsWithInfoAsync(client);
+    var modelsWithInfo = await GetModelsWithInfoAsync(client);
     if (modelsWithInfo != null && modelsWithInfo.Length > 0)
     {
         Console.ForegroundColor = ConsoleColor.DarkGray;
@@ -58,7 +59,7 @@ try
     }
 
     // ──────────────── Model selection ────────────────
-    var model = await ModelSelector.SelectModelAsync();
+    var model = await SelectModelAsync(client);
     if (model == null)
     {
         Console.ForegroundColor = ConsoleColor.Yellow;
@@ -75,7 +76,8 @@ try
         session = await client.CreateSessionAsync(new SessionConfig
         {
             Model = model,
-            Streaming = true
+            Streaming = true,
+            OnPermissionRequest = PermissionHandler.ApproveAll
         });
     });
     
@@ -269,6 +271,54 @@ finally
 
 public partial class Program
 {
+    /// <summary>
+    /// Gets available models directly from the Copilot SDK.
+    /// </summary>
+    private static async Task<ModelInfo[]> GetModelsWithInfoAsync(CopilotClient client)
+    {
+        var models = await client.ListModelsAsync();
+        return models.OrderBy(model => model.Id, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    /// <summary>
+    /// Prompts the user to pick a model from the SDK-provided list.
+    /// </summary>
+    private static async Task<string?> SelectModelAsync(CopilotClient client)
+    {
+        var models = await GetModelsWithInfoAsync(client);
+        if (models.Length == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("❌ No models available.");
+            Console.ResetColor();
+            return null;
+        }
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("Select a model by number or type the model id:\n");
+        Console.ResetColor();
+
+        for (int i = 0; i < models.Length; i++)
+        {
+            var multiplier = models[i].Billing?.Multiplier.ToString("F2") ?? "N/A";
+            var reasoning = models[i].SupportedReasoningEfforts is { Count: > 0 } ? "Yes" : "No";
+            Console.WriteLine($"   {i + 1}. {models[i].Id,-30} {multiplier,10}  {reasoning,9}");
+        }
+
+        Console.WriteLine();
+        Console.Write("Model: ");
+
+        var choice = Console.ReadLine()?.Trim();
+        if (string.IsNullOrWhiteSpace(choice))
+            return null;
+
+        if (int.TryParse(choice, out var selectedIndex) && selectedIndex >= 1 && selectedIndex <= models.Length)
+            return models[selectedIndex - 1].Id;
+
+        return models.FirstOrDefault(model =>
+            model.Id.Equals(choice, StringComparison.OrdinalIgnoreCase))?.Id;
+    }
+
     /// <summary>
     /// Runs <paramref name="action"/> while displaying a console spinner with <paramref name="message"/>.
     /// </summary>
