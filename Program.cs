@@ -27,11 +27,6 @@ if (!CliChecker.IsReady(status))
     return;
 }
 
-// ──────────────── Available models ────────────────
-Console.ForegroundColor = ConsoleColor.Cyan;
-Console.WriteLine("📊 Available Models & Billing Info:\n");
-Console.ResetColor();
-
 CopilotClient? client = null;
 CopilotSession? session = null;
 
@@ -42,24 +37,9 @@ try
     await client.StartAsync();
     
     var modelsWithInfo = await GetModelsWithInfoAsync(client);
-    if (modelsWithInfo != null && modelsWithInfo.Length > 0)
-    {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("   Model                          Multiplier  Reasoning");
-        Console.WriteLine("   ─────────────────────────────  ──────────  ─────────");
-        Console.ResetColor();
-        
-        foreach (var modelInfo in modelsWithInfo)
-        {
-            var multiplier = modelInfo.Billing?.Multiplier.ToString("F2") ?? "N/A";
-            var reasoning = modelInfo.SupportedReasoningEfforts is { Count: > 0 } ? "Yes" : "No";
-            Console.WriteLine($"   {modelInfo.Id,-30} {multiplier,10}  {reasoning,9}");
-        }
-        Console.WriteLine();
-    }
 
     // ──────────────── Model selection ────────────────
-    var model = await SelectModelAsync(client);
+    var model = await SelectModelAsync(modelsWithInfo);
     if (model == null)
     {
         Console.ForegroundColor = ConsoleColor.Yellow;
@@ -218,7 +198,7 @@ try
                 continue;
             }
 
-            await Commands.HandleAutoSummarizeAsync(session, currentPdfFile, outputFolder);
+            await Commands.HandleAutoSummarizeAsync(client!, model!, currentPdfFile, outputFolder);
             continue;
         }
 
@@ -233,7 +213,7 @@ try
                 continue;
             }
 
-            await Commands.HandleAutoClassifyAsync(session, currentPdfFile, outputFolder);
+            await Commands.HandleAutoClassifyAsync(client!, model!, currentPdfFile, outputFolder);
             continue;
         }
 
@@ -283,19 +263,23 @@ public partial class Program
     /// <summary>
     /// Prompts the user to pick a model from the SDK-provided list.
     /// </summary>
-    private static async Task<string?> SelectModelAsync(CopilotClient client)
+    private static Task<string?> SelectModelAsync(ModelInfo[] models)
     {
-        var models = await GetModelsWithInfoAsync(client);
         if (models.Length == 0)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("❌ No models available.");
             Console.ResetColor();
-            return null;
+            return Task.FromResult<string?>(null);
         }
 
         Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("Select a model by number or type the model id:\n");
+        Console.WriteLine("📊 Available Models & Billing Info:\n");
+        Console.ResetColor();
+
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine("   Model                          Multiplier  Reasoning");
+        Console.WriteLine("   ─────────────────────────────  ──────────  ─────────");
         Console.ResetColor();
 
         for (int i = 0; i < models.Length; i++)
@@ -305,18 +289,21 @@ public partial class Program
             Console.WriteLine($"   {i + 1}. {models[i].Id,-30} {multiplier,10}  {reasoning,9}");
         }
 
-        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("\nSelect a model by number or type the model id:\n");
+        Console.ResetColor();
+
         Console.Write("Model: ");
 
         var choice = Console.ReadLine()?.Trim();
         if (string.IsNullOrWhiteSpace(choice))
-            return null;
+            return Task.FromResult<string?>(null);
 
         if (int.TryParse(choice, out var selectedIndex) && selectedIndex >= 1 && selectedIndex <= models.Length)
-            return models[selectedIndex - 1].Id;
+            return Task.FromResult<string?>(models[selectedIndex - 1].Id);
 
-        return models.FirstOrDefault(model =>
-            model.Id.Equals(choice, StringComparison.OrdinalIgnoreCase))?.Id;
+        return Task.FromResult<string?>(models.FirstOrDefault(model =>
+            model.Id.Equals(choice, StringComparison.OrdinalIgnoreCase))?.Id);
     }
 
     /// <summary>
@@ -612,6 +599,114 @@ public partial class Program
         }
         finally
         {
+            subscription.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Sends a message and streams the response to the console in real time
+    /// (dim grey, word-wrapped at 100 chars), then returns the full collected response.
+    /// </summary>
+    public static async Task<string> SendMessageAndStreamToConsoleAsync(
+        CopilotSession session, string message, string linePrefix = "   ")
+    {
+        var done = new TaskCompletionSource();
+        var response = new StringBuilder();
+        var hasDelta = false;
+        var lineLen = 0;
+        const int wrapAt = 100;
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(15));
+
+        // Show a spinner while waiting for the first token
+        using var spinnerCts = new CancellationTokenSource();
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.Write($"{linePrefix}⏳ waiting...");
+        var spinnerChars2 = new[] { '|', '/', '-', '\\' };
+        var waitLeft = Console.CursorLeft - 1;
+        var waitTop = Console.CursorTop;
+        var spinnerTask = Task.Run(async () =>
+        {
+            int i = 0;
+            while (!spinnerCts.Token.IsCancellationRequested)
+            {
+                Console.SetCursorPosition(waitLeft, waitTop);
+                Console.Write(spinnerChars2[i++ % spinnerChars2.Length]);
+                try { await Task.Delay(100, spinnerCts.Token); } catch { break; }
+            }
+        });
+
+        var subscription = session.On(evt =>
+        {
+            switch (evt)
+            {
+                case AssistantMessageDeltaEvent delta:
+                    if (!hasDelta)
+                    {
+                        // First token arrived — clear the spinner line and start fresh
+                        spinnerCts.Cancel();
+                        Console.SetCursorPosition(0, waitTop);
+                        Console.Write(new string(' ', Console.WindowWidth - 1));
+                        Console.SetCursorPosition(0, waitTop);
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        Console.Write(linePrefix);
+                        lineLen = 0;
+                    }
+                    hasDelta = true;
+                    var chunk = delta.Data.DeltaContent ?? string.Empty;
+                    response.Append(chunk);
+                    foreach (var ch in chunk)
+                    {
+                        if (ch == '\n')
+                        {
+                            Console.WriteLine();
+                            Console.Write(linePrefix);
+                            lineLen = 0;
+                        }
+                        else
+                        {
+                            if (lineLen >= wrapAt)
+                            {
+                                Console.WriteLine();
+                                Console.Write(linePrefix);
+                                lineLen = 0;
+                            }
+                            Console.Write(ch);
+                            lineLen++;
+                        }
+                    }
+                    break;
+                case AssistantMessageEvent msg:
+                    if (!hasDelta)
+                        response.Append(msg.Data.Content);
+                    break;
+                case SessionIdleEvent:
+                    done.TrySetResult();
+                    break;
+                case SessionErrorEvent err:
+                    done.TrySetException(new InvalidOperationException(err.Data.Message));
+                    break;
+            }
+        });
+
+        try
+        {
+            await session.SendAsync(new MessageOptions { Prompt = message });
+            using var timeoutTask = timeoutCts.Token.Register(() => done.TrySetException(
+                new TimeoutException("Copilot service did not respond within 15 minutes.")));
+            await done.Task;
+            Console.WriteLine();
+            Console.ResetColor();
+            return response.ToString();
+        }
+        catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested)
+        {
+            Console.ResetColor();
+            throw new TimeoutException("Copilot service request timed out after 15 minutes.");
+        }
+        finally
+        {
+            spinnerCts.Cancel();
+            await spinnerTask;
             subscription.Dispose();
         }
     }

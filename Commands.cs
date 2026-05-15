@@ -271,7 +271,7 @@ public static class Commands
     /// Returns the TXT path on success, or <c>null</c> on failure.
     /// </summary>
     public static async Task<string?> HandleAutoSummarizeAsync(
-        CopilotSession session, string pdfFile, string outputFolder)
+        CopilotClient client, string model, string pdfFile, string outputFolder)
     {
         if (string.IsNullOrWhiteSpace(pdfFile) || !File.Exists(pdfFile))
         {
@@ -293,6 +293,13 @@ public static class Commands
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine("📝 Summarising technologies from PDF...\n");
         Console.ResetColor();
+
+        var session = await client.CreateSessionAsync(new SessionConfig
+        {
+            Model = model,
+            Streaming = true,
+            OnPermissionRequest = PermissionHandler.ApproveAll
+        });
 
         try
         {
@@ -334,7 +341,7 @@ public static class Commands
             Console.ResetColor();
 
             var technologyDetails = new List<string>();
-            const int batchSize = 10;
+            const int batchSize = 5;
             int totalBatches = (int)Math.Ceiling((double)technologyNames.Count / batchSize);
 
             for (int batchIndex = 0; batchIndex < totalBatches; batchIndex++)
@@ -432,6 +439,10 @@ public static class Commands
             Console.ResetColor();
             return null;
         }
+        finally
+        {
+            await session.DisposeAsync();
+        }
     }
 
     /// <summary>
@@ -441,7 +452,7 @@ public static class Commands
     /// If the TXT does not exist, prompts the user to run <c>auto-summarize</c> first.
     /// Returns the output CSV path on success, or <c>null</c> on failure.
     /// </summary>
-    public static async Task<string?> HandleAutoClassifyAsync(CopilotSession session, string pdfFile, string outputFolder)
+    public static async Task<string?> HandleAutoClassifyAsync(CopilotClient client, string model, string pdfFile, string outputFolder)
     {
         if (string.IsNullOrWhiteSpace(pdfFile) || !File.Exists(pdfFile))
         {
@@ -510,7 +521,7 @@ public static class Commands
             Console.ResetColor();
 
             var allRows = new List<IDictionary<string, string>>();
-            const int batchSize = 10;
+            const int batchSize = 5;
             int totalBatches = (int)Math.Ceiling((double)sections.Count / batchSize);
 
             for (int batchIndex = 0; batchIndex < totalBatches; batchIndex++)
@@ -522,24 +533,34 @@ public static class Commands
                 var batchCount = Math.Min(batchSize, sections.Count - batchStart);
                 var batchSections = sections.Skip(batchStart).Take(batchCount).ToList();
 
-                Console.Write($"   Batch {batchIndex + 1}/{totalBatches} (technologies {batchStart + 1}-{batchStart + batchCount})... ");
+                Console.WriteLine($"   Batch {batchIndex + 1}/{totalBatches} (technologies {batchStart + 1}-{batchStart + batchCount})");
+
+                // Fresh session per batch: keeps context constant size regardless of batch number
+                await using var batchSession = await client.CreateSessionAsync(new SessionConfig
+                {
+                    Model = model,
+                    Streaming = true,
+                    OnPermissionRequest = PermissionHandler.ApproveAll
+                });
 
                 try
                 {
+                    // Always send the full schema prompt — no accumulated context across batches
                     var prompt = TechnologyClassifier.BuildClassificationFromSummaryPrompt(batchSections);
-                    var jsonResponse = await Program.SendMessageAndCollectResponseSilentAsync(session, prompt);
 
+                    var jsonResponse = await Program.SendMessageAndStreamToConsoleAsync(batchSession, prompt);
                     var json = TechnologyClassifier.ExtractJson(jsonResponse);
-                    if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith("["))
+
+                    if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith("[") || !json.TrimEnd().EndsWith("]"))
                     {
                         Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine($"⚠️ No valid JSON returned — retrying");
+                        Console.WriteLine($"   ⚠️ No valid JSON returned — retrying");
                         Console.ResetColor();
 
-                        // Retry once
-                        jsonResponse = await Program.SendMessageAndCollectResponseSilentAsync(session, prompt);
+                        // Retry once (silent — we already saw the first attempt)
+                        jsonResponse = await Program.SendMessageAndCollectResponseSilentAsync(batchSession, prompt);
                         json = TechnologyClassifier.ExtractJson(jsonResponse);
-                        if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith("["))
+                        if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith("[") || !json.TrimEnd().EndsWith("]"))
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
                             Console.WriteLine($"   ✗ Retry also failed — skipping batch");
@@ -552,7 +573,7 @@ public static class Commands
                     allRows.AddRange(batchRows);
 
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"✓ ({batchRows.Count} rows)");
+                    Console.WriteLine($"   ✓ ({batchRows.Count} rows)");
                     Console.ResetColor();
                 }
                 catch (Exception ex)

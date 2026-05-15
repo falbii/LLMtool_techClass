@@ -311,6 +311,8 @@ public static class TechnologyClassifier
     {
         var sb = new StringBuilder();
 
+        sb.AppendLine("You are an expert energy systems data extractor specialised in techno-economic analysis. Extract data precisely.");
+        sb.AppendLine();
         sb.AppendLine($"TASK: Extract ALL data for these {technologyNames.Count} technologies from this PDF:");
         sb.AppendLine();
         for (int i = 0; i < technologyNames.Count; i++)
@@ -340,7 +342,7 @@ public static class TechnologyClassifier
         sb.AppendLine("OUTPUT FORMAT:");
         sb.AppendLine("=== TECHNOLOGY 1: [Name] ===");
         sb.AppendLine();
-        sb.AppendLine("--- Year: 2020 (current/baseline) ---");
+        sb.AppendLine("--- Year: 2025 (current/baseline) ---");
         sb.AppendLine("[All data for this technology at this year]");
         sb.AppendLine();
         sb.AppendLine("--- Year: 2035 (near future) ---");
@@ -489,6 +491,36 @@ public static class TechnologyClassifier
             sb.AppendLine();
         }
 
+        sb.AppendLine("OUTPUT INSTRUCTIONS (mandatory):");
+        sb.AppendLine("- Your entire response MUST be a single raw JSON array: [ ... ]");
+        sb.AppendLine("- Start your response with [ and end it with ]");
+        sb.AppendLine("- Do NOT write any explanation, preamble, summary, or markdown");
+        sb.AppendLine("- Do NOT say what you are doing — just output the JSON");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Builds a short follow-up prompt for batches 2+ during auto-classify.
+    /// The schema and rules are already in the session context from batch 1,
+    /// so only the new technology summaries are sent.
+    /// </summary>
+    public static string BuildFollowUpClassificationPrompt(
+        List<(string Name, string Content)> technologySections)
+    {
+        if (technologySections == null || technologySections.Count == 0)
+            throw new ArgumentException("Technology sections cannot be null or empty");
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"Same schema and rules as before. Convert these {technologySections.Count} technology summaries into a JSON array:");
+        sb.AppendLine();
+        foreach (var (name, content) in technologySections)
+        {
+            sb.AppendLine($"=== {name} ===");
+            sb.AppendLine(content);
+            sb.AppendLine();
+        }
+        sb.AppendLine("Return ONLY the JSON array.");
         return sb.ToString();
     }
 
@@ -497,53 +529,56 @@ public static class TechnologyClassifier
     /// </summary>
     private static void AppendJsonSchemaAndRules(StringBuilder sb, string sourceLabel)
     {
-        sb.AppendLine("Return a JSON array with one object per technology. Use this exact schema:");
-        sb.AppendLine("[");
-        sb.AppendLine("  {");
-        sb.AppendLine("    \"Datapaper Tech ID\": \"short_unique_id\",");
-        sb.AppendLine("    \"description\": \"1-2 sentence technical description\",");
-        sb.AppendLine("    \"summary\": \"Longer paragraph summarising all extracted data for this technology\",");
-        sb.AppendLine("    \"unit_operation\": \"Equipment or process name\",");
-        sb.AppendLine("    \"ProcessType\": \"e.g. Electrolysis, Synthesis, Capture\",");
-        sb.AppendLine("    \"main_sector\": \"e.g. Hydrogen, CCU, Power\",");
-        sb.AppendLine("    \"main_category\": \"e.g. Electrolysis, CO2 Capture\",");
-        sb.AppendLine("    \"category_spec\": \"e.g. Alkaline, PEM, Solid sorbent\",");
-        sb.AppendLine("    \"tech_type\": \"Most specific technical name\",");
-        sb.AppendLine("    \"carriers_in\": \"carrier1, carrier2, ...\",");
-        sb.AppendLine("    \"main_input\": \"primary input carrier\",");
-        sb.AppendLine("    \"ratios_in\": \"ratio1, ratio2, ...\",");
-        sb.AppendLine("    \"units_in\": \"unit1, unit2, ...\",");
-        sb.AppendLine("    \"carriers_out\": \"carrier1, carrier2, ...\",");
-        sb.AppendLine("    \"main_out\": \"primary output carrier\",");
-        sb.AppendLine("    \"ratios_out\": \"ratio1, ratio2, ...\",");
-        sb.AppendLine("    \"units_out\": \"unit1, unit2, ...\",");
-        sb.AppendLine("    \"reference_unit_size\": \"<number or null> (size of the reference unit)\",");
-        sb.AppendLine("    \"reference_unit_size_unit\": \"e.g. MW, t/yr\",");
-        sb.AppendLine("    \"efficiency\": \"<number or null> (use LHV efficiency when available)\",");
-        sb.AppendLine("    \"efficiency_unit\": \"e.g. %, kWh/kg\",");
-        sb.AppendLine("    \"trl_(1-9)\": <1-9 integer or null>,");
-        sb.AppendLine("    \"tech_maturity\": \"e.g. Mature, Developing, Emerging\",");
-        sb.AppendLine("    \"base_year\": <year integer or null>, (year that cost data applies to)");
-        sb.AppendLine("    \"location\": \"e.g. Germany, Europe\",");
-        sb.AppendLine("    \"Currency\": \"e.g. EUR\",");
-        sb.AppendLine("    \"capex\": <number or null>,");
-        sb.AppendLine("    \"capex_unit\": \"e.g. EUR, EUR/kW\",");
-        sb.AppendLine("    \"opex_fix\": <number or null>,");
-        sb.AppendLine("    \"opex_fix_unit\": \"e.g. % of Capex, EUR/year, EUR/kW/year\",");
-        sb.AppendLine("    \"lifetime_yr\": <number or null>,");
-        sb.AppendLine("    \"Data Reference Year\": <year integer or null> (year of the paper)");
-        sb.AppendLine("  }");
-        sb.AppendLine("]");
+        sb.AppendLine("You are an expert of energy systems data extractor specialised in techno-economic analysis. Extract data precisely and return only valid JSON.");
+        sb.AppendLine();
+        sb.AppendLine("JSON Schema:");
+        sb.AppendLine("[{");
+        sb.AppendLine("  \"Datapaper Tech ID\": \"id\",");
+        sb.AppendLine("  \"description\": \"1-2 sentences\",");
+        sb.AppendLine("  \"summary\": \"paragraph\",");
+        sb.AppendLine("  \"unit_operation\": \"name\",");
+        sb.AppendLine("  \"ProcessType\": \"e.g. Conversion, Storage, Capture, Transport, EndUse, etc (what it does)\",");
+        sb.AppendLine("  \"main_sector\": \"e.g. Electricity, Heat, Chemicals, Fuels, Industry, Buildings, etc (broadest)\",");
+        sb.AppendLine("  \"main_category\": \"e.g. Electrolysis, CO2 Capture, Syngas Production, etc (field)\",");
+        sb.AppendLine("  \"category_spec\": \"e.g. Alkaline, PEM, Solid sorbent, Aqueous, etc (type)\",");
+        sb.AppendLine("  \"tech_type\": \"specific name found in source (most specific)\",");
+        sb.AppendLine("  \"carriers_in\": \"c1,c2,c3 (any carriers)\",");
+        sb.AppendLine("  \"main_input\": \"primary carrier\",");
+        sb.AppendLine("  \"ratios_in\": \"r1,r2,r3\",");
+        sb.AppendLine("  \"units_in\": \"u1,u2,u3\",");
+        sb.AppendLine("  \"carriers_out\": \"c1,c2,c3 (any carriers)\",");
+        sb.AppendLine("  \"main_out\": \"primary carrier\",");
+        sb.AppendLine("  \"ratios_out\": \"r1,r2,r3\",");
+        sb.AppendLine("  \"units_out\": \"u1,u2,u3\",");
+        sb.AppendLine("  \"reference_unit_size\": <num|null>,");
+        sb.AppendLine("  \"reference_unit_size_unit\": \"e.g. MW, t/yr, kg/s (any unit found)\",");
+        sb.AppendLine("  \"efficiency\": <0-1 decimal|null> (prefer LHV if available),");
+        sb.AppendLine("  \"efficiency_unit\": \"e.g. %, kWh/kg, J/mol (any unit found)\",");
+        sb.AppendLine("  \"trl_(1-9)\": <1-9|null>,");
+        sb.AppendLine("  \"tech_maturity\": \"e.g. Mature, Developing, Emerging (use source terminology)\",");
+        sb.AppendLine("  \"base_year\": <year|null>,");
+        sb.AppendLine("  \"location\": \"e.g. Germany, Europe, Chile, Iceland (any location)\",");
+        sb.AppendLine("  \"Currency\": \"e.g. EUR, USD, GBP (any currency found)\",");
+        sb.AppendLine("  \"capex\": <num|null>,");
+        sb.AppendLine("  \"capex_unit\": \"e.g. EUR, EUR/kW, EUR/t (any unit found)\",");
+        sb.AppendLine("  \"opex_fix\": <num|null>,");
+        sb.AppendLine("  \"opex_fix_unit\": \"e.g. EUR/year, % of Capex, EUR/kW/year (any unit)\",");
+        sb.AppendLine("  \"lifetime_yr\": <num|null>,");
+        sb.AppendLine("  \"Data Reference Year\": <year|null>");
+        sb.AppendLine("}]");
         sb.AppendLine();
 
-        sb.AppendLine("RULES:");
-        sb.AppendLine("- One JSON object per technology. If a technology has data for MULTIPLE YEARS, emit SEPARATE objects (one per year).");
-        sb.AppendLine($"- Use null for any field where the {sourceLabel} provides no data — never guess.");
-        sb.AppendLine("- efficiency must be a 0-1 decimal (convert percentages: 65% → 0.65). Prefer LHV efficiency when available.");
-        sb.AppendLine("- ratios_in / ratios_out: one numeric value per carrier, same order as carriers_in / carriers_out.");
-        sb.AppendLine("- Cost fields: convert to EUR numbers (e.g. '€28.4M' → 28400000).");
-        sb.AppendLine("- Include ALL technology variants with distinct data (method, efficiency, cost, year).");
-        sb.AppendLine("- Return ONLY the JSON array — no markdown fences, no commentary.");
+        sb.AppendLine("HIERARCHY (General → Specific):");
+        sb.AppendLine("- ProcessType, main_sector, main_category, category_spec, tech_type: classify the technology into a hierarchy");
+        sb.AppendLine();
+
+        sb.AppendLine("Rules:");
+        sb.AppendLine("- One object per technology; multiple years → separate objects");
+        sb.AppendLine($"- Use null where {sourceLabel} has no data");
+        sb.AppendLine("- efficiency: 0-1 decimal (65% → 0.65, prefer LHV)");
+        sb.AppendLine("- ratios: one per carrier, same order as carriers");
+        sb.AppendLine("- costs: convert to single currency number (€28.4M → 28400000)");
+        sb.AppendLine("- Return ONLY JSON array, no markdown or commentary");
         sb.AppendLine();
     }
 
@@ -838,9 +873,10 @@ public static class TechnologyClassifier
         var merged = new List<TechnologyClassification>();
         var indexByKey = new Dictionary<string, int>(KeyComparer);
 
+        var rowIndex = 0;
         foreach (var row in rows)
         {
-            var key = BuildTechnologyYearKey(row);
+            var key = BuildTechnologyYearKey(row, rowIndex);
             if (indexByKey.TryGetValue(key, out var index))
             {
                 MergeMissingFields(merged[index], row);
@@ -850,6 +886,8 @@ public static class TechnologyClassifier
                 merged.Add(Clone(row));
                 indexByKey[key] = merged.Count - 1;
             }
+
+            rowIndex++;
         }
 
         EnsureUniqueDatapaperIds(merged);
@@ -857,9 +895,10 @@ public static class TechnologyClassifier
     }
 
     /// <summary>
-    /// Builds a composite key from technology name + year (+ variant) to detect duplicates for merging.
+    /// Builds a conservative merge key from technology name + explicit year source (+ variant).
+    /// Rows without a valid year are intentionally kept unique to prevent accidental cross-year merges.
     /// </summary>
-    private static string BuildTechnologyYearKey(TechnologyClassification row)
+    private static string BuildTechnologyYearKey(TechnologyClassification row, int rowIndex)
     {
         var technologyName = FirstNonEmpty(
             row.TechType,
@@ -871,39 +910,35 @@ public static class TechnologyClassifier
             "unknown");
 
         var normalizedTechnology = NormalizeKeyText(technologyName);
-        
-        // CRITICAL: Use only valid years (>1900). If year is missing, add unique hash to prevent false merges.
-        var year = row.DataReferenceYear ?? row.BaseYear;
-        
-        if (!year.HasValue || year.Value < 1900)
+
+        var dataReferenceYear = NormalizeYear(row.DataReferenceYear);
+        var baseYear = NormalizeYear(row.BaseYear);
+
+        if (!dataReferenceYear.HasValue && !baseYear.HasValue)
         {
-            // No valid year: add hash of description/summary to keep rows separate
-            var uniqueHash = GetHashCode(row.Description ?? row.Summary ?? "");
-            return $"{normalizedTechnology}|NOYEAR|{uniqueHash}";
+            return $"{normalizedTechnology}|UNMERGEABLE|{rowIndex}";
         }
-        
-        // IMPORTANT: Also include category_spec to distinguish variants within same year
+
+        var yearToken = dataReferenceYear.HasValue && baseYear.HasValue
+            ? $"DR{dataReferenceYear.Value}|BY{baseYear.Value}"
+            : dataReferenceYear.HasValue
+                ? $"DR{dataReferenceYear.Value}"
+                : $"BY{baseYear!.Value}";
+
+        // Include category/tech variants to avoid collapsing distinct sub-types.
         var categorySpec = NormalizeKeyText(row.CategorySpec ?? "");
         var variant = NormalizeKeyText(row.TechType ?? "");
-        
-        // If category_spec differs, treat as different row (e.g., "alkaline vs PEM electrolysis")
+
         if (!string.IsNullOrWhiteSpace(categorySpec))
-            return $"{normalizedTechnology}|{year}|{categorySpec}";
-        
-        // If tech_type differs, treat as different row
+            return $"{normalizedTechnology}|{yearToken}|{categorySpec}";
+
         if (!string.IsNullOrWhiteSpace(variant) && variant != normalizedTechnology)
-            return $"{normalizedTechnology}|{year}|{variant}";
-        
-        // Same tech, same year, no variant → merge these
-        return $"{normalizedTechnology}|{year}";
+            return $"{normalizedTechnology}|{yearToken}|{variant}";
+
+        return $"{normalizedTechnology}|{yearToken}";
     }
 
-    private static int GetHashCode(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return 0;
-        return Math.Abs(value.GetHashCode());
-    }
+    private static int? NormalizeYear(int? year) => year is >= 1900 ? year : null;
 
     private static string FirstNonEmpty(params string?[] values)
     {
