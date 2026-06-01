@@ -88,7 +88,7 @@ public static class PdfAnalyzer
             
             // Detect technology name lists (even without numbers)
             var hasTechKeywords = System.Text.RegularExpressions.Regex.IsMatch(line, 
-                @"\b(electrolysis|synthesis|capture|conversion|storage|production|supply|generation|reactor|turbine|boiler|pump|compressor|heat exchanger|separator|absorber|adsorber|catalytic|thermal|chemical|mechanical|electrical)\b", 
+                @"\b(synthesis|capture|conversion|storage|production|supply|generation|reactor|turbine|boiler|pump|compressor|heat exchanger|separator|absorber|adsorber|catalytic|thermal|electrolysis|chemical|mechanical|electrical)\b", 
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             
             var hasListStructure = System.Text.RegularExpressions.Regex.IsMatch(line.TrimStart(), 

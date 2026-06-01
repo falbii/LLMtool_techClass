@@ -255,24 +255,24 @@ public static class TechnologyClassifier
     {
         var sb = new StringBuilder();
         
-        sb.AppendLine("Give me ALL the technologies you can find in this PDF.");
+        sb.AppendLine("Give me a list of the MAIN technologies studied in this PDF.");
         sb.AppendLine();
-        sb.AppendLine("Be COMPREHENSIVE and include:");
-        sb.AppendLine("- Every process, unit operation, and equipment type mentioned");
-        sb.AppendLine("- ALL technology variants and subtypes");
-        sb.AppendLine("- Technologies mentioned in tables, figures, and text");
-        sb.AppendLine("- Both main technologies and supporting/auxiliary technologies");
-        sb.AppendLine();
+        // sb.AppendLine("Be COMPREHENSIVE and include:");
+        // sb.AppendLine("- Every process, unit operation, and equipment type mentioned");
+        // sb.AppendLine("- ALL technology variants and subtypes");
+        // sb.AppendLine("- Technologies mentioned in tables, figures, and text");
+        // sb.AppendLine("- Both main technologies and supporting/auxiliary technologies");
+        // sb.AppendLine();
         sb.AppendLine("CRITICAL RULES:");
         sb.AppendLine("- List each technology ONLY ONCE by its base name");
+        sb.AppendLine("- Keep only the main technologies analyzed, remove process details or qualifiers");
         sb.AppendLine("- Do NOT create separate entries for different years, timeframes, or scenarios");
-        sb.AppendLine("  (e.g. list 'Alkaline water electrolysis' once, NOT separately for 2030/2035/2050)");
+        // sb.AppendLine("  (e.g. list 'Alkaline water electrolysis' once, NOT separately for 2030/2035/2050)");
         sb.AppendLine("- Do NOT create separate entries for different regions or locations");
-        sb.AppendLine("  (e.g. list 'Photovoltaic systems' once, NOT separately for Spain/Chile/etc.)");
+        // sb.AppendLine("  (e.g. list 'Photovoltaic systems' once, NOT separately for Spain/Chile/etc.)");
         sb.AppendLine("- Do NOT add qualifiers like '(near future)', '(long-term)', '(2035)' to names");
         sb.AppendLine("- Do NOT duplicate a technology under both a generic and a specific name");
-        sb.AppendLine("  (e.g. list 'Fischer-Tropsch synthesis' OR 'Fischer-Tropsch fuels', not both,");
-        sb.AppendLine("   unless the PDF truly treats them as distinct processes)");
+        sb.AppendLine("  e.g. list 'Fischer-Tropsch synthesis' OR 'Fischer-Tropsch fuels', not both");
         sb.AppendLine("- One technology per line, plain name only");
         sb.AppendLine();
         sb.AppendLine("OUTPUT FORMAT (plain list, one per line):");
@@ -318,8 +318,8 @@ public static class TechnologyClassifier
         for (int i = 0; i < technologyNames.Count; i++)
             sb.AppendLine($"{i + 1}. {technologyNames[i]}");
         sb.AppendLine();
-        sb.AppendLine("For EACH technology listed above, extract and report EVERYTHING you find:");
-        sb.AppendLine("- Process description and operating conditions");
+        sb.AppendLine("For EACH technology listed above, extract and report the following data in this order, separated by year:");
+        sb.AppendLine("- Process description including operating conditions");
         sb.AppendLine("- ALL inputs (materials, energy, consumables) with quantities and units");
         sb.AppendLine("- ALL outputs (products, byproducts) with quantities and units");
         sb.AppendLine("- CAPEX (capital costs) in any format mentioned");
@@ -354,6 +354,13 @@ public static class TechnologyClassifier
         sb.AppendLine("=== TECHNOLOGY 2: [Name] ===");
         sb.AppendLine("[same sub-section structure by year]");
         sb.AppendLine("etc.");
+        sb.AppendLine();
+        sb.AppendLine("IMPORTANT OUTPUT RULES:");
+        sb.AppendLine("- Start your response directly with '=== TECHNOLOGY 1: ...' — no preamble or introduction");
+        sb.AppendLine("- Stop after the last technology section — NO summary, notes, overview, or comparison table at the end");
+        sb.AppendLine("- AVOID any comparison between technologies or ranking statements like 'X is more mature than Y' or research gaps and recommendations");
+        sb.AppendLine("- just report the data for each technology as objectively as possible");
+        sb.AppendLine("- Be concise: report data values and units only; skip large verbose explanations");
         sb.AppendLine();
 
         if (chunks.Count == 1)
@@ -420,51 +427,6 @@ public static class TechnologyClassifier
     }
 
     /// <summary>
-    /// Builds a single prompt that reads the PDF content and directly produces
-    /// structured JSON for a batch of technology names — replacing the old
-    /// Stage 2 (free-text extraction) + Stage 3 (JSON conversion) two-step flow.
-    /// The PDF content is sent only once per batch instead of twice.
-    /// </summary>
-    public static string BuildDirectExtractionPrompt(List<string> chunks, List<string> technologyNames)
-    {
-        if (chunks == null || chunks.Count == 0)
-            throw new ArgumentException("PDF chunks cannot be null or empty");
-        if (technologyNames == null || technologyNames.Count == 0)
-            throw new ArgumentException("Technology names cannot be null or empty");
-
-        var sb = new StringBuilder();
-
-        sb.AppendLine($"TASK: For each of the {technologyNames.Count} technologies listed below, find ALL relevant data in the PDF and return a JSON array.");
-        sb.AppendLine();
-
-        // Technology list
-        for (int i = 0; i < technologyNames.Count; i++)
-            sb.AppendLine($"  {i + 1}. {technologyNames[i]}");
-        sb.AppendLine();
-
-        AppendJsonSchemaAndRules(sb, "PDF");
-
-        // Append PDF content
-        if (chunks.Count == 1)
-        {
-            sb.AppendLine("PDF CONTENT:");
-            sb.AppendLine(chunks[0]);
-        }
-        else
-        {
-            sb.AppendLine($"PDF CONTENT ({chunks.Count} parts):");
-            for (int i = 0; i < chunks.Count; i++)
-            {
-                sb.AppendLine($"--- Part {i + 1} ---");
-                sb.AppendLine(chunks[i]);
-                sb.AppendLine();
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    /// <summary>
     /// Builds a prompt that classifies technologies from a pre-extracted TXT
     /// summary (produced by <c>auto-summarize</c>) instead of raw PDF content.
     /// </summary>
@@ -501,30 +463,6 @@ public static class TechnologyClassifier
     }
 
     /// <summary>
-    /// Builds a short follow-up prompt for batches 2+ during auto-classify.
-    /// The schema and rules are already in the session context from batch 1,
-    /// so only the new technology summaries are sent.
-    /// </summary>
-    public static string BuildFollowUpClassificationPrompt(
-        List<(string Name, string Content)> technologySections)
-    {
-        if (technologySections == null || technologySections.Count == 0)
-            throw new ArgumentException("Technology sections cannot be null or empty");
-
-        var sb = new StringBuilder();
-        sb.AppendLine($"Same schema and rules as before. Convert these {technologySections.Count} technology summaries into a JSON array:");
-        sb.AppendLine();
-        foreach (var (name, content) in technologySections)
-        {
-            sb.AppendLine($"=== {name} ===");
-            sb.AppendLine(content);
-            sb.AppendLine();
-        }
-        sb.AppendLine("Return ONLY the JSON array.");
-        return sb.ToString();
-    }
-
-    /// <summary>
     /// Shared helper: appends the JSON schema and extraction rules to a prompt.
     /// </summary>
     private static void AppendJsonSchemaAndRules(StringBuilder sb, string sourceLabel)
@@ -533,7 +471,7 @@ public static class TechnologyClassifier
         sb.AppendLine();
         sb.AppendLine("JSON Schema:");
         sb.AppendLine("[{");
-        sb.AppendLine("  \"Datapaper Tech ID\": \"id\",");
+        sb.AppendLine("  \"Datapaper Tech ID\": \"(abbrevation_year) unique id\",");
         sb.AppendLine("  \"description\": \"1-2 sentences\",");
         sb.AppendLine("  \"summary\": \"paragraph\",");
         sb.AppendLine("  \"unit_operation\": \"name\",");
