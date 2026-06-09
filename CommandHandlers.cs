@@ -1,6 +1,5 @@
 using System.Text;
 using GitHub.Copilot.SDK;
-using Refractored.GitHub.Copilot.SDK.Helpers;
 
 namespace TechClassificationApp;
 
@@ -20,13 +19,11 @@ public static class CommandHandlers
 
         if (pdfs.Length == 0)
         {
-            Console.WriteLine("📁 No PDFs found in pdf_to_analyze folder.");
+            Console.WriteLine("📁 No PDFs found in 1_pdf_to_analyze folder.");
             return null;
         }
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("📁 Available PDFs:");
-        Console.ResetColor();
+        ConsoleEx.Info("📁 Available PDFs:");
 
         for (int i = 0; i < pdfs.Length; i++)
         {
@@ -45,9 +42,7 @@ public static class CommandHandlers
         if (selected != null)
             return selected;
 
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("No valid selection made.");
-        Console.ResetColor();
+        ConsoleEx.Warn("No valid selection made.");
         return null;
     }
 
@@ -67,7 +62,7 @@ public static class CommandHandlers
         Console.ResetColor();
         Console.WriteLine("  'commands' or 'help'   - Display all available commands");
         Console.WriteLine("  'exit' or 'quit'       - Exit the program");
-        Console.WriteLine("  'upload <path>'        - Upload a PDF to analyze (or drop PDFs in ./pdf_to_analyze/)");
+        Console.WriteLine("  'upload <path>'        - Upload a PDF to analyze (or drop PDFs in ./1_pdf_to_analyze/)");
         Console.WriteLine("  'list'                 - List available PDFs and choose one to analyze");
         Console.WriteLine("  'current'              - Show current PDF");
         Console.WriteLine("  'auto-summarize'       - Extract technology summaries to TXT");
@@ -80,8 +75,8 @@ public static class CommandHandlers
         Console.WriteLine("💡 Tips:");
         Console.ResetColor();
         Console.WriteLine("  • Or just ask a question normally for AI analysis");
-        if (Directory.Exists("./pdf_to_analyze"))
-            Console.WriteLine("  • Drop PDFs in the ./pdf_to_analyze/ folder for quick access");
+        if (Directory.Exists("./1_pdf_to_analyze"))
+            Console.WriteLine("  • Drop PDFs in the ./1_pdf_to_analyze/ folder for quick access");
         Console.WriteLine();
     }
 
@@ -89,9 +84,7 @@ public static class CommandHandlers
     {
         if (!File.Exists(sourceFile))
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("❌ Source file not found.");
-            Console.ResetColor();
+            ConsoleEx.Error("❌ Source file not found.");
             return null;
         }
 
@@ -104,16 +97,12 @@ public static class CommandHandlers
                 await Task.Run(() => File.Copy(sourceFile, destFile, true));
             });
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Loaded: {Path.GetFileName(sourceFile)}");
-            Console.ResetColor();
+            ConsoleEx.Success($"Loaded: {Path.GetFileName(sourceFile)}");
             return destFile;
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"❌ Error uploading PDF: {ex.Message}");
-            Console.ResetColor();
+            ConsoleEx.Error($"❌ Error uploading PDF: {ex.Message}");
             return null;
         }
     }
@@ -122,9 +111,7 @@ public static class CommandHandlers
     {
         if (!Directory.Exists(pdfInputDirectory) || string.IsNullOrEmpty(input))
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("❌ Invalid input or folder.");
-            Console.ResetColor();
+            ConsoleEx.Error("❌ Invalid input or folder.");
             return null;
         }
 
@@ -134,9 +121,7 @@ public static class CommandHandlers
 
         if (pdfFiles.Length == 0)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("❌ No PDFs found in pdf_to_analyze folder.");
-            Console.ResetColor();
+            ConsoleEx.Error("❌ No PDFs found in 1_pdf_to_analyze folder.");
             return null;
         }
 
@@ -163,58 +148,50 @@ public static class CommandHandlers
             return selectedFile;
         }
 
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"❌ PDF '{input}' not found. Use 'list' to see available PDFs.");
-        Console.ResetColor();
+        ConsoleEx.Error($"❌ PDF '{input}' not found. Use 'list' to see available PDFs.");
         return null;
     }
 
-    public static async Task<string> BuildPromptWithPdfContextAsync(string pdfFile, string userQuestion)
+    public static async Task<string> BuildPromptWithPdfContextAsync(
+        Workspace ws, string pdfFile, string userQuestion)
     {
         try
         {
-            var pdfText = await PdfExtractor.ExtractTextAsync(pdfFile);
+            var pdfText = await PdfCondenser.GetCondensedTextAsync(ws, pdfFile);
             var chunks = PdfExtractor.SplitIntoChunks(pdfText);
             return PdfExtractor.BuildSingleDocumentPrompt(chunks, userQuestion);
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"⚠️  Could not extract PDF text: {ex.Message}. Sending question without PDF context.");
-            Console.ResetColor();
+            ConsoleEx.Warn($"⚠️  Could not extract PDF text: {ex.Message}. Sending question without PDF context.");
             return userQuestion;
         }
     }
 
-    public static async Task HandleBatchAnalyzeAsync(CopilotSession session, string pdfInputDirectory, string question)
+    public static async Task HandleBatchAnalyzeAsync(
+        Workspace ws, CopilotSession session, string question)
     {
-        if (!Directory.Exists(pdfInputDirectory))
+        if (!Directory.Exists(ws.PdfDir))
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("❌ PDF folder not found.");
-            Console.ResetColor();
+            ConsoleEx.Error("❌ PDF folder not found.");
             return;
         }
 
-        var pdfFiles = Directory.GetFiles(pdfInputDirectory, "*.pdf");
+        var pdfFiles = Directory.GetFiles(ws.PdfDir, "*.pdf");
         if (pdfFiles.Length == 0)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("❌ No PDF files found in pdf_to_analyze folder.");
-            Console.ResetColor();
+            ConsoleEx.Warn("❌ No PDF files found in 1_pdf_to_analyze folder.");
             return;
         }
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"📊 Batch analyzing {pdfFiles.Length} PDF(s)...\n");
-        Console.ResetColor();
+        ConsoleEx.Info($"📊 Batch analyzing {pdfFiles.Length} PDF(s)...\n");
 
         try
         {
             var pdfChunks = new Dictionary<string, List<string>>();
             foreach (var pdfFile in pdfFiles)
             {
-                var pdfText = await PdfExtractor.ExtractTextAsync(pdfFile);
+                var pdfText = await PdfCondenser.GetCondensedTextAsync(ws, pdfFile);
                 pdfChunks[pdfFile] = PdfExtractor.SplitIntoChunks(pdfText);
             }
 
@@ -223,9 +200,7 @@ public static class CommandHandlers
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"❌ Error extracting PDFs: {ex.Message}");
-            Console.ResetColor();
+            ConsoleEx.Error($"❌ Error extracting PDFs: {ex.Message}");
         }
     }
 
@@ -238,37 +213,30 @@ public static class CommandHandlers
         "(2) production cost range (in USD/kg H2), (3) key efficiency metric, and (4) extra: if possible, provide CAPEX, OPEX, input and output ratios, and lifetime. " +
         "Be concise and use a structured format.";
 
-    public static async Task HandleBenchmarkAsync(
-        CopilotClient client, string pdfInputDirectory, string outputDirectory)
+    public static async Task HandleBenchmarkAsync(Workspace ws)
     {
-        var pdfPath = Path.Combine(pdfInputDirectory, BenchmarkPdfName);
+        var pdfPath = Path.Combine(ws.PdfDir, BenchmarkPdfName);
         if (!File.Exists(pdfPath))
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"❌ Benchmark PDF not found. Place it at: {pdfPath}");
-            Console.ResetColor();
+            ConsoleEx.Error($"❌ Benchmark PDF not found. Place it at: {pdfPath}");
             return;
         }
 
         string fullPrompt = string.Empty;
         await Program.RunWithSpinnerAsync(" Extracting PDF text", async () =>
         {
-            fullPrompt = await BuildPromptWithPdfContextAsync(pdfPath, BenchmarkPrompt);
+            fullPrompt = await BuildPromptWithPdfContextAsync(ws, pdfPath, BenchmarkPrompt);
         });
 
-        var modelsWithInfo = await client.ListModelsAsync();
+        var modelsWithInfo = await ws.Client.ListModelsAsync();
         if (modelsWithInfo == null || modelsWithInfo.Count == 0)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("❌ No models available.");
-            Console.ResetColor();
+            ConsoleEx.Error("❌ No models available.");
             return;
         }
 
         Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"🏁 Benchmarking {modelsWithInfo.Count} models on: {BenchmarkPdfName}");
-        Console.ResetColor();
+        ConsoleEx.Info($"🏁 Benchmarking {modelsWithInfo.Count} models on: {BenchmarkPdfName}");
         Console.WriteLine();
 
         var results = new List<(string Model, long LatencyMs, int WordCount, string Response, string Status)>();
@@ -282,12 +250,7 @@ public static class CommandHandlers
             CopilotSession? benchSession = null;
             try
             {
-                benchSession = await client.CreateSessionAsync(new SessionConfig
-                {
-                    Model = modelInfo.Id,
-                    Streaming = true,
-                    OnPermissionRequest = PermissionHandler.ApproveAll
-                });
+                benchSession = await Sessions.NewAsync(ws.Client, modelInfo.Id);
 
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 var response = await Program.SendMessageAndCollectResponseSilentAsync(benchSession, fullPrompt);
@@ -296,16 +259,12 @@ public static class CommandHandlers
                 var words = response.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
                 results.Add((modelInfo.Id, sw.ElapsedMilliseconds, words, response, "OK"));
 
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"  {sw.ElapsedMilliseconds,6} ms  {words,5} words");
-                Console.ResetColor();
+                ConsoleEx.Success($"  {sw.ElapsedMilliseconds,6} ms  {words,5} words");
             }
             catch (Exception ex)
             {
                 results.Add((modelInfo.Id, 0, 0, string.Empty, $"ERROR: {ex.Message}"));
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"  ❌ {ex.Message}");
-                Console.ResetColor();
+                ConsoleEx.Error($"  ❌ {ex.Message}");
             }
             finally
             {
@@ -317,9 +276,7 @@ public static class CommandHandlers
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
         Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("📊 Benchmark Results:");
-        Console.ResetColor();
+        ConsoleEx.Warn("📊 Benchmark Results:");
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine($"   {"Model",-35} {"Latency (ms)",13}  {"Words",6}  Status");
         Console.WriteLine($"   {"─────────────────────────────────",35} {"─────────────",13}  {"─────",6}  ──────");
@@ -331,9 +288,7 @@ public static class CommandHandlers
         Console.ResetColor();
 
         Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("🔬 Auto-classifying each model's response...");
-        Console.ResetColor();
+        ConsoleEx.Info("🔬 Auto-classifying each model's response...");
         Console.WriteLine();
 
         var classifyResults = new Dictionary<string, (int RowCount, string Status)>(StringComparer.OrdinalIgnoreCase);
@@ -352,29 +307,22 @@ public static class CommandHandlers
                     ("Benchmark Response", r.Response)
                 };
 
-                await using var classifySession = await client.CreateSessionAsync(new SessionConfig
-                {
-                    Model = r.Model,
-                    Streaming = true,
-                    OnPermissionRequest = PermissionHandler.ApproveAll
-                });
+                await using var classifySession = await Sessions.NewAsync(ws.Client, r.Model);
 
                 var classifyPrompt = TechnologyClassifier.BuildClassificationFromSummaryPrompt(sections);
                 var jsonResponse = await Program.SendMessageAndCollectResponseSilentAsync(classifySession, classifyPrompt);
                 var json = TechnologyClassifier.ExtractJson(jsonResponse);
 
-                if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith('[') || !json.TrimEnd().EndsWith(']'))
+                if (!TechnologyClassifier.IsValidJsonArray(json))
                 {
                     jsonResponse = await Program.SendMessageAndCollectResponseSilentAsync(classifySession, classifyPrompt);
                     json = TechnologyClassifier.ExtractJson(jsonResponse);
                 }
 
-                if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith('[') || !json.TrimEnd().EndsWith(']'))
+                if (!TechnologyClassifier.IsValidJsonArray(json))
                 {
                     classifyResults[r.Model] = (0, "No valid JSON");
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("  ⚠️ No valid JSON returned");
-                    Console.ResetColor();
+                    ConsoleEx.Warn("  ⚠️ No valid JSON returned");
                     continue;
                 }
 
@@ -396,23 +344,19 @@ public static class CommandHandlers
 
                 allClassifiedRows.Add((r.Model, merged));
                 classifyResults[r.Model] = (merged.Count, "OK");
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"  {merged.Count,3} rows");
-                Console.ResetColor();
+                ConsoleEx.Success($"  {merged.Count,3} rows");
             }
             catch (Exception ex)
             {
                 classifyResults[r.Model] = (0, $"ERROR: {ex.Message}");
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"  ❌ {ex.Message}");
-                Console.ResetColor();
+                ConsoleEx.Error($"  ❌ {ex.Message}");
             }
         }
 
         string? classificationCsvPath = null;
         if (allClassifiedRows.Count > 0)
         {
-            classificationCsvPath = Path.Combine(outputDirectory, $"benchmark_{timestamp}_classification.csv");
+            classificationCsvPath = Path.Combine(ws.CsvDir, $"benchmark_{timestamp}_classification.csv");
             var combinedCsv = new StringBuilder();
             bool headerWritten = false;
 
@@ -448,9 +392,7 @@ public static class CommandHandlers
         if (classifyResults.Count > 0)
         {
             Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("📋 Classification Comparison:");
-            Console.ResetColor();
+            ConsoleEx.Warn("📋 Classification Comparison:");
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine($"   {"Model",-35}  {"Rows",5}  Classification Status");
             Console.WriteLine($"   {"─────────────────────────────────",35}  {"─────",5}  ────────────────────");
@@ -463,7 +405,7 @@ public static class CommandHandlers
             Console.WriteLine();
         }
 
-        var csvPath = Path.Combine(outputDirectory, $"benchmark_{timestamp}.csv");
+        var csvPath = Path.Combine(ws.CsvDir, $"benchmark_{timestamp}.csv");
         var csv = new StringBuilder();
         csv.AppendLine("Model,LatencyMs,WordCount,ClassifiedRows,Status");
         foreach (var (model, latencyMs, wordCount, _, status) in results)
@@ -475,7 +417,7 @@ public static class CommandHandlers
         }
         await File.WriteAllTextAsync(csvPath, csv.ToString(), Encoding.UTF8);
 
-        var txtPath = Path.Combine(outputDirectory, $"benchmark_{timestamp}.txt");
+        var txtPath = Path.Combine(ws.TxtDir, $"benchmark_{timestamp}.txt");
         var txt = new StringBuilder();
         txt.AppendLine("═══════════════════════════════════════════════════════════════");
         txt.AppendLine($"Benchmark Responses - {BenchmarkPdfName}");
@@ -495,12 +437,10 @@ public static class CommandHandlers
         }
         await File.WriteAllTextAsync(txtPath, txt.ToString(), Encoding.UTF8);
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"💾 Results saved → {csvPath}");
-        Console.WriteLine($"💾 Responses saved → {txtPath}");
+        ConsoleEx.Info($"💾 Results saved → {csvPath}");
+        ConsoleEx.Info($"💾 Responses saved → {txtPath}");
         if (classificationCsvPath != null)
-            Console.WriteLine($"💾 Classification saved → {classificationCsvPath}");
-        Console.ResetColor();
+            ConsoleEx.Info($"💾 Classification saved → {classificationCsvPath}");
         Console.WriteLine();
     }
 }

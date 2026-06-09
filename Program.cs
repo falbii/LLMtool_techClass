@@ -18,9 +18,7 @@ var status = await CliChecker.CheckCopilotStatusAsync();
 
 if (!CliChecker.IsReady(status))
 {
-    Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine("Press any key to exit...");
-    Console.ResetColor();
+    ConsoleEx.Warn("Press any key to exit...");
     Console.ReadKey(true);
     return;
 }
@@ -38,9 +36,7 @@ try
     var model = await SelectModelAsync(modelsWithInfo);
     if (model == null)
     {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("Press any key to exit...");
-        Console.ResetColor();
+        ConsoleEx.Warn("Press any key to exit...");
         Console.ReadKey(true);
         return;
     }
@@ -48,43 +44,37 @@ try
 
     await Program.RunWithSpinnerAsync($" Creating session with {model}", async () =>
     {
-        session = await client.CreateSessionAsync(new SessionConfig
-        {
-            Model = model,
-            Streaming = true,
-            OnPermissionRequest = PermissionHandler.ApproveAll
-        });
+        session = await Sessions.NewAsync(client, model);
     });
 
     if (session == null)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("❌ Failed to create session.");
-        Console.ResetColor();
+        ConsoleEx.Error("❌ Failed to create session.");
         Console.ReadKey(true);
         return;
     }
 
-    Console.ForegroundColor = ConsoleColor.DarkGray;
-    Console.WriteLine($"   Session ID: {session.SessionId}\n");
-    Console.ResetColor();
+    ConsoleEx.Dim($"   Session ID: {session.SessionId}\n");
 
-    string pdfInputDirectory = Path.Combine(Directory.GetCurrentDirectory(), "pdf_to_analyze");
+    string baseDir = Directory.GetCurrentDirectory();
+    string pdfInputDirectory = Path.Combine(baseDir, "1_pdf_to_analyze");
+    string cacheDirectory = Path.Combine(baseDir, "2_md_condensed_pdf");
+    string txtDirectory = Path.Combine(baseDir, "3_output", "1_txt_summary");
+    string csvDirectory = Path.Combine(baseDir, "3_output", "2_csv_classification");
     Directory.CreateDirectory(pdfInputDirectory);
-    string outputDirectory = Path.Combine(Directory.GetCurrentDirectory(), "output");
-    Directory.CreateDirectory(outputDirectory);
+    Directory.CreateDirectory(cacheDirectory);
+    Directory.CreateDirectory(txtDirectory);
+    Directory.CreateDirectory(csvDirectory);
+
+    var workspace = new Workspace(client, model, pdfInputDirectory, cacheDirectory, txtDirectory, csvDirectory);
 
     string? selectedPdfPath = null;
 
-    Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.WriteLine("💬 Interactive Chat - just ask something or use predefined commands:\n");
-    Console.ResetColor();
-    Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine("⚡ Available Commands:");
-    Console.ResetColor();
+    ConsoleEx.Info("💬 Interactive Chat - just ask something or use predefined commands:\n");
+    ConsoleEx.Warn("⚡ Available Commands:");
     Console.WriteLine("  'commands' or 'help'   - Display all available commands");
     Console.WriteLine("  'exit' or 'quit'       - Exit the program");
-    Console.WriteLine("  'upload <path>'        - Upload a PDF to analyze (or drop PDFs in ./pdf_to_analyze/)");
+    Console.WriteLine("  'upload <path>'        - Upload a PDF to analyze (or drop PDFs in ./1_pdf_to_analyze/)");
     Console.WriteLine("  'list'                 - List available PDFs and choose one to analyze");
     Console.WriteLine("  'current'              - Show current PDF");
     Console.WriteLine("  'auto-summarize'       - Extract technology summaries to TXT");
@@ -135,21 +125,17 @@ try
             var question = input.Length > 14 ? input[14..].Trim() : string.Empty;
             if (string.IsNullOrEmpty(question))
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("❌ Please provide a question. Usage: batch-analyze <your question>");
-                Console.ResetColor();
+                ConsoleEx.Warn("❌ Please provide a question. Usage: batch-analyze <your question>");
                 continue;
             }
 
             try
             {
-                await CommandHandlers.HandleBatchAnalyzeAsync(session, pdfInputDirectory, question);
+                await CommandHandlers.HandleBatchAnalyzeAsync(workspace, session, question);
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"❌ Error during batch analysis: {ex.Message}");
-                Console.ResetColor();
+                ConsoleEx.Error($"❌ Error during batch analysis: {ex.Message}");
             }
             continue;
         }
@@ -157,17 +143,13 @@ try
         if (input.StartsWith("upload ", StringComparison.OrdinalIgnoreCase))
         {
             var filePath = input.Length > 7 ? input[7..].Trim().Trim('"') : string.Empty;
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"   Checking: {filePath}");
-            Console.ResetColor();
+            ConsoleEx.Dim($"   Checking: {filePath}");
 
             if (File.Exists(filePath))
                 selectedPdfPath = await CommandHandlers.HandleUploadPdfAsync(filePath, pdfInputDirectory);
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("❌ File not found.");
-                Console.ResetColor();
+                ConsoleEx.Error("❌ File not found.");
             }
             continue;
         }
@@ -176,13 +158,11 @@ try
         {
             if (selectedPdfPath == null)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("❌ No PDF loaded. Use 'upload' or 'list' to select one.");
-                Console.ResetColor();
+                ConsoleEx.Warn("❌ No PDF loaded. Use 'upload' or 'list' to select one.");
                 continue;
             }
 
-            await TechnologySummarizer.RunAsync(client, model, selectedPdfPath, outputDirectory);
+            await TechnologySummarizer.RunAsync(workspace, selectedPdfPath);
             continue;
         }
 
@@ -190,34 +170,30 @@ try
         {
             if (selectedPdfPath == null)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("❌ No PDF loaded. Use 'upload' or 'list' to select one.");
-                Console.ResetColor();
+                ConsoleEx.Warn("❌ No PDF loaded. Use 'upload' or 'list' to select one.");
                 continue;
             }
 
-            await TechnologyClassifier.RunAsync(client, model, selectedPdfPath, outputDirectory);
+            await TechnologyClassifier.RunAsync(workspace, selectedPdfPath);
             continue;
         }
 
         if (input.Equals("benchmark", StringComparison.OrdinalIgnoreCase))
         {
-            await CommandHandlers.HandleBenchmarkAsync(client, pdfInputDirectory, outputDirectory);
+            await CommandHandlers.HandleBenchmarkAsync(workspace);
             continue;
         }
 
         string finalMessage = input;
         if (selectedPdfPath != null && File.Exists(selectedPdfPath))
-            finalMessage = await CommandHandlers.BuildPromptWithPdfContextAsync(selectedPdfPath, input);
+            finalMessage = await CommandHandlers.BuildPromptWithPdfContextAsync(workspace, selectedPdfPath, input);
 
         await Program.SendMessageWithSpinnerAsync(session, finalMessage);
     }
 }
 catch (Exception ex)
 {
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine($"\n❌ Error: {ex.Message}");
-    Console.ResetColor();
+    ConsoleEx.Error($"\n❌ Error: {ex.Message}");
 }
 finally
 {
@@ -242,15 +218,11 @@ public partial class Program
     {
         if (models.Length == 0)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("❌ No models available.");
-            Console.ResetColor();
+            ConsoleEx.Error("❌ No models available.");
             return Task.FromResult<string?>(null);
         }
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("📊 Available Models & Billing Info:\n");
-        Console.ResetColor();
+        ConsoleEx.Info("📊 Available Models & Billing Info:\n");
 
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine("   Model                          Reasoning");
@@ -263,9 +235,7 @@ public partial class Program
             Console.WriteLine($"   {i + 1}. {models[i].Id,-30} {reasoning,9}");
         }
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("\nSelect a model by number or type the model id:\n");
-        Console.ResetColor();
+        ConsoleEx.Info("\nSelect a model by number or type the model id:\n");
 
         Console.Write("Model: ");
 

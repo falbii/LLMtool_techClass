@@ -3,47 +3,9 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using GitHub.Copilot.SDK;
-using static TechClassificationApp.TechClassifierUtils;
+using static TechClassificationApp.TechClassifierHelpers;
 
 namespace TechClassificationApp;
-
-public sealed class TechnologyRecord
-{
-    public string? DatapaperTechId { get; set; }
-    public string? ProcessType { get; set; }
-    public string? Description { get; set; }
-    public string? UnitOperation { get; set; }
-    public string? Summary { get; set; }
-    public string? MainSector { get; set; }
-    public string? MainCategory { get; set; }
-    public string? CategorySpec { get; set; }
-    public string? TechType { get; set; }
-    public double? ReferenceUnitSize { get; set; }
-    public string? ReferenceUnitSizeUnit { get; set; }
-    public int? BaseYear { get; set; }
-    public string? Location { get; set; }
-    public string? Currency { get; set; }
-    public int? DataReferenceYear { get; set; }
-    public int? Trl { get; set; }
-    public string? TechMaturity { get; set; }
-    public double? OverallEfficiency { get; set; }
-    public string? EfficiencyUnit { get; set; }
-    public List<string> CarriersIn { get; set; } = new();
-    public string? MainInput { get; set; }
-    public List<double> RatiosIn { get; set; } = new();
-    public List<string> UnitsIn { get; set; } = new();
-    public List<string> CarriersOut { get; set; } = new();
-    public string? MainOut { get; set; }
-    public List<double> RatiosOut { get; set; } = new();
-    public List<string> UnitsOut { get; set; } = new();
-    public double? MinInstallationSize { get; set; }
-    public string? MinInstallationSizeUnit { get; set; }
-    public double? LifetimeYears { get; set; }
-    public decimal? Capex { get; set; }
-    public string? CapexUnit { get; set; }
-    public decimal? OpexFix { get; set; }
-    public string? OpexFixUnit { get; set; }
-}
 
 public static class TechnologyClassifier
 {
@@ -127,6 +89,10 @@ public static class TechnologyClassifier
             .Replace("{{SOURCE_LABEL}}", "summary")
             .Replace("{{TECHNOLOGY_SECTIONS}}", BuildTechnologySectionsContent(technologySections));
     }
+
+    // Cheap shape check that the extracted text looks like a JSON array, before attempting to parse.
+    public static bool IsValidJsonArray(string? json) =>
+        !string.IsNullOrWhiteSpace(json) && json.TrimStart().StartsWith('[') && json.TrimEnd().EndsWith(']');
 
     public static string ExtractJson(string response)
     {
@@ -217,6 +183,13 @@ public static class TechnologyClassifier
         var baseId = string.Join("_", parts).ToUpperInvariant();
         if (baseId.Length > 20) baseId = baseId[..20];
 
+        return MakeUnique(baseId, usedIds);
+    }
+
+    // Returns baseId if unused, otherwise appends the lowest free _N suffix.
+    // Does not mutate usedIds — the caller adds the returned id when it commits it.
+    private static string MakeUnique(string baseId, HashSet<string> usedIds)
+    {
         if (!usedIds.Contains(baseId)) return baseId;
 
         var counter = 2;
@@ -400,48 +373,35 @@ public static class TechnologyClassifier
         var usedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in rows)
         {
-            if (string.IsNullOrWhiteSpace(row.DatapaperTechId))
-                row.DatapaperTechId = GenerateTechId(row, usedIds);
-
-            var id = row.DatapaperTechId!;
-            if (!usedIds.Add(id))
-            {
-                var counter = 2;
-                var candidate = $"{id}_{counter}";
-                while (!usedIds.Add(candidate)) { counter++; candidate = $"{id}_{counter}"; }
-                row.DatapaperTechId = candidate;
-            }
+            var baseId = string.IsNullOrWhiteSpace(row.DatapaperTechId)
+                ? GenerateTechId(row, usedIds)
+                : row.DatapaperTechId!;
+            row.DatapaperTechId = MakeUnique(baseId, usedIds);
+            usedIds.Add(row.DatapaperTechId);
         }
     }
 
     // --- Classification pipeline ---
 
-    public static async Task<string?> RunAsync(
-        CopilotClient client, string model, string pdfFile, string outputDirectory)
+    public static async Task<string?> RunAsync(Workspace ws, string pdfFile)
     {
         if (string.IsNullOrWhiteSpace(pdfFile) || !File.Exists(pdfFile))
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("❌ PDF not found or invalid path.");
-            Console.ResetColor();
+            ConsoleEx.Error("❌ PDF not found or invalid path.");
             return null;
         }
 
-        var txtPath = Path.Combine(outputDirectory,
+        var txtPath = Path.Combine(ws.TxtDir,
             $"{Path.GetFileNameWithoutExtension(pdfFile)}.txt");
 
         if (!File.Exists(txtPath))
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"⚠️  Please run 'auto-summarize' first to extract technology summaries.");
-            Console.WriteLine($"    No summary file found at: {txtPath}");
-            Console.ResetColor();
+            ConsoleEx.Warn($"⚠️  Please run 'auto-summarize' first to extract technology summaries.");
+            ConsoleEx.Warn($"    No summary file found at: {txtPath}");
             return null;
         }
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("📋 Classifying from TXT summary and writing to CSV...\n");
-        Console.ResetColor();
+        ConsoleEx.Info("📋 Classifying from TXT summary and writing to CSV...\n");
 
         try
         {
@@ -450,31 +410,32 @@ public static class TechnologyClassifier
 
             if (sections.Count == 0)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("⚠️  No technology sections found in TXT file.");
-                Console.ResetColor();
+                ConsoleEx.Warn("⚠️  No technology sections found in TXT file.");
                 return null;
             }
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("   1. Parsing TXT sections...");
-            Console.ResetColor();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"   Found {sections.Count} technology sections in TXT");
-            Console.ResetColor();
+            ConsoleEx.Warn("   1. Parsing TXT sections...");
+            ConsoleEx.Success($"   Found {sections.Count} technology sections in TXT");
             foreach (var (name, _) in sections)
-            {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"     • {name}");
-                Console.ResetColor();
-            }
+                ConsoleEx.Dim($"     • {name}");
             Console.WriteLine();
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("   2. Converting summaries to structured data...\n");
-            Console.ResetColor();
+            ConsoleEx.Warn("   2. Converting summaries to structured data...\n");
 
-            var allRows = new List<IDictionary<string, string>>();
+            var outputPath = Path.Combine(
+                ws.CsvDir,
+                $"{Path.GetFileNameWithoutExtension(pdfFile)}_classification.csv");
+
+            var existingRows = File.Exists(outputPath)
+                ? TechnologyClassificationCsv.ReadCsv(outputPath)
+                : [];
+            if (existingRows.Count > 0)
+                ConsoleEx.Dim($"   Merging with {existingRows.Count} existing rows from CSV...");
+
+            var newRecords = new List<TechnologyRecord>();
+            var rowErrors = new List<string>();
+            int rowsSeen = 0, writtenCount = 0, mergedCount = 0;
+
             const int batchSize = 5;
             int totalBatches = (int)Math.Ceiling((double)sections.Count / batchSize);
 
@@ -490,163 +451,50 @@ public static class TechnologyClassifier
 
                 Console.WriteLine($"   Batch {batchIndex + 1}/{totalBatches} (technologies {batchStart + 1}-{batchStart + batchCount})");
 
-                // Fresh session per batch: accumulated context from prior batches would grow the prompt
-                // on every iteration and could bias the model toward prior extractions.
-                await using var batchSession = await client.CreateSessionAsync(new SessionConfig
-                {
-                    Model = model,
-                    Streaming = true,
-                    OnPermissionRequest = PermissionHandler.ApproveAll
-                });
+                var batchRows = await ClassifyBatchAsync(ws, batchSections);
 
-                try
-                {
-                    var prompt = BuildClassificationFromSummaryPrompt(batchSections);
-                    var jsonResponse = await Program.SendMessageAndStreamToConsoleAsync(batchSession, prompt);
-                    var json = ExtractJson(jsonResponse);
+                var (records, errors) = ParseAndValidate(batchRows, rowsSeen);
+                rowsSeen += batchRows.Count;
+                newRecords.AddRange(records);
+                rowErrors.AddRange(errors);
 
-                    if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith('[') || !json.TrimEnd().EndsWith(']'))
-                    {
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine($"   ⚠️ No valid JSON returned — retrying");
-                        Console.ResetColor();
-
-                        // New session for retry: batchSession already has the failed response in its context,
-                        // which tends to reproduce the same malformed JSON.
-                        await using var retrySession = await client.CreateSessionAsync(new SessionConfig
-                        {
-                            Model = model,
-                            Streaming = true,
-                            OnPermissionRequest = PermissionHandler.ApproveAll
-                        });
-
-                        jsonResponse = await Program.SendMessageAndCollectResponseSilentAsync(retrySession, prompt);
-                        json = ExtractJson(jsonResponse);
-
-                        if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith('[') || !json.TrimEnd().EndsWith(']'))
-                        {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine($"   ✗ Retry also failed — skipping batch");
-                            Console.ResetColor();
-                            continue;
-                        }
-                    }
-
-                    var batchRows = ParseRowsFromJson(json);
-                    allRows.AddRange(batchRows);
-
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"   ✓ ({batchRows.Count} rows)");
-                    Console.ResetColor();
-                }
-                catch (Exception ex)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"✗ {ex.Message}");
-                    Console.ResetColor();
-                }
+                // Incremental save: rewrite the CSV after each batch so a later failure
+                // doesn't throw away the batches already completed.
+                var save = SaveCsv(newRecords, existingRows, outputPath);
+                if (save == null)
+                    return null; // write failed — message already printed
+                (writtenCount, mergedCount) = save.Value;
             }
             Console.WriteLine();
 
-            if (allRows.Count == 0)
+            if (newRecords.Count == 0)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("⚠️  No technologies were successfully extracted.");
-                Console.ResetColor();
+                ConsoleEx.Warn("⚠️  No technologies were successfully extracted.");
                 return null;
             }
 
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"   📋 Total extracted rows: {allRows.Count}");
-            Console.ResetColor();
+            if (writtenCount == 0)
+            {
+                ConsoleEx.Warn("⚠️  No technologies with sufficient data found.");
+                return null;
+            }
+
+            var filteredCount = newRecords.Count - newRecords.Count(HasMeaningfulData);
+
             Console.WriteLine();
-
-            var classifications = new List<TechnologyRecord>();
-            var rowErrors = new List<string>();
-
-            Console.Write("   🔍 Parsing and validating...");
-            for (int i = 0; i < allRows.Count; i++)
-            {
-                var classification = ParseRecord(allRows[i], out var errors);
-                foreach (var error in errors)
-                    rowErrors.Add($"Row {i + 1}: {error}");
-                classifications.Add(classification);
-            }
-            Console.WriteLine(" Done\n");
-
-            var completeClassifications = classifications
-                .Where(HasMeaningfulData)
-                .ToList();
-            var filteredCount = classifications.Count - completeClassifications.Count;
-
-            if (completeClassifications.Count == 0)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("⚠️  No technologies with sufficient data found.");
-                Console.ResetColor();
-                return null;
-            }
-
-            var outputPath = Path.Combine(
-                outputDirectory,
-                $"{Path.GetFileNameWithoutExtension(pdfFile)}_classification.csv");
-
-            var existingRows = File.Exists(outputPath)
-                ? TechnologyClassificationCsv.ReadCsv(outputPath)
-                : new List<TechnologyRecord>();
-
-            if (existingRows.Count > 0)
-            {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"   Merging with {existingRows.Count} existing rows from CSV...");
-                Console.ResetColor();
-            }
-
-            var mergedClassifications = MergeByTechnologyAndYear(
-                existingRows.Concat(completeClassifications));
-
-            try
-            {
-                Console.Write("   💾 Writing CSV file...");
-                TechnologyClassificationCsv.WriteCsv(outputPath, mergedClassifications);
-                Console.WriteLine(" Done\n");
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"❌ Failed to write CSV file: {ex.Message}");
-                Console.ResetColor();
-                return null;
-            }
-
-            var mergedCount = (existingRows.Count + completeClassifications.Count) - mergedClassifications.Count;
-
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine();
-            Console.WriteLine($"   📁 Saved to: {outputPath}");
-            Console.WriteLine($"   ✓ {mergedClassifications.Count} rows exported");
+            ConsoleEx.Success($"   📁 Saved to: {outputPath}");
+            ConsoleEx.Success($"   ✓ {writtenCount} rows exported");
             if (filteredCount > 0)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"   ⚠️  {filteredCount} incomplete records filtered out (too few populated fields)");
-                Console.ForegroundColor = ConsoleColor.Green;
-            }
+                ConsoleEx.Warn($"   ⚠️  {filteredCount} incomplete records filtered out (too few populated fields)");
             if (mergedCount > 0)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"   ⚠️  {mergedCount} duplicate rows merged (same technology + year)");
-                Console.ForegroundColor = ConsoleColor.Green;
-            }
+                ConsoleEx.Warn($"   ⚠️  {mergedCount} duplicate rows merged (same technology + year)");
             Console.WriteLine();
-            Console.WriteLine($"✅ Classification complete!");
-            Console.ResetColor();
+            ConsoleEx.Success("✅ Classification complete!");
 
             if (rowErrors.Count > 0)
             {
                 Console.WriteLine();
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"⚠️  Parsing notes ({rowErrors.Count} items):");
-                Console.ResetColor();
+                ConsoleEx.Warn($"⚠️  Parsing notes ({rowErrors.Count} items):");
                 foreach (var error in rowErrors.Take(10))
                     Console.WriteLine($"   {error}");
                 if (rowErrors.Count > 10)
@@ -657,11 +505,124 @@ public static class TechnologyClassifier
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"❌ Auto-classify failed: {ex.Message}");
-            Console.ResetColor();
+            ConsoleEx.Error($"❌ Auto-classify failed: {ex.Message}");
             return null;
         }
+    }
+
+    // Stage 1 — classify one batch of sections with retry. If the whole batch fails, fall back
+    // to classifying each technology individually so one malformed entry doesn't drop the rest.
+    private static async Task<List<Dictionary<string, string>>> ClassifyBatchAsync(
+        Workspace ws, List<(string Name, string Content)> batchSections)
+    {
+        var rows = await TryClassifyAsync(ws, batchSections, maxAttempts: 2, stream: true);
+        if (rows != null)
+        {
+            ConsoleEx.Success($"   ✓ ({rows.Count} rows)");
+            return rows;
+        }
+
+        // Per-technology fallback: re-run each one alone.
+        ConsoleEx.Warn("   ⚠️ Batch failed — retrying each technology individually...");
+        var collected = new List<Dictionary<string, string>>();
+        foreach (var section in batchSections)
+        {
+            var single = await TryClassifyAsync(ws, [section], maxAttempts: 1, stream: false);
+            if (single != null)
+            {
+                collected.AddRange(single);
+                ConsoleEx.Success($"     ✓ {section.Name} ({single.Count} rows)");
+            }
+            else
+            {
+                ConsoleEx.Error($"     ✗ {section.Name} — skipped");
+            }
+        }
+
+        return collected;
+    }
+
+    // Sends one classification request and returns parsed rows, or null if no attempt yields
+    // valid JSON. Each attempt uses a fresh session — reusing one tends to reproduce the same
+    // malformed output. The first attempt can stream to the console; retries run silently.
+    private static async Task<List<Dictionary<string, string>>?> TryClassifyAsync(
+        Workspace ws, List<(string Name, string Content)> sections, int maxAttempts, bool stream)
+    {
+        var prompt = BuildClassificationFromSummaryPrompt(sections);
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                await using var session = await Sessions.NewAsync(ws.Client, ws.Model);
+
+                var response = stream && attempt == 1
+                    ? await Program.SendMessageAndStreamToConsoleAsync(session, prompt)
+                    : await Program.SendMessageAndCollectResponseSilentAsync(session, prompt);
+
+                var json = ExtractJson(response);
+                if (IsValidJsonArray(json))
+                    return ParseRowsFromJson(json);
+
+                if (attempt < maxAttempts)
+                    ConsoleEx.Warn("   ⚠️ No valid JSON returned — retrying");
+            }
+            catch (Exception ex)
+            {
+                ConsoleEx.Error($"   ✗ {ex.Message}");
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    // Stage 2 — turn raw JSON rows into records, collecting per-row parse notes.
+    // rowOffset keeps the "Row N" labels continuous across incrementally-processed batches.
+    private static (List<TechnologyRecord> records, List<string> errors) ParseAndValidate(
+        List<Dictionary<string, string>> rows, int rowOffset)
+    {
+        var records = new List<TechnologyRecord>();
+        var errors = new List<string>();
+
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var record = ParseRecord(rows[i], out var rowErrors);
+            foreach (var error in rowErrors)
+                errors.Add($"Row {rowOffset + i + 1}: {error}");
+            records.Add(record);
+        }
+
+        return (records, errors);
+    }
+
+    // Stage 3 — filter to records with usable data, merge with the existing CSV (new records win
+    // on conflict, existing rows backfill gaps), and write. Skips writing when nothing to save.
+    // Called after every batch for crash resilience. Returns (rowsWritten, rowsMerged),
+    // or null if the write failed.
+    private static (int written, int merged)? SaveCsv(
+        List<TechnologyRecord> newRecords, List<TechnologyRecord> existingRows, string outputPath)
+    {
+        var meaningful = newRecords.Where(HasMeaningfulData).ToList();
+
+        // New records first so they take precedence; existing rows only fill gaps they leave.
+        var merged = MergeByTechnologyAndYear(meaningful.Concat(existingRows));
+        if (merged.Count == 0)
+            return (0, 0);
+
+        try
+        {
+            TechnologyClassificationCsv.WriteCsv(outputPath, merged);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine();
+            ConsoleEx.Error($"❌ Failed to write CSV file: {ex.Message}");
+            return null;
+        }
+
+        var mergedCount = (meaningful.Count + existingRows.Count) - merged.Count;
+        return (merged.Count, mergedCount);
     }
 
     private static List<(string Name, string Content)> ParseSectionsFromSummaryFile(string txtContent)
@@ -689,95 +650,5 @@ public static class TechnologyClassifier
         }
 
         return sections;
-    }
-}
-
-public static class TechnologyClassificationCsv
-{
-    public static readonly string[] HeaderOrder =
-    [
-        "Datapaper Tech ID", "ProcessType", "description", "unit_operation",
-        "main_sector", "main_category", "category_spec", "tech_type",
-        "base_year", "reference_unit_size", "reference_unit_size_unit",
-        "location", "Currency", "trl_(1-9)", "tech_maturity",
-        "efficiency", "efficiency_unit",
-        "carriers_in", "main_input", "ratios_in", "units_in",
-        "carriers_out", "main_out", "ratios_out", "units_out",
-        "capex", "capex_unit", "opex_fix", "opex_fix_unit",
-        "lifetime_yr", "Data Reference Year", "summary"
-    ];
-
-    public static void WriteCsv(string filePath, IEnumerable<TechnologyRecord> rows)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',', HeaderOrder.Select(TechClassifierUtils.EscapeCsv)));
-
-        foreach (var row in rows)
-        {
-            var fields = new List<string>
-            {
-                row.DatapaperTechId ?? string.Empty,
-                row.ProcessType ?? string.Empty,
-                row.Description ?? string.Empty,
-                row.UnitOperation ?? string.Empty,
-                row.MainSector ?? string.Empty,
-                row.MainCategory ?? string.Empty,
-                row.CategorySpec ?? string.Empty,
-                row.TechType ?? string.Empty,
-                TechClassifierUtils.FormatInt(row.BaseYear),
-                TechClassifierUtils.FormatDouble(row.ReferenceUnitSize),
-                row.ReferenceUnitSizeUnit ?? string.Empty,
-                row.Location ?? string.Empty,
-                row.Currency ?? string.Empty,
-                TechClassifierUtils.FormatInt(row.Trl),
-                row.TechMaturity ?? string.Empty,
-                TechClassifierUtils.FormatDouble(row.OverallEfficiency),
-                row.EfficiencyUnit ?? string.Empty,
-                TechClassifierUtils.JoinList(row.CarriersIn.Cast<string?>()),
-                row.MainInput ?? string.Empty,
-                TechClassifierUtils.JoinList(row.RatiosIn.Select(d => TechClassifierUtils.FormatDouble(d)).Cast<string?>()),
-                TechClassifierUtils.JoinList(row.UnitsIn.Cast<string?>()),
-                TechClassifierUtils.JoinList(row.CarriersOut.Cast<string?>()),
-                row.MainOut ?? string.Empty,
-                TechClassifierUtils.JoinList(row.RatiosOut.Select(d => TechClassifierUtils.FormatDouble(d)).Cast<string?>()),
-                TechClassifierUtils.JoinList(row.UnitsOut.Cast<string?>()),
-                TechClassifierUtils.FormatDecimal(row.Capex),
-                row.CapexUnit ?? string.Empty,
-                TechClassifierUtils.FormatDecimal(row.OpexFix),
-                row.OpexFixUnit ?? string.Empty,
-                TechClassifierUtils.FormatDouble(row.LifetimeYears),
-                TechClassifierUtils.FormatInt(row.DataReferenceYear),
-                row.Summary ?? string.Empty
-            };
-
-            sb.AppendLine(string.Join(',', fields.Select(TechClassifierUtils.EscapeCsv)));
-        }
-
-        File.WriteAllText(filePath, sb.ToString(), Encoding.UTF8);
-    }
-
-    public static List<TechnologyRecord> ReadCsv(string filePath)
-    {
-        var results = new List<TechnologyRecord>();
-        if (!File.Exists(filePath)) return results;
-
-        var content = File.ReadAllText(filePath, Encoding.UTF8);
-        var records = TechClassifierUtils.ParseCsvRecords(content);
-        if (records.Count <= 1) return results;
-
-        var headers = records[0];
-        for (int i = 1; i < records.Count; i++)
-        {
-            var values = records[i];
-            if (values.All(string.IsNullOrWhiteSpace)) continue;
-
-            var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            for (int col = 0; col < headers.Count; col++)
-                row[headers[col]] = col < values.Count ? values[col] : string.Empty;
-
-            results.Add(TechnologyClassifier.ParseRecord(row, out _));
-        }
-
-        return results;
     }
 }

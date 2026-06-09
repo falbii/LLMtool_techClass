@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using GitHub.Copilot.SDK;
-using static TechClassificationApp.TechClassifierUtils;
+using static TechClassificationApp.TechClassifierHelpers;
 
 namespace TechClassificationApp;
 
@@ -93,48 +93,34 @@ public static class TechnologySummarizer
 
     // --- Full summarization pipeline ---
 
-    public static async Task<string?> RunAsync(
-        CopilotClient client, string model, string pdfFile, string outputDirectory)
+    public static async Task<string?> RunAsync(Workspace ws, string pdfFile)
     {
         if (string.IsNullOrWhiteSpace(pdfFile) || !File.Exists(pdfFile))
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("❌ PDF not found or invalid path.");
-            Console.ResetColor();
+            ConsoleEx.Error("❌ PDF not found or invalid path.");
             return null;
         }
 
-        try { Directory.CreateDirectory(outputDirectory); }
+        try { Directory.CreateDirectory(ws.TxtDir); }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"❌ Cannot create output folder: {ex.Message}");
-            Console.ResetColor();
+            ConsoleEx.Error($"❌ Cannot create output folder: {ex.Message}");
             return null;
         }
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("📝 Summarising technologies from PDF...\n");
-        Console.ResetColor();
+        ConsoleEx.Info("📝 Summarising technologies from PDF...\n");
 
         try
         {
-            var pdfText = await PdfExtractor.ExtractTextAsync(pdfFile);
+            var pdfText = await PdfCondenser.GetCondensedTextAsync(ws, pdfFile);
             var chunks = PdfExtractor.SplitIntoChunks(pdfText);
-            var txtPath = Path.Combine(outputDirectory,
+            var txtPath = Path.Combine(ws.TxtDir,
                 $"{Path.GetFileNameWithoutExtension(pdfFile)}.txt");
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("   1. Finding technologies...");
-            Console.ResetColor();
+            ConsoleEx.Warn("   1. Finding technologies...");
 
             string namesResponse;
-            await using (var stage1Session = await client.CreateSessionAsync(new SessionConfig
-            {
-                Model = model,
-                Streaming = true,
-                OnPermissionRequest = PermissionHandler.ApproveAll
-            }))
+            await using (var stage1Session = await Sessions.NewAsync(ws.Client, ws.Model))
             {
                 var findNamesPrompt = BuildFindTechnologiesPrompt(chunks);
                 namesResponse = await Program.RunWithSpinnerAsync("   Scanning PDF",
@@ -144,26 +130,18 @@ public static class TechnologySummarizer
             var technologyNames = ParseTechnologyNames(namesResponse);
             if (technologyNames.Count == 0)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("⚠️  No technologies found in PDF.");
-                Console.ResetColor();
+                ConsoleEx.Warn("⚠️  No technologies found in PDF.");
                 return null;
             }
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"   Found {technologyNames.Count} technologies:");
-            Console.ResetColor();
+            ConsoleEx.Success($"   Found {technologyNames.Count} technologies:");
             foreach (var name in technologyNames)
             {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"     • {name}");
-                Console.ResetColor();
+                ConsoleEx.Dim($"     • {name}");
             }
             Console.WriteLine();
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("   2. Generating detailed summaries...\n");
-            Console.ResetColor();
+            ConsoleEx.Warn("   2. Generating detailed summaries...\n");
 
             var technologyDetails = new List<string>();
             const int batchSize = 10;
@@ -185,12 +163,7 @@ public static class TechnologySummarizer
                 {
                     // Fresh session per batch: accumulated context from prior batches would grow the prompt
                     // on every iteration and could bias the model toward prior extractions.
-                    await using var batchSession = await client.CreateSessionAsync(new SessionConfig
-                    {
-                        Model = model,
-                        Streaming = true,
-                        OnPermissionRequest = PermissionHandler.ApproveAll
-                    });
+                    await using var batchSession = await Sessions.NewAsync(ws.Client, ws.Model);
 
                     var response = await SendBatchAsync(batchSession, chunks, batchTechs);
 
@@ -199,10 +172,7 @@ public static class TechnologySummarizer
                 }
                 catch (Exception ex)
                 {
-                    Console.ResetColor();
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"✗ {ex.Message}");
-                    Console.ResetColor();
+                    ConsoleEx.Error($"✗ {ex.Message}");
                     for (int i = 0; i < batchCount; i++)
                         technologyDetails.Add($"Extraction failed for {batchTechs[i]}: {ex.Message}");
 
@@ -217,21 +187,17 @@ public static class TechnologySummarizer
 
             await WriteProgressAsync(txtPath, pdfFile, technologyNames, technologyDetails);
 
-            Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine();
-            Console.WriteLine($"   📁 Saved to: {txtPath}");
-            Console.WriteLine($"   ✓ {technologyNames.Count} technologies extracted and summarised");
+            ConsoleEx.Success($"   📁 Saved to: {txtPath}");
+            ConsoleEx.Success($"   ✓ {technologyNames.Count} technologies extracted and summarised");
             Console.WriteLine();
-            Console.WriteLine($"✅ Summarisation complete!");
-            Console.ResetColor();
+            ConsoleEx.Success("✅ Summarisation complete!");
 
             return txtPath;
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"❌ Auto-summarize failed: {ex.Message}");
-            Console.ResetColor();
+            ConsoleEx.Error($"❌ Auto-summarize failed: {ex.Message}");
             return null;
         }
     }
@@ -248,9 +214,7 @@ public static class TechnologySummarizer
     {
         if (string.IsNullOrWhiteSpace(response))
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("⚠️ Empty response");
-            Console.ResetColor();
+            ConsoleEx.Warn("⚠️ Empty response");
 
             for (int i = 0; i < batchCount; i++)
                 technologyDetails.Add($"No data found for {batchTechs[i]}");
