@@ -1,12 +1,11 @@
 using System.Text;
 using GitHub.Copilot.SDK;
 using Refractored.GitHub.Copilot.SDK.Helpers;
-using PdfAnalysisApp;
+using TechClassificationApp;
 
-// Required for PDF text extraction (iText uses legacy code pages)
+// iText7 relies on legacy code-page encodings for some PDFs; must register before any extraction.
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
-// ──────────────── Banner ────────────────
 Console.ForegroundColor = ConsoleColor.Cyan;
 Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
 Console.WriteLine("║          Smart Document Analysis Tool - Copilot SDK          ║");
@@ -14,7 +13,6 @@ Console.WriteLine("╚═══════════════════�
 Console.ResetColor();
 Console.WriteLine();
 
-// ──────────────── Prerequisites ────────────────
 Console.WriteLine("🔍 Checking prerequisites...\n");
 var status = await CliChecker.CheckCopilotStatusAsync();
 
@@ -33,12 +31,10 @@ CopilotSession? session = null;
 try
 {
     client = new CopilotClient(new CopilotClientOptions());
-    
     await client.StartAsync();
-    
+
     var modelsWithInfo = await GetModelsWithInfoAsync(client);
 
-    // ──────────────── Model selection ────────────────
     var model = await SelectModelAsync(modelsWithInfo);
     if (model == null)
     {
@@ -50,7 +46,6 @@ try
     }
     Console.WriteLine();
 
-    // ──────────────── Session creation ────────────────
     await Program.RunWithSpinnerAsync($" Creating session with {model}", async () =>
     {
         session = await client.CreateSessionAsync(new SessionConfig
@@ -60,7 +55,7 @@ try
             OnPermissionRequest = PermissionHandler.ApproveAll
         });
     });
-    
+
     if (session == null)
     {
         Console.ForegroundColor = ConsoleColor.Red;
@@ -69,20 +64,18 @@ try
         Console.ReadKey(true);
         return;
     }
-    
+
     Console.ForegroundColor = ConsoleColor.DarkGray;
     Console.WriteLine($"   Session ID: {session.SessionId}\n");
     Console.ResetColor();
 
-    // ──────────────── Ensure working directories exist ────────────────
-    string pdfFolder = Path.Combine(Directory.GetCurrentDirectory(), "pdf_to_analyze");
-    Directory.CreateDirectory(pdfFolder);
-    string outputFolder = Path.Combine(Directory.GetCurrentDirectory(), "output");
-    Directory.CreateDirectory(outputFolder);
+    string pdfInputDirectory = Path.Combine(Directory.GetCurrentDirectory(), "pdf_to_analyze");
+    Directory.CreateDirectory(pdfInputDirectory);
+    string outputDirectory = Path.Combine(Directory.GetCurrentDirectory(), "output");
+    Directory.CreateDirectory(outputDirectory);
 
-    string? currentPdfFile = null;
+    string? selectedPdfPath = null;
 
-    // ──────────────── Interactive chat loop ────────────────
     Console.ForegroundColor = ConsoleColor.Cyan;
     Console.WriteLine("💬 Interactive Chat - just ask something or use predefined commands:\n");
     Console.ResetColor();
@@ -109,7 +102,6 @@ try
         if (string.IsNullOrEmpty(input))
             continue;
 
-        // ── Exit ──
         if (input.Equals("exit", StringComparison.OrdinalIgnoreCase) ||
             input.Equals("quit", StringComparison.OrdinalIgnoreCase))
         {
@@ -117,31 +109,27 @@ try
             break;
         }
 
-        // ── List available PDFs ──
         if (input.Equals("list", StringComparison.OrdinalIgnoreCase))
         {
-            var selected = await Commands.HandleListPdfsAsync(pdfFolder);
+            var selected = await CommandHandlers.HandleListPdfsAsync(pdfInputDirectory);
             if (!string.IsNullOrEmpty(selected))
-                currentPdfFile = selected;
+                selectedPdfPath = selected;
             continue;
         }
 
-        // ── Help / commands ──
         if (input.Equals("commands", StringComparison.OrdinalIgnoreCase) ||
             input.Equals("help", StringComparison.OrdinalIgnoreCase))
         {
-            Commands.HandleCommandsCommand();
+            CommandHandlers.HandleCommandsCommand();
             continue;
         }
 
-        // ── Show current PDF ──
         if (input.Equals("current", StringComparison.OrdinalIgnoreCase))
         {
-            Commands.HandleCurrentCommand(currentPdfFile);
+            CommandHandlers.HandleCurrentCommand(selectedPdfPath);
             continue;
         }
 
-        // ── Batch-analyze all PDFs ──
         if (input.StartsWith("batch-analyze ", StringComparison.OrdinalIgnoreCase))
         {
             var question = input.Length > 14 ? input[14..].Trim() : string.Empty;
@@ -155,7 +143,7 @@ try
 
             try
             {
-                await Commands.HandleBatchAnalyzeAsync(session, pdfFolder, question);
+                await CommandHandlers.HandleBatchAnalyzeAsync(session, pdfInputDirectory, question);
             }
             catch (Exception ex)
             {
@@ -166,7 +154,6 @@ try
             continue;
         }
 
-        // ── Upload a PDF ──
         if (input.StartsWith("upload ", StringComparison.OrdinalIgnoreCase))
         {
             var filePath = input.Length > 7 ? input[7..].Trim().Trim('"') : string.Empty;
@@ -175,9 +162,7 @@ try
             Console.ResetColor();
 
             if (File.Exists(filePath))
-            {
-                currentPdfFile = await Commands.HandleUploadPdfAsync(filePath, pdfFolder);
-            }
+                selectedPdfPath = await CommandHandlers.HandleUploadPdfAsync(filePath, pdfInputDirectory);
             else
             {
                 Console.ForegroundColor = ConsoleColor.Red;
@@ -187,10 +172,9 @@ try
             continue;
         }
 
-        // ── Auto-summarize current PDF ──
         if (input.Equals("auto-summarize", StringComparison.OrdinalIgnoreCase))
         {
-            if (currentPdfFile == null)
+            if (selectedPdfPath == null)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("❌ No PDF loaded. Use 'upload' or 'list' to select one.");
@@ -198,14 +182,13 @@ try
                 continue;
             }
 
-            await Commands.HandleAutoSummarizeAsync(client!, model!, currentPdfFile, outputFolder);
+            await TechnologySummarizer.RunAsync(client, model, selectedPdfPath, outputDirectory);
             continue;
         }
 
-        // ── Auto-classify current PDF ──
         if (input.Equals("auto-classify", StringComparison.OrdinalIgnoreCase))
         {
-            if (currentPdfFile == null)
+            if (selectedPdfPath == null)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("❌ No PDF loaded. Use 'upload' or 'list' to select one.");
@@ -213,23 +196,19 @@ try
                 continue;
             }
 
-            await Commands.HandleAutoClassifyAsync(client!, model!, currentPdfFile, outputFolder);
+            await TechnologyClassifier.RunAsync(client, model, selectedPdfPath, outputDirectory);
             continue;
         }
 
-        // ── Benchmark all models ──
         if (input.Equals("benchmark", StringComparison.OrdinalIgnoreCase))
         {
-            await Commands.HandleBenchmarkAsync(client!, pdfFolder, outputFolder);
+            await CommandHandlers.HandleBenchmarkAsync(client, pdfInputDirectory, outputDirectory);
             continue;
         }
 
-        // ── Free-form question (with optional PDF context) ──
         string finalMessage = input;
-        if (currentPdfFile != null && File.Exists(currentPdfFile))
-        {
-            finalMessage = await Commands.PrepareMessageWithPdfContextAsync(currentPdfFile, input);
-        }
+        if (selectedPdfPath != null && File.Exists(selectedPdfPath))
+            finalMessage = await CommandHandlers.BuildPromptWithPdfContextAsync(selectedPdfPath, input);
 
         await Program.SendMessageWithSpinnerAsync(session, finalMessage);
     }
@@ -251,18 +230,14 @@ finally
 
 public partial class Program
 {
-    /// <summary>
-    /// Gets available models directly from the Copilot SDK.
-    /// </summary>
+    private static readonly char[] SpinnerChars = ['|', '/', '-', '\\'];
+
     private static async Task<ModelInfo[]> GetModelsWithInfoAsync(CopilotClient client)
     {
         var models = await client.ListModelsAsync();
         return models.OrderBy(model => model.Id, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
-    /// <summary>
-    /// Prompts the user to pick a model from the SDK-provided list.
-    /// </summary>
     private static Task<string?> SelectModelAsync(ModelInfo[] models)
     {
         if (models.Length == 0)
@@ -278,15 +253,14 @@ public partial class Program
         Console.ResetColor();
 
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("   Model                          Multiplier  Reasoning");
-        Console.WriteLine("   ─────────────────────────────  ──────────  ─────────");
+        Console.WriteLine("   Model                          Reasoning");
+        Console.WriteLine("   ─────────────────────────────  ─────────");
         Console.ResetColor();
 
         for (int i = 0; i < models.Length; i++)
         {
-            var multiplier = models[i].Billing?.Multiplier.ToString("F2") ?? "N/A";
             var reasoning = models[i].SupportedReasoningEfforts is { Count: > 0 } ? "Yes" : "No";
-            Console.WriteLine($"   {i + 1}. {models[i].Id,-30} {multiplier,10}  {reasoning,9}");
+            Console.WriteLine($"   {i + 1}. {models[i].Id,-30} {reasoning,9}");
         }
 
         Console.ForegroundColor = ConsoleColor.Cyan;
@@ -306,39 +280,36 @@ public partial class Program
             model.Id.Equals(choice, StringComparison.OrdinalIgnoreCase))?.Id);
     }
 
-    /// <summary>
-    /// Runs <paramref name="action"/> while displaying a console spinner with <paramref name="message"/>.
-    /// </summary>
-    public static async Task RunWithSpinnerAsync(string message, Func<Task> action)
+    // Generic overload lets callers capture a return value; the void overload below delegates to this.
+    public static async Task<T> RunWithSpinnerAsync<T>(string message, Func<Task<T>> action)
     {
-        var spinnerChars = new[] { '|', '/', '-', '\\' };
         using var cts = new CancellationTokenSource();
-        
+
         Console.CursorVisible = false;
         Console.Write($"  {message}...");
-        
+
         var spinnerTask = Task.Run(async () =>
         {
             int i = 0;
-            var left = Console.CursorLeft;
             while (!cts.Token.IsCancellationRequested)
             {
                 Console.SetCursorPosition(0, Console.CursorTop);
-                Console.Write(spinnerChars[i++ % spinnerChars.Length]);
+                Console.Write(SpinnerChars[i++ % SpinnerChars.Length]);
                 try { await Task.Delay(100, cts.Token); } catch { break; }
             }
         });
 
         try
         {
-            await action();
+            var result = await action();
             cts.Cancel();
             await spinnerTask;
             Console.SetCursorPosition(0, Console.CursorTop);
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write(" →");
+            Console.Write("✓");
             Console.ResetColor();
             Console.WriteLine();
+            return result;
         }
         catch
         {
@@ -357,31 +328,30 @@ public partial class Program
         }
     }
 
-    /// <summary>
-    /// Sends a message to the Copilot session, streaming the response to the console
-    /// with a spinner shown while waiting for the first token.
-    /// </summary>
+    public static Task RunWithSpinnerAsync(string message, Func<Task> action)
+        => RunWithSpinnerAsync<int>(message, async () => { await action(); return 0; });
+
+    // Shows a spinner while waiting for the first token, then streams delta/reasoning events in real time.
     public static async Task SendMessageWithSpinnerAsync(CopilotSession session, string message)
     {
-        var spinnerChars = new[] { '|', '/', '-', '\\' };
         var done = new TaskCompletionSource();
         var hasStartedResponse = false;
         using var spinnerCts = new CancellationTokenSource();
-        
+
         Console.CursorVisible = false;
         Console.ForegroundColor = ConsoleColor.Green;
         Console.Write("\nCopilot: ");
         Console.ResetColor();
         var spinnerLeft = Console.CursorLeft;
         var spinnerTop = Console.CursorTop;
-        
+
         var spinnerTask = Task.Run(async () =>
         {
             int i = 0;
             while (!spinnerCts.Token.IsCancellationRequested)
             {
                 Console.SetCursorPosition(spinnerLeft, spinnerTop);
-                Console.Write(spinnerChars[i++ % spinnerChars.Length]);
+                Console.Write(SpinnerChars[i++ % SpinnerChars.Length]);
                 try { await Task.Delay(100, spinnerCts.Token); } catch { break; }
             }
         });
@@ -410,6 +380,7 @@ public partial class Program
                 case AssistantMessageDeltaEvent delta:
                     if (!hasStartedResponse)
                     {
+                        // After reasoning, start a new "Copilot:" line for the final answer.
                         if (hasStartedReasoning)
                         {
                             Console.ResetColor();
@@ -429,8 +400,9 @@ public partial class Program
                     }
                     Console.Write(delta.Data.DeltaContent);
                     break;
-                    
+
                 case AssistantMessageEvent msg:
+                    // Fired by non-streaming models; skip if deltas already covered the content.
                     if (!hasStartedResponse)
                     {
                         if (hasStartedReasoning)
@@ -451,11 +423,11 @@ public partial class Program
                         Console.Write(msg.Data.Content);
                     }
                     break;
-                    
+
                 case SessionIdleEvent:
                     done.TrySetResult();
                     break;
-                    
+
                 case SessionErrorEvent err:
                     spinnerCts.Cancel();
                     Console.CursorVisible = true;
@@ -471,28 +443,24 @@ public partial class Program
         {
             await session.SendAsync(new MessageOptions { Prompt = message });
             await done.Task;
-            spinnerCts.Cancel();
-            await spinnerTask;
             Console.WriteLine("\n");
         }
         finally
         {
             spinnerCts.Cancel();
+            await spinnerTask;
             Console.CursorVisible = true;
             subscription.Dispose();
         }
     }
 
-    /// <summary>
-    /// Sends a message and collects the full response as a string.
-    /// The response is also printed to the console with a spinner.
-    /// </summary>
+    // Collects the full response as a string while showing a "Copilot: " spinner.
+    // Use SendMessageAndStreamToConsoleAsync instead when real-time output is needed.
     public static async Task<string> SendMessageAndCollectResponseAsync(CopilotSession session, string message)
     {
         var done = new TaskCompletionSource();
         var response = new StringBuilder();
         var hasDelta = false;
-        var spinnerChars = new[] { '|', '/', '-', '\\' };
         using var spinnerCts = new CancellationTokenSource();
 
         Console.CursorVisible = false;
@@ -508,7 +476,7 @@ public partial class Program
             while (!spinnerCts.Token.IsCancellationRequested)
             {
                 Console.SetCursorPosition(spinnerLeft, spinnerTop);
-                Console.Write(spinnerChars[i++ % spinnerChars.Length]);
+                Console.Write(SpinnerChars[i++ % SpinnerChars.Length]);
                 try { await Task.Delay(100, spinnerCts.Token); } catch { break; }
             }
         });
@@ -518,6 +486,7 @@ public partial class Program
             switch (evt)
             {
                 case AssistantMessageDeltaEvent delta:
+                    // hasDelta prevents double-appending when the SDK fires both delta and full-message events.
                     hasDelta = true;
                     response.Append(delta.Data.DeltaContent);
                     break;
@@ -538,23 +507,21 @@ public partial class Program
         {
             await session.SendAsync(new MessageOptions { Prompt = message });
             await done.Task;
-            spinnerCts.Cancel();
-            await spinnerTask;
             Console.WriteLine();
             return response.ToString();
         }
         finally
         {
             spinnerCts.Cancel();
+            await spinnerTask;
             Console.CursorVisible = true;
             subscription.Dispose();
         }
     }
 
-    /// <summary>
-    /// Sends a message and collects the full response silently (no console output).
-    /// Times out after 15 minutes to guard against hung service calls.
-    /// </summary>
+    // Silent collection with a 15-minute guard. Used for batch/background calls where no spinner is needed.
+    // The SDK's SendAsync has no cancellation token; the timeout is injected by failing the TCS from a
+    // background CancellationToken.Register callback.
     public static async Task<string> SendMessageAndCollectResponseSilentAsync(CopilotSession session, string message)
     {
         var done = new TaskCompletionSource();
@@ -586,10 +553,9 @@ public partial class Program
         try
         {
             await session.SendAsync(new MessageOptions { Prompt = message });
-            // Wait for response with 15-minute timeout
             using var timeoutTask = timeoutCts.Token.Register(() => done.TrySetException(
                 new TimeoutException("Copilot service did not respond within 15 minutes.")));
-            
+
             await done.Task;
             return response.ToString();
         }
@@ -603,10 +569,8 @@ public partial class Program
         }
     }
 
-    /// <summary>
-    /// Sends a message and streams the response to the console in real time
-    /// (dim grey, word-wrapped at 100 chars), then returns the full collected response.
-    /// </summary>
+    // Streams delta tokens to the console in real time (dim grey, word-wrapped at 100 chars)
+    // and returns the full collected response. The spinner is cancelled on the first token arrival.
     public static async Task<string> SendMessageAndStreamToConsoleAsync(
         CopilotSession session, string message, string linePrefix = "   ")
     {
@@ -617,11 +581,10 @@ public partial class Program
         const int wrapAt = 100;
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(15));
 
-        // Show a spinner while waiting for the first token
         using var spinnerCts = new CancellationTokenSource();
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.Write($"{linePrefix}⏳ waiting...");
-        var spinnerChars2 = new[] { '|', '/', '-', '\\' };
+        // -1 to position the spinner over the last character of "waiting..."
         var waitLeft = Console.CursorLeft - 1;
         var waitTop = Console.CursorTop;
         var spinnerTask = Task.Run(async () =>
@@ -630,7 +593,7 @@ public partial class Program
             while (!spinnerCts.Token.IsCancellationRequested)
             {
                 Console.SetCursorPosition(waitLeft, waitTop);
-                Console.Write(spinnerChars2[i++ % spinnerChars2.Length]);
+                Console.Write(SpinnerChars[i++ % SpinnerChars.Length]);
                 try { await Task.Delay(100, spinnerCts.Token); } catch { break; }
             }
         });
@@ -642,7 +605,7 @@ public partial class Program
                 case AssistantMessageDeltaEvent delta:
                     if (!hasDelta)
                     {
-                        // First token arrived — clear the spinner line and start fresh
+                        // First token: clear the spinner line and start fresh with the prefix.
                         spinnerCts.Cancel();
                         Console.SetCursorPosition(0, waitTop);
                         Console.Write(new string(' ', Console.WindowWidth - 1));
