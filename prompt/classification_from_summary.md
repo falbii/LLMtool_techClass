@@ -1,54 +1,98 @@
 TASK: Convert the following {{TECHNOLOGY_COUNT}} technology summaries into a JSON array.
 The summaries were previously extracted from a PDF and are organised by technology and year.
 
-You are an expert of energy systems data extractor specialised in techno-economic analysis. Extract data precisely and return only valid JSON.
+You are an expert energy-systems data extractor specialised in techno-economic analysis. Extract data precisely and return only valid JSON.
 
-JSON Schema:
+JSON Schema (field meanings and examples are defined below):
 [{
-  "Datapaper Tech ID": "(abbrevation_year) unique id",
-  "description": "1-2 sentences",
-  "summary": "paragraph",
-  "unit_operation": "name",
-  "ProcessType": "e.g. Conversion, Storage, Capture, Transport, EndUse, etc (what it does)",
-  "main_sector": "e.g. Electricity, Heat, Chemicals, Fuels, Industry, Buildings, etc (broadest)",
-  "main_category": "e.g. Electrolysis, CO2 Capture, Syngas Production, etc (field)",
-  "category_spec": "e.g. Alkaline, PEM, Solid sorbent, Aqueous, etc (type)",
-  "tech_type": "specific name found in source (most specific)",
-  "carriers_in": "c1,c2,c3 (any carriers)",
-  "main_input": "primary carrier",
-  "ratios_in": "r1,r2,r3",
-  "units_in": "u1,u2,u3",
-  "carriers_out": "c1,c2,c3 (any carriers)",
-  "main_out": "primary carrier",
-  "ratios_out": "r1,r2,r3",
-  "units_out": "u1,u2,u3",
+  "tech_id": "<string>",
+  "description": "<string>",
+  "summary": "<string>",
+  "unit_operation": "<string>",
+  "process_type": "<string>",
+  "main_sector": "<string>",
+  "main_category": "<string>",
+  "category_spec": "<string>",
+  "tech_type": "<string>",
+  "carriers_in": "<c1,c2,c3>",
+  "main_input": "<string>",
+  "ratios_in": "<r1,r2,r3>",
+  "units_in": "<u1,u2,u3>",
+  "carriers_out": "<c1,c2,c3>",
+  "main_out": "<string>",
+  "ratios_out": "<r1,r2,r3>",
+  "units_out": "<u1,u2,u3>",
   "reference_unit_size": <num|null>,
-  "reference_unit_size_unit": "e.g. MW, t/yr, kg/s (any unit found)",
-  "efficiency": <0-1 decimal|null> (prefer LHV if available),
-  "efficiency_unit": "e.g. %, kWh/kg, J/mol (any unit found)",
-  "trl_(1-9)": <1-9|null>,
-  "tech_maturity": "e.g. Mature, Developing, Emerging (use source terminology)",
-  "base_year": <year|null>,
-  "location": "e.g. Germany, Europe, Chile, Iceland (any location)",
-  "Currency": "e.g. EUR, USD, GBP (any currency found)",
+  "reference_unit_size_unit": "<string>",
+  "efficiency": <0-1 decimal|null>,
+  "efficiency_unit": "<string>",
+  "trl": <1-9|null>,
+  "tech_maturity": "<string>",
+  "year": <year|null>,
+  "location": "<string>",
+  "currency": "<string>",
   "capex": <num|null>,
-  "capex_unit": "e.g. EUR, EUR/kW, EUR/t (any unit found)",
-  "opex_fix": <num|null>,
-  "opex_fix_unit": "e.g. EUR/year, % of Capex, EUR/kW/year (any unit)",
-  "lifetime_yr": <num|null>,
-  "Data Reference Year": <year|null>
+  "capex_unit": "<string>",
+  "opex": <num|null>,
+  "opex_unit": "<string>",
+  "lifetime": <num|null>,
+  "lifetime_unit": "<string>"
 }]
 
-HIERARCHY (General -> Specific):
-- ProcessType, main_sector, main_category, category_spec, tech_type: classify the technology into a hierarchy
+FIELD DEFINITIONS:
+
+General:
+- tech_id: short unique id, abbreviation_year (e.g. AEL_2030).
+- description: 1-2 sentences on what the technology is and does.
+- summary: short paragraph condensing the section's key data.
+- location: country or region the data refers to (Germany, Europe, Chile, ...).
+
+Classification hierarchy (general -> specific):
+- process_type: the ROLE of the technology in the energy system — what it does
+  (Conversion, Storage, Capture, Transport, EndUse).
+- main_sector: the broadest sector the technology serves (Electricity, Heat, Chemicals, Fuels, Industry, Buildings).
+- main_category: the technology family / field (Electrolysis, CO2 Capture, Syngas Production).
+- category_spec: the variant within that family (Alkaline, PEM, Solid sorbent, Aqueous).
+- tech_type: the MOST SPECIFIC name the source uses for this exact technology.
+- unit_operation: the core process step performed (Electrolysis, Gasification, Fischer-Tropsch synthesis).
+
+Carriers and ratios:
+- carriers_in / carriers_out: ALL energy and material carriers entering / leaving the process
+  (electricity, hydrogen, CO2, water, heat, ...), comma-separated.
+- main_input / main_out: the single primary carrier among them.
+- ratios_in / ratios_out: the input/output quantity of each carrier, in the SAME ORDER as the
+  carriers list, exactly as the source states them ("9 kg water per kg H2" -> ratio 9, unit kg/kg).
+- units_in / units_out: one unit per ratio, same order, exactly as the source writes them.
+
+Performance:
+- efficiency: overall conversion efficiency as a 0-1 decimal (65% -> 0.65). Prefer LHV efficiency
+  when both LHV and HHV are given; note the basis in efficiency_unit ("% LHV", kWh/kg, ...).
+- trl: Technology Readiness Level, integer 1-9, only if the source states one.
+- tech_maturity: the source's own qualitative wording (Mature, Developing, Emerging, ...).
+- reference_unit_size: the capacity/size of the reference plant or unit the data refers to,
+  with its unit in reference_unit_size_unit (MW, t/yr, kg/s, ...).
+- lifetime: technical or economic lifetime, with its unit in lifetime_unit exactly as the source
+  states it (years for plants, but e.g. operating hours or cycles for stacks/batteries).
+
+Costs:
+- capex: the one-time capital investment cost (equipment + installation), as a number.
+- opex: operating costs, INCLUDING both fixed (maintenance, labor, insurance) and variable
+  (feedstock, electricity, fuel) components — report whatever the source states, with the
+  exact unit in opex_unit (EUR/yr, % of CAPEX/yr, EUR/MWh, ...) so fixed vs variable stays
+  distinguishable.
+- If OPEX is given as a percentage of CAPEX, report the percentage number AS-IS:
+  "2% of CAPEX/yr" -> opex: 2, opex_unit: "% of CAPEX/yr". Do NOT compute the absolute value.
+- Copy cost numbers exactly as the source states them — do NOT convert currencies, do NOT expand
+  magnitudes ("28.4 MEUR" -> capex: 28.4, capex_unit: "MEUR", NOT 28400000).
+- currency: the currency the costs are stated in (EUR, USD, ...).
+
+Years:
+- year: the year or time horizon this data point DESCRIBES (e.g. a 2050 cost projection -> 2050,
+  current/baseline data -> the present-day year the source uses), not the publication year.
 
 Rules:
 - One object per technology; multiple years -> separate objects
-- Use null where {{SOURCE_LABEL}} has no data
-- efficiency: 0-1 decimal (65% -> 0.65, prefer LHV)
-- ratios: one per carrier, same order as carriers
-- costs: convert to single currency number (€28.4M -> 28400000)
-- Return ONLY JSON array, no markdown or commentary
+- Use null where {{SOURCE_LABEL}} has no data — NEVER guess or invent a value
 
 TECHNOLOGY SUMMARIES:
 

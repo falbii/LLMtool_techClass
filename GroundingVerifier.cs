@@ -95,14 +95,14 @@ public static class GroundingVerifier
     private static IEnumerable<(string field, double value, bool exact)> NumericFields(TechnologyRecord r)
     {
         if (r.ReferenceUnitSize.HasValue)   yield return ("reference_unit_size", r.ReferenceUnitSize.Value, false);
-        if (r.BaseYear.HasValue)            yield return ("cost_base_year", r.BaseYear.Value, true);
-        if (r.DataReferenceYear.HasValue)   yield return ("data_reference_year", r.DataReferenceYear.Value, true);
+        if (r.Year.HasValue)                yield return ("year", r.Year.Value, true);
+        // RefYear is excluded: it is stamped programmatically from the filename, not LLM-extracted,
+        // so there is no drift to detect and it may legitimately be absent from the text.
         if (r.Trl.HasValue)                 yield return ("trl", r.Trl.Value, true);
         if (r.OverallEfficiency.HasValue)   yield return ("efficiency", r.OverallEfficiency.Value, false);
-        if (r.MinInstallationSize.HasValue) yield return ("min_installation_size", r.MinInstallationSize.Value, false);
-        if (r.LifetimeYears.HasValue)       yield return ("lifetime_yr", r.LifetimeYears.Value, false);
+        if (r.Lifetime.HasValue)            yield return ("lifetime", r.Lifetime.Value, false);
         if (r.Capex.HasValue)               yield return ("capex", (double)r.Capex.Value, false);
-        if (r.OpexFix.HasValue)             yield return ("opex_fix", (double)r.OpexFix.Value, false);
+        if (r.Opex.HasValue)                yield return ("opex", (double)r.Opex.Value, false);
         for (int i = 0; i < r.RatiosIn.Count; i++)  yield return ($"ratios_in[{i}]", r.RatiosIn[i], false);
         for (int i = 0; i < r.RatiosOut.Count; i++) yield return ($"ratios_out[{i}]", r.RatiosOut[i], false);
     }

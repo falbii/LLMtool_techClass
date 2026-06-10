@@ -140,7 +140,7 @@ CopilotSDK_techClass/
 
 ## CSV Output Records
 
-`Datapaper Tech ID`, `description`, `summary`, `ProcessType`, `main_sector`, `main_category`, `category_spec`, `tech_type`, `reference_unit_size`, `trl_(1-9)`, `cost_base_year`, `capex_one_time_eur`, `opex_*`, `overall_efficiency`, `carriers_in`, `carriers_out`
+`tech_id`, `description`, `summary`, `process_type`, `main_sector`, `main_category`, `category_spec`, `tech_type`, `reference_unit_size`, `trl`, `year` (of the data point), `ref_year` (source publication year, auto-filled per paper), `capex`, `opex` (fixed + variable), `efficiency`, `carriers_in`, `carriers_out`
 
 ---
 

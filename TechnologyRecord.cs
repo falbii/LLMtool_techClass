@@ -14,10 +14,12 @@ public sealed class TechnologyRecord
     public string? TechType { get; set; }
     public double? ReferenceUnitSize { get; set; }
     public string? ReferenceUnitSizeUnit { get; set; }
-    public int? BaseYear { get; set; }
+    // The year/time horizon this data point describes (e.g. a 2050 cost projection -> 2050).
+    public int? Year { get; set; }
     public string? Location { get; set; }
     public string? Currency { get; set; }
-    public int? DataReferenceYear { get; set; }
+    // Publication year of the source document — constant per paper, filled once per run.
+    public int? RefYear { get; set; }
     public int? Trl { get; set; }
     public string? TechMaturity { get; set; }
     public double? OverallEfficiency { get; set; }
@@ -30,11 +32,11 @@ public sealed class TechnologyRecord
     public string? MainOut { get; set; }
     public List<double> RatiosOut { get; set; } = new();
     public List<string> UnitsOut { get; set; } = new();
-    public double? MinInstallationSize { get; set; }
-    public string? MinInstallationSizeUnit { get; set; }
-    public double? LifetimeYears { get; set; }
+    public double? Lifetime { get; set; }
+    public string? LifetimeUnit { get; set; }
     public decimal? Capex { get; set; }
     public string? CapexUnit { get; set; }
-    public decimal? OpexFix { get; set; }
-    public string? OpexFixUnit { get; set; }
+    // Operating costs, fixed + variable combined, as stated by the source.
+    public decimal? Opex { get; set; }
+    public string? OpexUnit { get; set; }
 }

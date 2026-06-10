@@ -7,15 +7,15 @@ public static class TechnologyCsv
 {
     public static readonly string[] HeaderOrder =
     [
-        "Datapaper Tech ID", "ProcessType", "description", "unit_operation",
+        "tech_id", "process_type", "description", "unit_operation",
         "main_sector", "main_category", "category_spec", "tech_type",
-        "base_year", "reference_unit_size", "reference_unit_size_unit",
-        "location", "Currency", "trl_(1-9)", "tech_maturity",
+        "year", "reference_unit_size", "reference_unit_size_unit",
+        "location", "currency", "trl", "tech_maturity",
         "efficiency", "efficiency_unit",
         "carriers_in", "main_input", "ratios_in", "units_in",
         "carriers_out", "main_out", "ratios_out", "units_out",
-        "capex", "capex_unit", "opex_fix", "opex_fix_unit",
-        "lifetime_yr", "Data Reference Year", "summary"
+        "capex", "capex_unit", "opex", "opex_unit",
+        "lifetime", "lifetime_unit", "ref_year", "summary"
     ];
 
     public static void WriteCsv(string filePath, IEnumerable<TechnologyRecord> rows)
@@ -35,7 +35,7 @@ public static class TechnologyCsv
                 row.MainCategory ?? string.Empty,
                 row.CategorySpec ?? string.Empty,
                 row.TechType ?? string.Empty,
-                TechClassifierHelpers.FormatInt(row.BaseYear),
+                TechClassifierHelpers.FormatInt(row.Year),
                 TechClassifierHelpers.FormatDouble(row.ReferenceUnitSize),
                 row.ReferenceUnitSizeUnit ?? string.Empty,
                 row.Location ?? string.Empty,
@@ -54,10 +54,11 @@ public static class TechnologyCsv
                 TechClassifierHelpers.JoinList(row.UnitsOut.Cast<string?>()),
                 TechClassifierHelpers.FormatDecimal(row.Capex),
                 row.CapexUnit ?? string.Empty,
-                TechClassifierHelpers.FormatDecimal(row.OpexFix),
-                row.OpexFixUnit ?? string.Empty,
-                TechClassifierHelpers.FormatDouble(row.LifetimeYears),
-                TechClassifierHelpers.FormatInt(row.DataReferenceYear),
+                TechClassifierHelpers.FormatDecimal(row.Opex),
+                row.OpexUnit ?? string.Empty,
+                TechClassifierHelpers.FormatDouble(row.Lifetime),
+                row.LifetimeUnit ?? string.Empty,
+                TechClassifierHelpers.FormatInt(row.RefYear),
                 row.Summary ?? string.Empty
             };
 

@@ -82,20 +82,6 @@ internal static class TechClassifierHelpers
         return null;
     }
 
-    internal static (double value, string unit)? ParseValueWithUnit(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return null;
-
-        var match = Regex.Match(value.Trim(), @"^(?<num>[-+]?[0-9]*[.]?[0-9]+)\s*(?<unit>.*)$");
-        if (!match.Success) return null;
-
-        if (!double.TryParse(match.Groups["num"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
-            return null;
-
-        var unit = match.Groups["unit"].Value.Trim();
-        return (parsed, string.IsNullOrEmpty(unit) ? string.Empty : unit);
-    }
-
     // --- JSON helpers ---
 
     internal static string? ConvertJsonValueToString(JsonElement element)

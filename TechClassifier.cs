@@ -24,7 +24,7 @@ public static class TechnologyClassifier
 
         var tech = new TechnologyRecord
         {
-            DatapaperTechId      = GetValue(lookup, "Datapaper Tech ID", "tech_id"),
+            DatapaperTechId      = GetValue(lookup, "tech_id", "Datapaper Tech ID"),
             ProcessType          = GetValue(lookup, "ProcessType", "process_type"),
             Description          = GetValue(lookup, "description"),
             UnitOperation        = GetValue(lookup, "unit_operation"),
@@ -35,11 +35,12 @@ public static class TechnologyClassifier
             TechType             = GetValue(lookup, "tech_type"),
             ReferenceUnitSize    = ParseDouble(GetValue(lookup, "reference_unit_size"), "reference_unit_size", errors),
             ReferenceUnitSizeUnit= GetValue(lookup, "reference_unit_size_unit", "Reference Unit Size Unit"),
-            BaseYear             = ParseInt(GetValue(lookup, "base year", "cost_base_year"), "cost_base_year", errors),
+            // Old header names accepted as aliases so pre-rename CSVs still merge correctly.
+            Year                 = ParseInt(GetValue(lookup, "year", "base_year"), "year", errors),
             Location             = GetValue(lookup, "Location"),
             Currency             = GetValue(lookup, "Currency", "currency"),
-            DataReferenceYear    = ParseInt(GetValue(lookup, "Data Reference Year", "data_reference_year"), "data_reference_year", errors),
-            Trl                  = ParseInt(GetValue(lookup, "trl_(1-9)", "trl"), "trl_(1-9)", errors),
+            RefYear              = ParseInt(GetValue(lookup, "ref_year", "Data Reference Year"), "ref_year", errors),
+            Trl                  = ParseInt(GetValue(lookup, "trl", "trl_(1-9)"), "trl", errors),
             TechMaturity         = GetValue(lookup, "tech_maturity"),
             OverallEfficiency    = ParseDouble(GetValue(lookup, "efficiency", "lhv_efficiency", "overall_efficiency"), "efficiency", errors),
             EfficiencyUnit       = GetValue(lookup, "efficiency_unit"),
@@ -51,24 +52,13 @@ public static class TechnologyClassifier
             MainOut              = GetValue(lookup, "main_out"),
             RatiosOut            = ParseDoubleList(GetValue(lookup, "ratios_out"), "ratios_out", errors),
             UnitsOut             = ParseStringList(GetValue(lookup, "units_out")),
-            LifetimeYears        = ParseDouble(GetValue(lookup, "lifetime_yr"), "lifetime_yr", errors),
+            Lifetime             = ParseDouble(GetValue(lookup, "lifetime", "lifetime_yr"), "lifetime", errors),
+            LifetimeUnit         = GetValue(lookup, "lifetime_unit"),
             Capex                = ParseDecimal(GetValue(lookup, "capex"), "capex", errors),
             CapexUnit            = GetValue(lookup, "capex_unit"),
-            OpexFix              = ParseDecimal(GetValue(lookup, "opex_fix"), "opex_fix", errors),
-            OpexFixUnit          = GetValue(lookup, "opex_fix_unit"),
+            Opex                 = ParseDecimal(GetValue(lookup, "opex", "opex_fix"), "opex", errors),
+            OpexUnit             = GetValue(lookup, "opex_unit", "opex_fix_unit"),
         };
-
-        var minInstallRaw = GetValue(lookup, "min_installation_size");
-        var minInstallParsed = ParseValueWithUnit(minInstallRaw);
-        if (minInstallParsed != null)
-        {
-            tech.MinInstallationSize = minInstallParsed.Value.value;
-            tech.MinInstallationSizeUnit = minInstallParsed.Value.unit;
-        }
-        else if (!string.IsNullOrWhiteSpace(minInstallRaw))
-        {
-            errors.Add("min_installation_size: unable to parse numeric value and unit");
-        }
 
         return tech;
     }
@@ -218,14 +208,13 @@ public static class TechnologyClassifier
         if (!string.IsNullOrWhiteSpace(tech.MainCategory)) fieldCount++;
         if (!string.IsNullOrWhiteSpace(tech.CategorySpec)) fieldCount++;
         if (!string.IsNullOrWhiteSpace(tech.TechType)) fieldCount++;
-        if (tech.BaseYear.HasValue) fieldCount++;
-        if (tech.DataReferenceYear.HasValue) fieldCount++;
+        if (tech.Year.HasValue) fieldCount++;
         if (tech.Trl.HasValue) fieldCount++;
         if (!string.IsNullOrWhiteSpace(tech.TechMaturity)) fieldCount++;
         if (tech.OverallEfficiency.HasValue) fieldCount++;
         if (tech.CarriersIn.Count > 0 || tech.CarriersOut.Count > 0) fieldCount++;
         if (!string.IsNullOrWhiteSpace(tech.MainInput) || !string.IsNullOrWhiteSpace(tech.MainOut)) fieldCount++;
-        if (tech.LifetimeYears.HasValue || tech.Capex.HasValue || tech.OpexFix.HasValue) fieldCount++;
+        if (tech.Lifetime.HasValue || tech.Capex.HasValue || tech.Opex.HasValue) fieldCount++;
 
         // >= 2 rather than 1: a single populated field (e.g. just a generated ID) isn't usable data.
         return fieldCount >= 2;
@@ -261,19 +250,15 @@ public static class TechnologyClassifier
             row.MainCategory, row.ProcessType, row.DatapaperTechId, "unknown");
 
         var normalizedTechnology = NormalizeKeyText(technologyName);
-        var dataReferenceYear = row.DataReferenceYear is >= 1900 ? row.DataReferenceYear : null;
-        var baseYear = row.BaseYear is >= 1900 ? row.BaseYear : null;
+        var dataYear = row.Year is >= 1900 ? row.Year : null;
 
         // No year means we can't confirm two rows represent the same data point.
         // The rowIndex suffix keeps them permanently separate to avoid silent data loss.
-        if (!dataReferenceYear.HasValue && !baseYear.HasValue)
+        // RefYear is not part of the key: it is constant for all rows of a paper.
+        if (!dataYear.HasValue)
             return $"{normalizedTechnology}|UNMERGEABLE|{rowIndex}";
 
-        var yearToken = dataReferenceYear.HasValue && baseYear.HasValue
-            ? $"DR{dataReferenceYear.Value}|BY{baseYear.Value}"
-            : dataReferenceYear.HasValue
-                ? $"DR{dataReferenceYear.Value}"
-                : $"BY{baseYear!.Value}";
+        var yearToken = $"Y{dataYear.Value}";
 
         var categorySpec = NormalizeKeyText(row.CategorySpec ?? "");
         var variant = NormalizeKeyText(row.TechType ?? "");
@@ -300,10 +285,10 @@ public static class TechnologyClassifier
         TechType              = source.TechType,
         ReferenceUnitSize     = source.ReferenceUnitSize,
         ReferenceUnitSizeUnit = source.ReferenceUnitSizeUnit,
-        BaseYear              = source.BaseYear,
+        Year                  = source.Year,
         Location              = source.Location,
         Currency              = source.Currency,
-        DataReferenceYear     = source.DataReferenceYear,
+        RefYear               = source.RefYear,
         Trl                   = source.Trl,
         TechMaturity          = source.TechMaturity,
         OverallEfficiency     = source.OverallEfficiency,
@@ -316,13 +301,12 @@ public static class TechnologyClassifier
         MainOut               = source.MainOut,
         RatiosOut             = [..source.RatiosOut],
         UnitsOut              = [..source.UnitsOut],
-        MinInstallationSize   = source.MinInstallationSize,
-        MinInstallationSizeUnit = source.MinInstallationSizeUnit,
-        LifetimeYears         = source.LifetimeYears,
+        Lifetime              = source.Lifetime,
+        LifetimeUnit          = source.LifetimeUnit,
         Capex                 = source.Capex,
         CapexUnit             = source.CapexUnit,
-        OpexFix               = source.OpexFix,
-        OpexFixUnit           = source.OpexFixUnit
+        Opex                  = source.Opex,
+        OpexUnit              = source.OpexUnit
     };
 
     private static void MergeMissingFields(TechnologyRecord target, TechnologyRecord source)
@@ -338,23 +322,22 @@ public static class TechnologyClassifier
         target.TechType              ??= source.TechType;
         target.ReferenceUnitSize     ??= source.ReferenceUnitSize;
         target.ReferenceUnitSizeUnit ??= source.ReferenceUnitSizeUnit;
-        target.BaseYear              ??= source.BaseYear;
+        target.Year                  ??= source.Year;
         target.Location              ??= source.Location;
         target.Currency              ??= source.Currency;
-        target.DataReferenceYear     ??= source.DataReferenceYear;
+        target.RefYear               ??= source.RefYear;
         target.Trl                   ??= source.Trl;
         target.TechMaturity          ??= source.TechMaturity;
         target.OverallEfficiency     ??= source.OverallEfficiency;
         target.EfficiencyUnit        ??= source.EfficiencyUnit;
         target.MainInput             ??= source.MainInput;
         target.MainOut               ??= source.MainOut;
-        target.MinInstallationSize   ??= source.MinInstallationSize;
-        target.MinInstallationSizeUnit ??= source.MinInstallationSizeUnit;
-        target.LifetimeYears         ??= source.LifetimeYears;
+        target.Lifetime              ??= source.Lifetime;
+        target.LifetimeUnit          ??= source.LifetimeUnit;
         target.Capex                 ??= source.Capex;
         target.CapexUnit             ??= source.CapexUnit;
-        target.OpexFix               ??= source.OpexFix;
-        target.OpexFixUnit           ??= source.OpexFixUnit;
+        target.Opex                  ??= source.Opex;
+        target.OpexUnit              ??= source.OpexUnit;
 
         if (target.CarriersIn.Count  == 0 && source.CarriersIn.Count  > 0) target.CarriersIn  = [..source.CarriersIn];
         if (target.RatiosIn.Count    == 0 && source.RatiosIn.Count    > 0) target.RatiosIn    = [..source.RatiosIn];
@@ -421,11 +404,15 @@ public static class TechnologyClassifier
                 ws.CsvDir,
                 $"{Path.GetFileNameWithoutExtension(pdfFile)}_classification.csv");
 
-            var existingRows = File.Exists(outputPath)
-                ? TechnologyCsv.ReadCsv(outputPath)
-                : [];
-            if (existingRows.Count > 0)
-                ConsoleEx.Dim($"   Merging with {existingRows.Count} existing rows from CSV...");
+            if (File.Exists(outputPath))
+                ConsoleEx.Dim("   Existing CSV will be overwritten with this run's results.");
+
+            // ref_year is the source's publication year — one value per paper, stamped on every row.
+            var refYear = ExtractSourceYear(ws, pdfFile);
+            if (refYear.HasValue)
+                ConsoleEx.Dim($"   ref_year (source publication year): {refYear}");
+            else
+                ConsoleEx.Warn("   ⚠️ Could not determine the source publication year — ref_year will be empty.");
 
             var newRecords = new List<TechnologyRecord>();
             var rowErrors = new List<string>();
@@ -449,13 +436,16 @@ public static class TechnologyClassifier
                 var batchRows = await ClassifyBatchAsync(ws, batchSections);
 
                 var (records, errors) = ParseAndValidate(batchRows, rowsSeen);
+                if (refYear.HasValue)
+                    foreach (var record in records)
+                        record.RefYear = refYear;
                 rowsSeen += batchRows.Count;
                 newRecords.AddRange(records);
                 rowErrors.AddRange(errors);
 
                 // Incremental save: rewrite the CSV after each batch so a later failure
                 // doesn't throw away the batches already completed.
-                var save = SaveCsv(newRecords, existingRows, outputPath);
+                var save = SaveCsv(newRecords, outputPath);
                 if (save == null)
                     return null; // write failed — message already printed
                 (writtenCount, mergedCount) = save.Value;
@@ -555,6 +545,32 @@ public static class TechnologyClassifier
         }
     }
 
+    // The source's publication year: taken from the PDF filename (e.g. "Allgoewer_2024.pdf" -> 2024),
+    // else the first plausible year near the top of the condensed text (papers carry their
+    // publication year on the first page). Null if neither yields one.
+    private static int? ExtractSourceYear(Workspace ws, string pdfFile)
+    {
+        var fileName = Path.GetFileNameWithoutExtension(pdfFile);
+        var match = Regex.Match(fileName, @"\b(19|20)\d{2}\b");
+        if (match.Success)
+            return int.Parse(match.Value, CultureInfo.InvariantCulture);
+
+        var cachePath = PdfCondenser.GetCachePath(pdfFile, ws.CacheDir);
+        if (File.Exists(cachePath))
+        {
+            var text = File.ReadAllText(cachePath, Encoding.UTF8);
+            // Skip the "<!-- condensed from ... on <date> -->" header: its condensation date
+            // would otherwise be mistaken for the publication year.
+            text = Regex.Replace(text, @"^\s*<!--.*?-->", "", RegexOptions.Singleline);
+            var head = text.Length > 2000 ? text[..2000] : text;
+            match = Regex.Match(head, @"\b(19|20)\d{2}\b");
+            if (match.Success)
+                return int.Parse(match.Value, CultureInfo.InvariantCulture);
+        }
+
+        return null;
+    }
+
     // Stage 1 — classify one batch of sections with retry. If the whole batch fails, fall back
     // to classifying each technology individually so one malformed entry doesn't drop the rest.
     private static async Task<List<Dictionary<string, string>>> ClassifyBatchAsync(
@@ -641,17 +657,16 @@ public static class TechnologyClassifier
         return (records, errors);
     }
 
-    // Stage 3 — filter to records with usable data, merge with the existing CSV (new records win
-    // on conflict, existing rows backfill gaps), and write. Skips writing when nothing to save.
+    // Stage 3 — filter to records with usable data, collapse duplicate technology+year rows the
+    // model emitted within this run, and write (replacing any previous CSV — each run starts clean).
     // Called after every batch for crash resilience. Returns (rowsWritten, rowsMerged),
     // or null if the write failed.
     private static (int written, int merged)? SaveCsv(
-        List<TechnologyRecord> newRecords, List<TechnologyRecord> existingRows, string outputPath)
+        List<TechnologyRecord> newRecords, string outputPath)
     {
         var meaningful = newRecords.Where(HasMeaningfulData).ToList();
 
-        // New records first so they take precedence; existing rows only fill gaps they leave.
-        var merged = MergeByTechnologyAndYear(meaningful.Concat(existingRows));
+        var merged = MergeByTechnologyAndYear(meaningful);
         if (merged.Count == 0)
             return (0, 0);
 
@@ -666,7 +681,7 @@ public static class TechnologyClassifier
             return null;
         }
 
-        var mergedCount = (meaningful.Count + existingRows.Count) - merged.Count;
+        var mergedCount = meaningful.Count - merged.Count;
         return (merged.Count, mergedCount);
     }
 }
