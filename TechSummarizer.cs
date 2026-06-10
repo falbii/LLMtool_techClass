@@ -112,7 +112,7 @@ public static class TechnologySummarizer
             return null;
         }
 
-        try { Directory.CreateDirectory(ws.TxtDir); }
+        try { Directory.CreateDirectory(ws.MdDir); }
         catch (Exception ex)
         {
             ConsoleEx.Error($"❌ Cannot create output folder: {ex.Message}");
@@ -121,12 +121,14 @@ public static class TechnologySummarizer
 
         ConsoleEx.Info("📝 Summarising technologies from PDF...\n");
 
+        var startedAt = DateTime.Now;
+
         try
         {
             var pdfText = await PdfCondenser.GetCondensedTextAsync(ws, pdfFile);
             var chunks = PdfExtractor.SplitIntoChunks(pdfText);
-            var txtPath = Path.Combine(ws.TxtDir,
-                $"{Path.GetFileNameWithoutExtension(pdfFile)}.txt");
+            var mdPath = Path.Combine(ws.MdDir,
+                $"{Path.GetFileNameWithoutExtension(pdfFile)}.md");
 
             ConsoleEx.Warn("   1. Finding technologies...");
 
@@ -179,7 +181,7 @@ public static class TechnologySummarizer
                     var response = await SendBatchAsync(batchSession, chunks, batchTechs);
 
                     AppendBatchResults(response, batchTechs, batchCount, technologyDetails);
-                    await TechnologyTxt.WriteAsync(txtPath, pdfFile, technologyNames, technologyDetails);
+                    await TechnologyMd.WriteAsync(mdPath, pdfFile, ws.Model, startedAt, null, technologyNames, technologyDetails);
                 }
                 catch (Exception ex)
                 {
@@ -187,7 +189,7 @@ public static class TechnologySummarizer
                     for (int i = 0; i < batchCount; i++)
                         technologyDetails.Add($"Extraction failed for {batchTechs[i]}: {ex.Message}");
 
-                    await TechnologyTxt.WriteAsync(txtPath, pdfFile, technologyNames, technologyDetails);
+                    await TechnologyMd.WriteAsync(mdPath, pdfFile, ws.Model, startedAt, null, technologyNames, technologyDetails);
                 }
             }
 
@@ -196,15 +198,15 @@ public static class TechnologySummarizer
             while (technologyDetails.Count < technologyNames.Count)
                 technologyDetails.Add($"ERROR: Missing data for {technologyNames[technologyDetails.Count]}");
 
-            await TechnologyTxt.WriteAsync(txtPath, pdfFile, technologyNames, technologyDetails);
+            await TechnologyMd.WriteAsync(mdPath, pdfFile, ws.Model, startedAt, DateTime.Now, technologyNames, technologyDetails);
 
             Console.WriteLine();
-            ConsoleEx.Success($"   📁 Saved to: {txtPath}");
+            ConsoleEx.Success($"   📁 Saved to: {mdPath}");
             ConsoleEx.Success($"   ✓ {technologyNames.Count} technologies extracted and summarised");
             Console.WriteLine();
             ConsoleEx.Success("✅ Summarisation complete!");
 
-            return txtPath;
+            return mdPath;
         }
         catch (Exception ex)
         {

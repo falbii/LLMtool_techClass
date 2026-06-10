@@ -48,8 +48,8 @@ On launch, the tool checks Copilot is available, lists models (with reasoning su
 | `list` | List PDFs in `./1_pdf_to_analyze/` and select one |
 | `upload <path>` | Copy a PDF into `./1_pdf_to_analyze/` and load it |
 | `current` | Show the currently loaded PDF |
-| `auto-summarize` | Extract technology summaries to a TXT file |
-| `auto-classify` | Convert the TXT into a structured CSV |
+| `auto-summarize` | Extract technology summaries to a Markdown file |
+| `auto-classify` | Convert the summary MD into a structured CSV |
 | `batch-analyze <q>` | Ask one question across all PDFs |
 | `benchmark` | Run all models on the same PDF and compare results |
 | `commands` / `help` | Show all commands |
@@ -59,11 +59,11 @@ Any other input is sent to Copilot as a question. If a PDF is loaded, its (conde
 
 ---
 
-## Core Workflow: PDF → TXT → CSV
+## Core Workflow: PDF → MD → CSV
 
 ```
 1. list / upload        → select a PDF
-2. auto-summarize       → 3_output/1_txt_summary/document.txt   (review/edit freely)
+2. auto-summarize       → 3_output/1_md_summary/document.md   (review/edit freely)
 3. auto-classify        → 3_output/2_csv_classification/document_classification.csv
 ```
 
@@ -72,7 +72,7 @@ Any other input is sent to Copilot as a question. If a PDF is loaded, its (conde
 2. Extracts detailed data per technology, organized by year
 
 
-**auto-classify** reads the TXT (not the raw PDF) and converts each technology into one or more CSV rows — one row per year/time horizon.
+**auto-classify** reads the summary MD (not the raw PDF) and converts each technology into one or more CSV rows — one row per year/time horizon. Legacy `.txt` summaries are still read as a fallback.
 
 #### Token-saving condensation cache
 
@@ -92,7 +92,7 @@ Because extraction is lossy compression, review the `.md` if a number looks off 
 You: benchmark
 ```
 
-Runs every available Copilot model on the same standard PDF (`Allgoewer_2024.pdf`, must be in `./1_pdf_to_analyze/`), then auto-classifies each response. Saves to `./3_output/` (`.txt` responses under `1_txt_summary/`, `.csv` files under `2_csv_classification/`):
+Runs every available Copilot model on the same standard PDF (`Allgoewer_2024.pdf`, must be in `./1_pdf_to_analyze/`), then auto-classifies each response. Saves to `./3_output/` (`.txt` responses under `1_md_summary/`, `.csv` files under `2_csv_classification/`):
 
 - `benchmark_<timestamp>.csv` — latency, word count, classified rows per model
 - `benchmark_<timestamp>.txt` — full raw responses
@@ -113,7 +113,7 @@ CopilotSDK_techClass/
 ├── TechClassifier.cs       auto-classify pipeline (batch → JSON → validate → merge)
 ├── TechnologyRecord.cs     the record data to classify
 ├── TechnologyCsv.cs        cassification CSV read/write
-├── TechnologyTxt.cs        summary TXT read/write
+├── TechnologyMd.cs         summary Markdown read/write
 ├── GroundingVerifier.cs    deterministic numeric grounding check
 ├── helpers/
 │   ├── AppHelpers.cs       session factory + console output helpers
@@ -122,7 +122,7 @@ CopilotSDK_techClass/
 ├── 1_pdf_to_analyze/       input PDFs (auto-created)
 ├── 2_md_condensed_pdf/     condensed .md cache (auto-created, regenerable)
 └── 3_output/
-    ├── 1_txt_summary/      auto-summarize TXT output
+    ├── 1_md_summary/       auto-summarize Markdown output
     └── 2_csv_classification/  auto-classify CSV output
 ```
 
@@ -131,10 +131,10 @@ CopilotSDK_techClass/
 ## Notes
 
 - **Large PDFs** are automatically split into 30 KB chunks to stay within token limits.
-- **auto-classify requires auto-summarize first** — the TXT file is the source of truth.
+- **auto-classify requires auto-summarize first** — the summary MD file is the source of truth.
 - **Scanned PDFs** have limited support (text-layer only; use OCR pre-processing for image PDFs).
 - **Timeout** is 15 minutes per AI call.
-- The TXT file is human-readable and editable — fix errors there before classifying.
+- The summary MD file is human-readable and editable — fix errors there before classifying.
 
 ---
 

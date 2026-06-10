@@ -150,7 +150,7 @@ public static class CommandHandlers
         Console.WriteLine("  'upload <path>'        - Upload a PDF to analyze (or drop PDFs in ./1_pdf_to_analyze/)");
         Console.WriteLine("  'list'                 - List available PDFs and choose one to analyze");
         Console.WriteLine("  'current'              - Show current PDF");
-        Console.WriteLine("  'auto-summarize'       - Extract technology summaries to TXT");
+        Console.WriteLine("  'auto-summarize'       - Extract technology summaries to Markdown");
         Console.WriteLine("  'auto-classify' (beta) - Classify technologies and export CSV");
         Console.WriteLine("  'batch-analyze <q>'    - Analyze all PDFs with a question");
         Console.WriteLine("  'benchmark'            - Compare all models on the Allgoewer paper");
@@ -505,7 +505,7 @@ public static class CommandHandlers
         }
         await File.WriteAllTextAsync(csvPath, csv.ToString(), Encoding.UTF8);
 
-        var txtPath = Path.Combine(ws.TxtDir, $"benchmark_{timestamp}.txt");
+        var txtPath = Path.Combine(ws.MdDir, $"benchmark_{timestamp}.txt");
         var txt = new StringBuilder();
         txt.AppendLine("═══════════════════════════════════════════════════════════════");
         txt.AppendLine($"Benchmark Responses - {BenchmarkPdfName}");

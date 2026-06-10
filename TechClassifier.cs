@@ -387,30 +387,30 @@ public static class TechnologyClassifier
             return null;
         }
 
-        var txtPath = Path.Combine(ws.TxtDir,
-            $"{Path.GetFileNameWithoutExtension(pdfFile)}.txt");
+        var mdPath = Path.Combine(ws.MdDir,
+            $"{Path.GetFileNameWithoutExtension(pdfFile)}.md");
 
-        if (!File.Exists(txtPath))
+        if (!File.Exists(mdPath))
         {
             ConsoleEx.Warn($"⚠️  Please run 'auto-summarize' first to extract technology summaries.");
-            ConsoleEx.Warn($"    No summary file found at: {txtPath}");
+            ConsoleEx.Warn($"    No summary file found at: {mdPath}");
             return null;
         }
 
-        ConsoleEx.Info("📋 Classifying from TXT summary and writing to CSV...\n");
+        ConsoleEx.Info("📋 Classifying from MD summary and writing to CSV...\n");
 
         try
         {
-            var sections = TechnologyTxt.ReadSections(txtPath);
+            var sections = TechnologyMd.ReadSections(mdPath);
 
             if (sections.Count == 0)
             {
-                ConsoleEx.Warn("⚠️  No technology sections found in TXT file.");
+                ConsoleEx.Warn("⚠️  No technology sections found in MD file.");
                 return null;
             }
 
-            ConsoleEx.Warn("   1. Parsing TXT sections...");
-            ConsoleEx.Success($"   Found {sections.Count} technology sections in TXT");
+            ConsoleEx.Warn("   1. Parsing MD sections...");
+            ConsoleEx.Success($"   Found {sections.Count} technology sections in MD");
             foreach (var (name, _) in sections)
                 ConsoleEx.Dim($"     • {name}");
             Console.WriteLine();

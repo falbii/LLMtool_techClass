@@ -59,14 +59,14 @@ try
     string baseDir = Directory.GetCurrentDirectory();
     string pdfInputDirectory = Path.Combine(baseDir, "1_pdf_to_analyze");
     string cacheDirectory = Path.Combine(baseDir, "2_md_condensed_pdf");
-    string txtDirectory = Path.Combine(baseDir, "3_output", "1_txt_summary");
+    string mdDirectory = Path.Combine(baseDir, "3_output", "1_md_summary");
     string csvDirectory = Path.Combine(baseDir, "3_output", "2_csv_classification");
     Directory.CreateDirectory(pdfInputDirectory);
     Directory.CreateDirectory(cacheDirectory);
-    Directory.CreateDirectory(txtDirectory);
+    Directory.CreateDirectory(mdDirectory);
     Directory.CreateDirectory(csvDirectory);
 
-    var workspace = new Workspace(client, model, pdfInputDirectory, cacheDirectory, txtDirectory, csvDirectory);
+    var workspace = new Workspace(client, model, pdfInputDirectory, cacheDirectory, mdDirectory, csvDirectory);
 
     string? selectedPdfPath = null;
     // Path of the PDF whose text has already been sent into the chat session. Free-form questions

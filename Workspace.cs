@@ -9,5 +9,5 @@ public sealed record Workspace(
     string Model,
     string PdfDir,
     string CacheDir,
-    string TxtDir,
+    string MdDir,
     string CsvDir);
