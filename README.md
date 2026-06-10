@@ -55,7 +55,7 @@ On launch, the tool checks Copilot is available, lists models (with reasoning su
 | `commands` / `help` | Show all commands |
 | `exit` / `quit` | Exit |
 
-Any other input is sent to Copilot as a question. If a PDF is loaded, its text is automatically injected as context.
+Any other input is sent to Copilot as a question. If a PDF is loaded, its (condensed) text is injected as context on the first question about it; follow-up questions reuse the session context instead of re-sending the document.
 
 ---
 

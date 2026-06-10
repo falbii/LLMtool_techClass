@@ -238,19 +238,21 @@ public static class CommandHandlers
         return null;
     }
 
-    public static async Task<string> BuildPromptWithPdfContextAsync(
+    // PdfIncluded tells the caller whether the document text actually made it into the prompt,
+    // so it can track what context the session has already received.
+    public static async Task<(string Prompt, bool PdfIncluded)> BuildPromptWithPdfContextAsync(
         Workspace ws, string pdfFile, string userQuestion)
     {
         try
         {
             var pdfText = await PdfCondenser.GetCondensedTextAsync(ws, pdfFile);
             var chunks = PdfExtractor.SplitIntoChunks(pdfText);
-            return PdfExtractor.BuildSingleDocumentPrompt(chunks, userQuestion);
+            return (PdfExtractor.BuildSingleDocumentPrompt(chunks, userQuestion), true);
         }
         catch (Exception ex)
         {
             ConsoleEx.Warn($"⚠️  Could not extract PDF text: {ex.Message}. Sending question without PDF context.");
-            return userQuestion;
+            return (userQuestion, false);
         }
     }
 
@@ -311,7 +313,7 @@ public static class CommandHandlers
         string fullPrompt = string.Empty;
         await Program.RunWithSpinnerAsync(" Extracting PDF text", async () =>
         {
-            fullPrompt = await BuildPromptWithPdfContextAsync(ws, pdfPath, BenchmarkPrompt);
+            (fullPrompt, _) = await BuildPromptWithPdfContextAsync(ws, pdfPath, BenchmarkPrompt);
         });
 
         var modelsWithInfo = await ws.Client.ListModelsAsync();

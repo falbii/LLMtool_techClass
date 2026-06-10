@@ -69,19 +69,13 @@ try
     var workspace = new Workspace(client, model, pdfInputDirectory, cacheDirectory, txtDirectory, csvDirectory);
 
     string? selectedPdfPath = null;
+    // Path of the PDF whose text has already been sent into the chat session. Free-form questions
+    // inject the (condensed) document only on the first question about a given PDF; after that the
+    // session already holds it, and re-sending would duplicate the whole document every turn.
+    string? pdfInjectedIntoSession = null;
 
-    ConsoleEx.Info("💬 Interactive Chat - just ask something or use predefined commands:\n");
-    ConsoleEx.Warn("⚡ Available Commands:");
-    Console.WriteLine("  'commands' or 'help'   - Display all available commands");
-    Console.WriteLine("  'exit' or 'quit'       - Exit the program");
-    Console.WriteLine("  'upload <path>'        - Upload a PDF to analyze (or drop PDFs in ./1_pdf_to_analyze/)");
-    Console.WriteLine("  'list'                 - List available PDFs and choose one to analyze");
-    Console.WriteLine("  'current'              - Show current PDF");
-    Console.WriteLine("  'auto-summarize'       - Extract technology summaries to TXT");
-    Console.WriteLine("  'auto-classify' (beta) - Classify technologies and export CSV");
-    Console.WriteLine("  'batch-analyze <q>'    - Analyze all PDFs with a question");
-    Console.WriteLine("  'benchmark'            - Compare all models on the Allgoewer paper");
-    Console.WriteLine("  'condense-check'       - Check the quality of md condensed\n");
+    ConsoleEx.Info("💬 Interactive Chat - just ask something or use predefined commands:");
+    CommandHandlers.HandleCommandsCommand();
 
     while (true)
     {
@@ -198,8 +192,14 @@ try
         }
 
         string finalMessage = input;
-        if (selectedPdfPath != null && File.Exists(selectedPdfPath))
-            finalMessage = await CommandHandlers.BuildPromptWithPdfContextAsync(workspace, selectedPdfPath, input);
+        if (selectedPdfPath != null && File.Exists(selectedPdfPath) &&
+            !selectedPdfPath.Equals(pdfInjectedIntoSession, StringComparison.OrdinalIgnoreCase))
+        {
+            var (prompt, pdfIncluded) = await CommandHandlers.BuildPromptWithPdfContextAsync(workspace, selectedPdfPath, input);
+            finalMessage = prompt;
+            if (pdfIncluded)
+                pdfInjectedIntoSession = selectedPdfPath;
+        }
 
         await Program.SendMessageWithSpinnerAsync(session, finalMessage);
     }
@@ -535,16 +535,16 @@ public partial class Program
 
         try
         {
-            await session.SendAsync(new MessageOptions { Prompt = message });
-            using var timeoutTask = timeoutCts.Token.Register(() => done.TrySetException(
+            // Registered before the send so the timeout also covers a hang inside SendAsync itself.
+            using var timeoutRegistration = timeoutCts.Token.Register(() => done.TrySetException(
                 new TimeoutException("Copilot service did not respond within 15 minutes.")));
+
+            var sendTask = session.SendAsync(new MessageOptions { Prompt = message });
+            if (await Task.WhenAny(sendTask, done.Task) == sendTask)
+                await sendTask; // propagate any send failure before waiting on the response events
 
             await done.Task;
             return response.ToString();
-        }
-        catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested)
-        {
-            throw new TimeoutException("Copilot service request timed out after 15 minutes.");
         }
         finally
         {
@@ -636,23 +636,23 @@ public partial class Program
 
         try
         {
-            await session.SendAsync(new MessageOptions { Prompt = message });
-            using var timeoutTask = timeoutCts.Token.Register(() => done.TrySetException(
+            // Registered before the send so the timeout also covers a hang inside SendAsync itself.
+            using var timeoutRegistration = timeoutCts.Token.Register(() => done.TrySetException(
                 new TimeoutException("Copilot service did not respond within 15 minutes.")));
+
+            var sendTask = session.SendAsync(new MessageOptions { Prompt = message });
+            if (await Task.WhenAny(sendTask, done.Task) == sendTask)
+                await sendTask; // propagate any send failure before waiting on the response events
+
             await done.Task;
             Console.WriteLine();
-            Console.ResetColor();
             return response.ToString();
-        }
-        catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested)
-        {
-            Console.ResetColor();
-            throw new TimeoutException("Copilot service request timed out after 15 minutes.");
         }
         finally
         {
             spinnerCts.Cancel();
             await spinnerTask;
+            Console.ResetColor();
             subscription.Dispose();
         }
     }
