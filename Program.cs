@@ -80,7 +80,8 @@ try
     Console.WriteLine("  'auto-summarize'       - Extract technology summaries to TXT");
     Console.WriteLine("  'auto-classify' (beta) - Classify technologies and export CSV");
     Console.WriteLine("  'batch-analyze <q>'    - Analyze all PDFs with a question");
-    Console.WriteLine("  'benchmark'            - Compare all models on the Allgoewer paper\n");
+    Console.WriteLine("  'benchmark'            - Compare all models on the Allgoewer paper");
+    Console.WriteLine("  'condense-check'       - Check the quality of md condensed\n");
 
     while (true)
     {
@@ -181,6 +182,18 @@ try
         if (input.Equals("benchmark", StringComparison.OrdinalIgnoreCase))
         {
             await CommandHandlers.HandleBenchmarkAsync(workspace);
+            continue;
+        }
+
+        if (input.Equals("condense-check", StringComparison.OrdinalIgnoreCase))
+        {
+            if (selectedPdfPath == null)
+            {
+                ConsoleEx.Warn("❌ No PDF loaded. Use 'upload' or 'list' to select one.");
+                continue;
+            }
+
+            await CommandHandlers.HandleCondenseCheckAsync(workspace, selectedPdfPath);
             continue;
         }
 

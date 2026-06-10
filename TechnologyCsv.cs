@@ -3,7 +3,7 @@ using System.Text;
 namespace TechClassificationApp;
 
 // Reads and writes the classification CSV in a fixed column order.
-public static class TechnologyClassificationCsv
+public static class TechnologyCsv
 {
     public static readonly string[] HeaderOrder =
     [

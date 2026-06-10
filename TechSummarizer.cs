@@ -57,37 +57,48 @@ public static class TechnologySummarizer
         return names;
     }
 
+    // Placeholder written for any technology the model didn't return a parseable section for.
+    // Carries no numbers, so it parses to an empty record downstream rather than fabricated data.
+    public const string MissingSectionMarker =
+        "[NO PARSEABLE DATA — extraction marker missing for this technology]";
+
+    private static readonly Regex BatchSectionHeaderPattern = new(
+        @"===\s*TECHNOLOGY\s+(?<num>\d+)\s*:.*?===",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    // Splits a batch response into one section per technology, keyed by the technology NUMBER the
+    // model declares in each "=== TECHNOLOGY N: ... ===" header — not by positional order. A skipped
+    // or out-of-order technology therefore lands in the correct slot (or stays empty) instead of
+    // shifting every later one by a position. Technologies with no parseable section get an explicit
+    // missing-data marker; we never back-fill by slicing the text into equal line ranges, which
+    // silently misattributes one technology's numbers to another.
     public static List<string> ParseBatchedExtractionResponse(string response, int expectedCount)
     {
-        var details = new List<string>();
-        if (string.IsNullOrWhiteSpace(response))
-        {
-            for (int i = 0; i < expectedCount; i++)
-                details.Add($"No data found for technology {i + 1}");
-            return details;
-        }
+        var byIndex = new string?[expectedCount];
 
-        var sections = Regex.Split(response, @"===\s*TECHNOLOGY\s+\d+:.*?===", RegexOptions.IgnoreCase);
-        for (int i = 1; i < sections.Length; i++)
+        if (!string.IsNullOrWhiteSpace(response))
         {
-            var section = sections[i].Trim();
-            if (!string.IsNullOrWhiteSpace(section))
-                details.Add(section);
-        }
-
-        if (details.Count < expectedCount)
-        {
-            details.Clear();
-            var lines = response.Split('\n');
-            var linesPerTech = Math.Max(1, lines.Length / expectedCount);
-            for (int i = 0; i < expectedCount; i++)
+            var matches = BatchSectionHeaderPattern.Matches(response);
+            for (int i = 0; i < matches.Count; i++)
             {
-                var start = i * linesPerTech;
-                var count = (i == expectedCount - 1) ? (lines.Length - start) : linesPerTech;
-                details.Add(string.Join('\n', lines.Skip(start).Take(count)).Trim());
+                var contentStart = matches[i].Index + matches[i].Length;
+                var contentEnd = (i + 1 < matches.Count) ? matches[i + 1].Index : response.Length;
+                var content = response[contentStart..contentEnd].Trim();
+
+                // Header number is 1-based; ignore anything outside the expected range.
+                if (int.TryParse(matches[i].Groups["num"].Value, out var techNum)
+                    && techNum >= 1 && techNum <= expectedCount
+                    && !string.IsNullOrWhiteSpace(content))
+                {
+                    // First write wins, so a duplicated number can't clobber an earlier good section.
+                    byIndex[techNum - 1] ??= content;
+                }
             }
         }
 
+        var details = new List<string>(expectedCount);
+        for (int i = 0; i < expectedCount; i++)
+            details.Add(byIndex[i] ?? MissingSectionMarker);
         return details;
     }
 
@@ -168,7 +179,7 @@ public static class TechnologySummarizer
                     var response = await SendBatchAsync(batchSession, chunks, batchTechs);
 
                     AppendBatchResults(response, batchTechs, batchCount, technologyDetails);
-                    await WriteProgressAsync(txtPath, pdfFile, technologyNames, technologyDetails);
+                    await TechnologyTxt.WriteAsync(txtPath, pdfFile, technologyNames, technologyDetails);
                 }
                 catch (Exception ex)
                 {
@@ -176,7 +187,7 @@ public static class TechnologySummarizer
                     for (int i = 0; i < batchCount; i++)
                         technologyDetails.Add($"Extraction failed for {batchTechs[i]}: {ex.Message}");
 
-                    await WriteProgressAsync(txtPath, pdfFile, technologyNames, technologyDetails);
+                    await TechnologyTxt.WriteAsync(txtPath, pdfFile, technologyNames, technologyDetails);
                 }
             }
 
@@ -185,7 +196,7 @@ public static class TechnologySummarizer
             while (technologyDetails.Count < technologyNames.Count)
                 technologyDetails.Add($"ERROR: Missing data for {technologyNames[technologyDetails.Count]}");
 
-            await WriteProgressAsync(txtPath, pdfFile, technologyNames, technologyDetails);
+            await TechnologyTxt.WriteAsync(txtPath, pdfFile, technologyNames, technologyDetails);
 
             Console.WriteLine();
             ConsoleEx.Success($"   📁 Saved to: {txtPath}");
@@ -222,39 +233,9 @@ public static class TechnologySummarizer
             return;
         }
 
+        // Returns exactly batchCount entries, in technology order, with missing ones explicitly
+        // marked — so no reconciliation against the count is needed here.
         var parsed = ParseBatchedExtractionResponse(response, batchCount);
-        while (parsed.Count < batchCount)
-            parsed.Add($"Incomplete data for {batchTechs[parsed.Count]}");
-
-        if (parsed.Count > batchCount)
-            parsed = [..parsed.Take(batchCount)];
-
         technologyDetails.AddRange(parsed);
-    }
-
-    private static async Task WriteProgressAsync(
-        string txtPath, string sourcePdf,
-        List<string> technologyNames, List<string> technologyDetails)
-    {
-        var txtContent = new StringBuilder();
-        txtContent.AppendLine("═══════════════════════════════════════════════════════════════");
-        txtContent.AppendLine($"Technology Extraction Data - {Path.GetFileName(sourcePdf)}");
-        txtContent.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        txtContent.AppendLine($"Total Technologies: {technologyNames.Count}");
-        txtContent.AppendLine($"Completed Technologies: {technologyDetails.Count}");
-        txtContent.AppendLine("═══════════════════════════════════════════════════════════════");
-        txtContent.AppendLine();
-
-        for (int i = 0; i < technologyDetails.Count && i < technologyNames.Count; i++)
-        {
-            txtContent.AppendLine($"═══ TECHNOLOGY {i + 1}: {technologyNames[i]} ═══");
-            txtContent.AppendLine();
-            txtContent.AppendLine(technologyDetails[i]);
-            txtContent.AppendLine();
-            txtContent.AppendLine("───────────────────────────────────────────────────────────────");
-            txtContent.AppendLine();
-        }
-
-        await File.WriteAllTextAsync(txtPath, txtContent.ToString(), Encoding.UTF8);
     }
 }

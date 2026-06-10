@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using GitHub.Copilot.SDK;
 
@@ -5,6 +6,90 @@ namespace TechClassificationApp;
 
 public static class CommandHandlers
 {
+    // Diagnostic for issue #2 (LLM condensation is lossy). Measures, with NO LLM call, how many
+    // numbers in the raw PDF survive into the cached condensed text. Raw extraction is deterministic
+    // iText; the condensed side is read from the existing cache only — never generated here, so the
+    // audit can never trigger a model call. Run 'auto-summarize' first to produce the cache.
+    public static async Task HandleCondenseCheckAsync(Workspace ws, string pdfFile)
+    {
+        if (string.IsNullOrWhiteSpace(pdfFile) || !File.Exists(pdfFile))
+        {
+            ConsoleEx.Error("❌ PDF not found or invalid path.");
+            return;
+        }
+
+        var cachePath = PdfCondenser.GetCachePath(pdfFile, ws.CacheDir);
+        if (!File.Exists(cachePath))
+        {
+            ConsoleEx.Warn("⚠️  No cached condensed file found — run 'auto-summarize' first.");
+            ConsoleEx.Warn($"    Expected at: {cachePath}");
+            ConsoleEx.Dim("    (The audit reads the existing cache only; it never calls the model.)");
+            return;
+        }
+
+        ConsoleEx.Info("🔬 Auditing condensation fidelity (raw PDF vs cached condensed) — no LLM used...\n");
+
+        try
+        {
+            var rawText = await PdfExtractor.ExtractTextAsync(pdfFile);
+            var condensedText = await File.ReadAllTextAsync(cachePath, Encoding.UTF8);
+
+            var rawDistinct = GroundingVerifier.ExtractNumbers(rawText).Distinct().ToList();
+            var condensedIndex = GroundingVerifier.ExtractNumbers(condensedText);
+            var missing = rawDistinct.Where(v => !GroundingVerifier.Contains(condensedIndex, v)).ToList();
+
+            // "Data-like" numbers: non-integers (0.65, 63.5) or magnitude >= 100 (years, capex, ...).
+            // Filters out list indices and other trivial small integers that aren't real data points.
+            static bool IsSignificant(double v) => v % 1 != 0 || Math.Abs(v) >= 100;
+            var sigDistinct = rawDistinct.Where(IsSignificant).ToList();
+            var sigMissing = missing.Where(IsSignificant).ToList();
+
+            int total = rawDistinct.Count, covered = total - missing.Count;
+            int sigTotal = sigDistinct.Count, sigCovered = sigTotal - sigMissing.Count;
+            double pct = total == 0 ? 100 : 100.0 * covered / total;
+            double sigPct = sigTotal == 0 ? 100 : 100.0 * sigCovered / sigTotal;
+
+            ConsoleEx.Info($"   Raw distinct numbers:        {total}");
+            ConsoleEx.Info($"   Survived in condensed:       {covered} ({pct:0.#}%)");
+            Console.WriteLine();
+            ConsoleEx.Info($"   Data-like numbers (≥100 or decimal): {sigTotal}");
+            var sigLine = $"   ...of which survived:        {sigCovered} ({sigPct:0.#}%)";
+            if (sigPct >= 99) ConsoleEx.Success(sigLine); else ConsoleEx.Warn(sigLine);
+            ConsoleEx.Warn($"   Data-like numbers MISSING:   {sigMissing.Count}");
+
+            if (sigMissing.Count > 0)
+            {
+                Console.WriteLine();
+                ConsoleEx.Warn("   ⚠️  Data-like numbers in the raw PDF but NOT in the condensed text:");
+                foreach (var v in sigMissing.OrderBy(x => x).Take(40))
+                    ConsoleEx.Dim($"     • {v.ToString("0.########", CultureInfo.InvariantCulture)}");
+                if (sigMissing.Count > 40)
+                    ConsoleEx.Dim($"     ...and {sigMissing.Count - 40} more");
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Condensation fidelity audit — {Path.GetFileName(pdfFile)}");
+            report.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            report.AppendLine($"Raw distinct numbers: {total} | survived: {covered} ({pct:0.#}%)");
+            report.AppendLine($"Data-like numbers: {sigTotal} | survived: {sigCovered} ({sigPct:0.#}%) | missing: {sigMissing.Count}");
+            report.AppendLine();
+            report.AppendLine("Data-like numbers present in raw PDF but absent from condensed text:");
+            foreach (var v in sigMissing.OrderBy(x => x))
+                report.AppendLine($"  • {v.ToString("0.########", CultureInfo.InvariantCulture)}");
+            var reportPath = Path.Combine(ws.CsvDir, $"{Path.GetFileNameWithoutExtension(pdfFile)}_condense_check.txt");
+            await File.WriteAllTextAsync(reportPath, report.ToString(), Encoding.UTF8);
+
+            Console.WriteLine();
+            ConsoleEx.Info($"   📁 Full report: {reportPath}");
+            ConsoleEx.Dim("   Note: some 'missing' values can be PDF-extraction artifacts (split/garbled spacing),");
+            ConsoleEx.Dim("   not true condensation loss — scan the list to judge how many are real data drops.");
+        }
+        catch (Exception ex)
+        {
+            ConsoleEx.Error($"❌ Condense audit failed: {ex.Message}");
+        }
+    }
+
     public static async Task<string?> HandleListPdfsAsync(string pdfInputDirectory)
     {
         if (!Directory.Exists(pdfInputDirectory))
@@ -69,6 +154,7 @@ public static class CommandHandlers
         Console.WriteLine("  'auto-classify' (beta) - Classify technologies and export CSV");
         Console.WriteLine("  'batch-analyze <q>'    - Analyze all PDFs with a question");
         Console.WriteLine("  'benchmark'            - Compare all models on the Allgoewer paper");
+        Console.WriteLine("  'condense-check'       - Check the quality of md condensed");
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.DarkGray;
@@ -365,7 +451,7 @@ public static class CommandHandlers
                 var tempPath = Path.GetTempFileName();
                 try
                 {
-                    TechnologyClassificationCsv.WriteCsv(tempPath, rows);
+                    TechnologyCsv.WriteCsv(tempPath, rows);
                     var lines = await File.ReadAllLinesAsync(tempPath, Encoding.UTF8);
 
                     if (!headerWritten)

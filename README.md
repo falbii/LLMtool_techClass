@@ -86,8 +86,10 @@ CopilotSDK_techClass/
 ├── PdfCondenser.cs         one-time PDF→condensed-MD caching for token savings
 ├── TechSummarizer.cs       auto-summarize logic
 ├── TechClassifier.cs       auto-classify pipeline (batch → JSON → validate → merge)
-├── TechnologyRecord.cs     the classified-row data model
-├── TechnologyClassificationCsv.cs  CSV read/write
+├── TechnologyRecord.cs     the record data to classify
+├── TechnologyCsv.cs        cassification CSV read/write
+├── TechnologyTxt.cs        summary TXT read/write
+├── GroundingVerifier.cs    deterministic numeric grounding check
 ├── helpers/
 │   ├── AppHelpers.cs       session factory + console output helpers
 │   └── TechClassifierHelpers.cs  shared parsing/formatting utilities

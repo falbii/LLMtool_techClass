@@ -11,10 +11,6 @@ public static class TechnologyClassifier
 {
     private static readonly StringComparer KeyComparer = StringComparer.OrdinalIgnoreCase;
 
-    private static readonly Regex SummarySectionHeaderPattern = new(
-        @"═{3,}\s*TECHNOLOGY\s+\d+:\s*(?<name>.+?)\s*═{3,}",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
     // Always returns a record — parse errors are warnings, not failures.
     // HasMeaningfulData is the downstream gate that decides if the record is usable.
     public static TechnologyRecord ParseRecord(IDictionary<string, string> row, out List<string> errors)
@@ -405,8 +401,7 @@ public static class TechnologyClassifier
 
         try
         {
-            var txtContent = await File.ReadAllTextAsync(txtPath, Encoding.UTF8);
-            var sections = ParseSectionsFromSummaryFile(txtContent);
+            var sections = TechnologyTxt.ReadSections(txtPath);
 
             if (sections.Count == 0)
             {
@@ -427,7 +422,7 @@ public static class TechnologyClassifier
                 $"{Path.GetFileNameWithoutExtension(pdfFile)}_classification.csv");
 
             var existingRows = File.Exists(outputPath)
-                ? TechnologyClassificationCsv.ReadCsv(outputPath)
+                ? TechnologyCsv.ReadCsv(outputPath)
                 : [];
             if (existingRows.Count > 0)
                 ConsoleEx.Dim($"   Merging with {existingRows.Count} existing rows from CSV...");
@@ -501,12 +496,62 @@ public static class TechnologyClassifier
                     Console.WriteLine($"   ...and {rowErrors.Count - 10} more");
             }
 
+            await VerifyGroundingAsync(ws, pdfFile, outputPath);
+
             return outputPath;
         }
         catch (Exception ex)
         {
             ConsoleEx.Error($"❌ Auto-classify failed: {ex.Message}");
             return null;
+        }
+    }
+
+    // Deterministic post-check: confirm the numbers written to the CSV actually appear in the
+    // source text, flagging any that don't (likely digit/unit drift introduced by one of the LLM
+    // passes). Verification only — it never edits the CSV. Best-effort: a failure here is reported
+    // but never fails the run, since the data has already been saved.
+    //
+    // Grounds against the condensed .md (the source the extraction chain actually reads), falling
+    // back to the raw PDF text if the cache is missing. Switch to raw to also catch condensation drift.
+    private static async Task VerifyGroundingAsync(Workspace ws, string pdfFile, string csvPath)
+    {
+        try
+        {
+            var records = TechnologyCsv.ReadCsv(csvPath);
+            if (records.Count == 0)
+                return;
+
+            var cachePath = PdfCondenser.GetCachePath(pdfFile, ws.CacheDir);
+            var sourceText = File.Exists(cachePath)
+                ? await File.ReadAllTextAsync(cachePath, Encoding.UTF8)
+                : await PdfExtractor.ExtractTextAsync(pdfFile);
+
+            var report = GroundingVerifier.Verify(records, sourceText);
+
+            Console.WriteLine();
+            if (report.UngroundedCount == 0)
+            {
+                ConsoleEx.Success($"   🔎 Grounding: all {report.TotalValues} numeric values verified against the source.");
+                return;
+            }
+
+            ConsoleEx.Warn($"   🔎 Grounding: {report.UngroundedCount}/{report.TotalValues} numeric value(s) not found in the source (possible LLM drift):");
+            foreach (var f in report.Ungrounded.Take(15))
+                ConsoleEx.Dim($"     • [{f.TechId}] {f.Field} = {f.Value}");
+            if (report.UngroundedCount > 15)
+                ConsoleEx.Dim($"     ...and {report.UngroundedCount - 15} more");
+
+            var reportPath = Path.Combine(
+                Path.GetDirectoryName(csvPath)!,
+                $"{Path.GetFileNameWithoutExtension(pdfFile)}_grounding.txt");
+            await File.WriteAllTextAsync(
+                reportPath, GroundingVerifier.FormatReport(Path.GetFileName(pdfFile), report), Encoding.UTF8);
+            ConsoleEx.Dim($"     📁 Full report: {reportPath}");
+        }
+        catch (Exception ex)
+        {
+            ConsoleEx.Dim($"   (grounding check skipped: {ex.Message})");
         }
     }
 
@@ -612,7 +657,7 @@ public static class TechnologyClassifier
 
         try
         {
-            TechnologyClassificationCsv.WriteCsv(outputPath, merged);
+            TechnologyCsv.WriteCsv(outputPath, merged);
         }
         catch (Exception ex)
         {
@@ -623,32 +668,5 @@ public static class TechnologyClassifier
 
         var mergedCount = (meaningful.Count + existingRows.Count) - merged.Count;
         return (merged.Count, mergedCount);
-    }
-
-    private static List<(string Name, string Content)> ParseSectionsFromSummaryFile(string txtContent)
-    {
-        var sections = new List<(string Name, string Content)>();
-        if (string.IsNullOrWhiteSpace(txtContent))
-            return sections;
-
-        var matches = SummarySectionHeaderPattern.Matches(txtContent);
-        for (int i = 0; i < matches.Count; i++)
-        {
-            string name = matches[i].Groups["name"].Value.Trim();
-            var contentStart = matches[i].Index + matches[i].Length;
-            var contentEnd = (i + 1 < matches.Count) ? matches[i + 1].Index : txtContent.Length;
-
-            var content = txtContent[contentStart..contentEnd].Trim();
-
-            // Trim the trailing "───" separator that TechnologySummarizer.WriteProgressAsync appends.
-            var separatorIdx = content.LastIndexOf("───");
-            if (separatorIdx >= 0)
-                content = content[..separatorIdx].Trim();
-
-            if (!string.IsNullOrWhiteSpace(content))
-                sections.Add((name, content));
-        }
-
-        return sections;
     }
 }
