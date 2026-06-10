@@ -6,10 +6,34 @@ PDF analysis and technology classification powered by the GitHub Copilot SDK for
 
 ## Quick Start
 
-**Prerequisites:** .NET 10+, GitHub Copilot CLI installed and authenticated.
+**Prerequisites:** the .NET 10+ SDK and the GitHub Copilot CLI (authenticated, with an active Copilot subscription).
+
+### 1. Install the .NET 10 SDK
+
+```powershell
+# Windows (winget)
+winget install Microsoft.DotNet.SDK.10
+```
 
 ```bash
-dotnet restore
+# macOS (Homebrew)
+brew install dotnet-sdk
+# Linux: https://learn.microsoft.com/dotnet/core/install/linux
+```
+
+### 2. Install and authenticate the GitHub Copilot CLI
+
+The CLI requires Node.js 22+ (`winget install OpenJS.NodeJS` on Windows, or https://nodejs.org).
+
+```bash
+npm install -g @github/copilot
+copilot            # launch once, then run /login to sign in to GitHub
+```
+
+### 3. Restore dependencies and run
+
+```bash
+dotnet restore     # pulls GitHub.Copilot.SDK, itext7, and the Copilot CLI binary
 dotnet run
 ```
 
@@ -47,7 +71,10 @@ Any other input is sent to Copilot as a question. If a PDF is loaded, its text i
 1. Scans the PDF to find all unique technology names
 2. Extracts detailed data per technology, organized by year
 
-### Token-saving condensation cache
+
+**auto-classify** reads the TXT (not the raw PDF) and converts each technology into one or more CSV rows — one row per year/time horizon.
+
+#### Token-saving condensation cache
 
 The first time any operation needs a PDF, the tool condenses it once into a compact
 `2_md_condensed_pdf/<name>.condensed.md` — preserving every number, unit, table, and technology name
@@ -56,8 +83,6 @@ read this cached `.md` instead of re-sending the full PDF, cutting token usage s
 
 The cache is reused automatically and regenerated only when the source PDF changes.
 Because extraction is lossy compression, review the `.md` if a number looks off in the CSV.
-
-**auto-classify** reads the TXT (not the raw PDF) and converts each technology into one or more CSV rows — one row per year/time horizon.
 
 ---
 
@@ -113,7 +138,7 @@ CopilotSDK_techClass/
 
 ---
 
-## CSV Output Fields
+## CSV Output Records
 
 `Datapaper Tech ID`, `description`, `summary`, `ProcessType`, `main_sector`, `main_category`, `category_spec`, `tech_type`, `reference_unit_size`, `trl_(1-9)`, `cost_base_year`, `capex_one_time_eur`, `opex_*`, `overall_efficiency`, `carriers_in`, `carriers_out`
 
