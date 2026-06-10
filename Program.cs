@@ -87,14 +87,20 @@ try
         if (string.IsNullOrEmpty(input))
             continue;
 
-        if (input.Equals("exit", StringComparison.OrdinalIgnoreCase) ||
-            input.Equals("quit", StringComparison.OrdinalIgnoreCase))
+        // '/' marks an explicit command ('/list', '/auto-summarize', ...). Bare names still work;
+        // the difference is that an unknown '/xxx' fails fast below instead of being sent to the
+        // model as a chat question, where a mistyped command would silently cost tokens.
+        var isCommand = input.StartsWith('/');
+        var command = isCommand ? input[1..].Trim() : input;
+
+        if (command.Equals("exit", StringComparison.OrdinalIgnoreCase) ||
+            command.Equals("quit", StringComparison.OrdinalIgnoreCase))
         {
             Console.WriteLine("\n👋 Goodbye!");
             break;
         }
 
-        if (input.Equals("list", StringComparison.OrdinalIgnoreCase))
+        if (command.Equals("list", StringComparison.OrdinalIgnoreCase))
         {
             var selected = await CommandHandlers.HandleListPdfsAsync(pdfInputDirectory);
             if (!string.IsNullOrEmpty(selected))
@@ -102,22 +108,22 @@ try
             continue;
         }
 
-        if (input.Equals("commands", StringComparison.OrdinalIgnoreCase) ||
-            input.Equals("help", StringComparison.OrdinalIgnoreCase))
+        if (command.Equals("commands", StringComparison.OrdinalIgnoreCase) ||
+            command.Equals("help", StringComparison.OrdinalIgnoreCase))
         {
             CommandHandlers.HandleCommandsCommand();
             continue;
         }
 
-        if (input.Equals("current", StringComparison.OrdinalIgnoreCase))
+        if (command.Equals("current", StringComparison.OrdinalIgnoreCase))
         {
             CommandHandlers.HandleCurrentCommand(selectedPdfPath);
             continue;
         }
 
-        if (input.StartsWith("batch-analyze ", StringComparison.OrdinalIgnoreCase))
+        if (command.StartsWith("batch-analyze ", StringComparison.OrdinalIgnoreCase))
         {
-            var question = input.Length > 14 ? input[14..].Trim() : string.Empty;
+            var question = command.Length > 14 ? command[14..].Trim() : string.Empty;
             if (string.IsNullOrEmpty(question))
             {
                 ConsoleEx.Warn("❌ Please provide a question. Usage: batch-analyze <your question>");
@@ -135,9 +141,9 @@ try
             continue;
         }
 
-        if (input.StartsWith("upload ", StringComparison.OrdinalIgnoreCase))
+        if (command.StartsWith("upload ", StringComparison.OrdinalIgnoreCase))
         {
-            var filePath = input.Length > 7 ? input[7..].Trim().Trim('"') : string.Empty;
+            var filePath = command.Length > 7 ? command[7..].Trim().Trim('"') : string.Empty;
             ConsoleEx.Dim($"   Checking: {filePath}");
 
             if (File.Exists(filePath))
@@ -149,7 +155,7 @@ try
             continue;
         }
 
-        if (input.Equals("auto-summarize", StringComparison.OrdinalIgnoreCase))
+        if (command.Equals("auto-summarize", StringComparison.OrdinalIgnoreCase))
         {
             if (selectedPdfPath == null)
             {
@@ -161,7 +167,7 @@ try
             continue;
         }
 
-        if (input.Equals("auto-classify", StringComparison.OrdinalIgnoreCase))
+        if (command.Equals("auto-classify", StringComparison.OrdinalIgnoreCase))
         {
             if (selectedPdfPath == null)
             {
@@ -173,13 +179,13 @@ try
             continue;
         }
 
-        if (input.Equals("benchmark", StringComparison.OrdinalIgnoreCase))
+        if (command.Equals("benchmark", StringComparison.OrdinalIgnoreCase))
         {
             await CommandHandlers.HandleBenchmarkAsync(workspace);
             continue;
         }
 
-        if (input.Equals("condense-check", StringComparison.OrdinalIgnoreCase))
+        if (command.Equals("condense-check", StringComparison.OrdinalIgnoreCase))
         {
             if (selectedPdfPath == null)
             {
@@ -188,6 +194,18 @@ try
             }
 
             await CommandHandlers.HandleCondenseCheckAsync(workspace, selectedPdfPath);
+            continue;
+        }
+
+        // Anything '/'-prefixed that didn't match above is a command error, never a chat message.
+        if (isCommand)
+        {
+            if (command.Length == 0)
+            {
+                CommandHandlers.HandleCommandsCommand();
+                continue;
+            }
+            ConsoleEx.Error($"❌ Unknown command: /{command} — type '/help' to list commands.");
             continue;
         }
 
@@ -221,6 +239,14 @@ public partial class Program
 {
     private static readonly char[] SpinnerChars = ['|', '/', '-', '\\'];
 
+    // Pads text on both sides so it sits centered within the given column width.
+    private static string Center(string text, int width)
+    {
+        if (text.Length >= width) return text;
+        var left = (width - text.Length) / 2;
+        return text.PadLeft(left + text.Length).PadRight(width);
+    }
+
     private static async Task<ModelInfo[]> GetModelsWithInfoAsync(CopilotClient client)
     {
         var models = await client.ListModelsAsync();
@@ -235,17 +261,17 @@ public partial class Program
             return Task.FromResult<string?>(null);
         }
 
-        ConsoleEx.Info("📊 Available Models & Billing Info:\n");
+        ConsoleEx.Info("📊 Available Models:\n");
 
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("   Model                          Reasoning");
-        Console.WriteLine("   ─────────────────────────────  ─────────");
+        Console.WriteLine("    #  Model                           Reasoning");
+        Console.WriteLine("   ──  ──────────────────────────────  ─────────");
         Console.ResetColor();
 
         for (int i = 0; i < models.Length; i++)
         {
             var reasoning = models[i].SupportedReasoningEfforts is { Count: > 0 } ? "Yes" : "No";
-            Console.WriteLine($"   {i + 1}. {models[i].Id,-30} {reasoning,9}");
+            Console.WriteLine($"   {i + 1,2}  {models[i].Id,-30}  {Center(reasoning, 9)}");
         }
 
         ConsoleEx.Info("\nSelect a model by number or type the model id:\n");

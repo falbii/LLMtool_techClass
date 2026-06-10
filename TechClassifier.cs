@@ -534,7 +534,7 @@ public static class TechnologyClassifier
 
             var reportPath = Path.Combine(
                 Path.GetDirectoryName(csvPath)!,
-                $"{Path.GetFileNameWithoutExtension(pdfFile)}_grounding.txt");
+                $"{Path.GetFileNameWithoutExtension(pdfFile)}_check_verifier.txt");
             await File.WriteAllTextAsync(
                 reportPath, GroundingVerifier.FormatReport(Path.GetFileName(pdfFile), report), Encoding.UTF8);
             ConsoleEx.Dim($"     📁 Full report: {reportPath}");

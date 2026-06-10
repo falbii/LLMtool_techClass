@@ -145,22 +145,23 @@ public static class CommandHandlers
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine("⚡ Available Commands:");
         Console.ResetColor();
-        Console.WriteLine("  'commands' or 'help'   - Display all available commands");
-        Console.WriteLine("  'exit' or 'quit'       - Exit the program");
-        Console.WriteLine("  'upload <path>'        - Upload a PDF to analyze (or drop PDFs in ./1_pdf_to_analyze/)");
-        Console.WriteLine("  'list'                 - List available PDFs and choose one to analyze");
-        Console.WriteLine("  'current'              - Show current PDF");
-        Console.WriteLine("  'auto-summarize'       - Extract technology summaries to Markdown");
-        Console.WriteLine("  'auto-classify' (beta) - Classify technologies and export CSV");
-        Console.WriteLine("  'batch-analyze <q>'    - Analyze all PDFs with a question");
-        Console.WriteLine("  'benchmark'            - Compare all models on the Allgoewer paper");
-        Console.WriteLine("  'condense-check'       - Check the quality of md condensed");
+        Console.WriteLine("  '/commands' or '/help'  - Display all available commands");
+        Console.WriteLine("  '/exit' or '/quit'      - Exit the program");
+        Console.WriteLine("  '/upload <path>'        - Upload a PDF to analyze (or drop PDFs in ./1_pdf_to_analyze/)");
+        Console.WriteLine("  '/list'                 - List available PDFs and choose one to analyze");
+        Console.WriteLine("  '/current'              - Show current PDF");
+        Console.WriteLine("  '/auto-summarize'       - Extract technology summaries to Markdown");
+        Console.WriteLine("  '/auto-classify' (beta) - Classify technologies and export CSV");
+        Console.WriteLine("  '/batch-analyze <q>'    - Analyze all PDFs with a question");
+        Console.WriteLine("  '/benchmark'            - Compare all models on the Allgoewer paper");
+        Console.WriteLine("  '/condense-check'       - Check the quality of md condensed");
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine("💡 Tips:");
         Console.ResetColor();
         Console.WriteLine("  • Or just ask a question normally for AI analysis");
+        Console.WriteLine("  • Commands also work without the leading '/'");
         if (Directory.Exists("./1_pdf_to_analyze"))
             Console.WriteLine("  • Drop PDFs in the ./1_pdf_to_analyze/ folder for quick access");
         Console.WriteLine();

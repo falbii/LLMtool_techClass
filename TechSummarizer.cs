@@ -16,9 +16,9 @@ public static class TechnologySummarizer
         return template.Replace("{{PDF_CONTENT}}", BuildPdfContentSection(chunks));
     }
 
-    public static string BuildBatchDetailedExtractionPrompt(List<string> chunks, List<string> technologyNames)
+    public static string BuildSummaryTechnologyPrompt(List<string> chunks, List<string> technologyNames)
     {
-        var template = LoadPromptTemplate("batch_detailed_extraction.md");
+        var template = LoadPromptTemplate("summary_technology.md");
 
         var technologyList = new StringBuilder();
         for (int i = 0; i < technologyNames.Count; i++)
@@ -218,7 +218,7 @@ public static class TechnologySummarizer
     private static async Task<string> SendBatchAsync(
         CopilotSession session, List<string> chunks, List<string> batchTechs)
     {
-        var prompt = BuildBatchDetailedExtractionPrompt(chunks, batchTechs);
+        var prompt = BuildSummaryTechnologyPrompt(chunks, batchTechs);
         return await Program.SendMessageAndStreamToConsoleAsync(session, prompt);
     }
 

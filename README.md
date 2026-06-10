@@ -45,26 +45,26 @@ On launch, the tool checks Copilot is available, lists models (with reasoning su
 
 | Command | Description |
 |---------|-------------|
-| `list` | List PDFs in `./1_pdf_to_analyze/` and select one |
-| `upload <path>` | Copy a PDF into `./1_pdf_to_analyze/` and load it |
-| `current` | Show the currently loaded PDF |
-| `auto-summarize` | Extract technology summaries to a Markdown file |
-| `auto-classify` | Convert the summary MD into a structured CSV |
-| `batch-analyze <q>` | Ask one question across all PDFs |
-| `benchmark` | Run all models on the same PDF and compare results |
-| `commands` / `help` | Show all commands |
-| `exit` / `quit` | Exit |
+| `/list` | List PDFs in `./1_pdf_to_analyze/` and select one |
+| `/upload <path>` | Copy a PDF into `./1_pdf_to_analyze/` and load it |
+| `/current` | Show the currently loaded PDF |
+| `/auto-summarize` | Extract technology summaries to a Markdown file |
+| `/auto-classify` | Convert the summary MD into a structured CSV |
+| `/batch-analyze <q>` | Ask one question across all PDFs |
+| `/benchmark` | Run all models on the same PDF and compare results |
+| `/commands` / `/help` | Show all commands |
+| `/exit` / `/quit` | Exit |
 
-Any other input is sent to Copilot as a question. If a PDF is loaded, its (condensed) text is injected as context on the first question about it; follow-up questions reuse the session context instead of re-sending the document.
+Commands also work without the leading `/`, but an unknown `/command` reports an error instead of being sent to the model. Any other input is sent to Copilot as a question. If a PDF is loaded, its (condensed) text is injected as context on the first question about it; follow-up questions reuse the session context instead of re-sending the document.
 
 ---
 
 ## Core Workflow: PDF → MD → CSV
 
 ```
-1. list / upload        → select a PDF
-2. auto-summarize       → 3_output/1_md_summary/document.md   (review/edit freely)
-3. auto-classify        → 3_output/2_csv_classification/document_classification.csv
+1. /list or /upload     → select a PDF
+2. /auto-summarize      → 3_output/1_md_summary/document.md   (review/edit freely)
+3. /auto-classify       → 3_output/2_csv_classification/document_classification.csv
 ```
 
 **auto-summarize** runs in two stages:
@@ -89,7 +89,7 @@ Because extraction is lossy compression, review the `.md` if a number looks off 
 ## Benchmark
 
 ```
-You: benchmark
+You: /benchmark
 ```
 
 Runs every available Copilot model on the same standard PDF (`Allgoewer_2024.pdf`, must be in `./1_pdf_to_analyze/`), then auto-classifies each response. Saves to `./3_output/` (`.txt` responses under `1_md_summary/`, `.csv` files under `2_csv_classification/`):
