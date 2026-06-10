@@ -9,3 +9,6 @@ obj/
 *.csv
 *.txt
 *.xlsx
+
+# Keep the Allgoewer benchmark example (PDF + its generated TXT/CSV outputs)
+!**/Allgoewer*
