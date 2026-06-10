@@ -7,11 +7,13 @@ PRESERVE VERBATIM — never drop, round, paraphrase, or approximate:
 - Every year and time horizon (2020, 2035, 2050, baseline, near/long-term)
 - Every TRL, CAPEX, OPEX, efficiency, lifetime, reference capacity, ratio
 - Every location/region qualifier attached to a data point
-- All tables — keep them intact with their numbers and headers
+- All tables — keep them intact with their numbers and headers, rendered as Markdown tables
 - LCA / environmental / GHG emission figures
-- The `[PAGE N]`, `[TABLE REGION ...]`, and `[END TABLE]` markers where present
+- The `[PAGE N]` markers where present
 
 REMOVE:
+- The `[TABLE REGION ...]`, `[TECHNOLOGY LIST TABLE ...]`, and `[END TABLE]` helper markers —
+  they are extraction hints, not content; never copy them into your output
 - Narrative prose, introductions, motivation, and background discussion
 - Literature review commentary and citations / reference lists
 - Acknowledgments, funding statements, author affiliations

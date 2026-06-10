@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using GitHub.Copilot.SDK;
 using static TechClassificationApp.TechClassifierHelpers;
 
@@ -46,7 +47,7 @@ public static class PdfCondenser
                 $"   Condensing part {i + 1}/{chunks.Count}",
                 () => Program.SendMessageAndCollectResponseSilentAsync(session, prompt));
 
-            condensed.AppendLine(part.Trim());
+            condensed.AppendLine(StripTableMarkers(part.Trim()));
             condensed.AppendLine();
         }
 
@@ -63,6 +64,18 @@ public static class PdfCondenser
         ConsoleEx.Success($"   📁 Cached at: {cachePath}");
 
         return result;
+    }
+
+    // The raw-extraction table markers are hints for the model, not content, but models tend to
+    // echo them back (often as piles of empty pairs at the end of the output) even when told not
+    // to — so any that survive condensation are removed deterministically.
+    private static string StripTableMarkers(string text)
+    {
+        text = Regex.Replace(text, @"\[(?:TABLE REGION|TECHNOLOGY LIST TABLE|END TABLE)[^\]\r\n]*\]", "");
+        // Collapse the gaps the removed markers leave behind.
+        text = Regex.Replace(text, @"[ \t]+(\r?\n)", "$1");
+        text = Regex.Replace(text, @"(\r?\n){3,}", "$1$1");
+        return text.Trim();
     }
 
     private static bool IsCacheValid(string pdfFile, string cachePath)
