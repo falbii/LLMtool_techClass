@@ -11,7 +11,7 @@ PRESERVE VERBATIM — never drop, round, paraphrase, or approximate:
 - LCA / environmental / GHG emission figures
 - The `[PAGE N]`, `[TABLE REGION ...]`, and `[END TABLE]` markers where present
 
-REMOVE (this is where you save tokens):
+REMOVE:
 - Narrative prose, introductions, motivation, and background discussion
 - Literature review commentary and citations / reference lists
 - Acknowledgments, funding statements, author affiliations
