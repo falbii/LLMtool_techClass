@@ -1,753 +1,852 @@
-﻿═══════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════
 Technology Extraction Data - Allgoewer_2024.pdf
-Generated: 2026-06-01 10:36:13
-Total Technologies: 14
-Completed Technologies: 14
+Generated: 2026-06-10 10:36:21
+Total Technologies: 23
+Completed Technologies: 23
 ═══════════════════════════════════════════════════════════════
 
-═══ TECHNOLOGY 1: Alkaline water electrolysis ═══
-
---- Near Future (by 2035) ---
-**Operating Conditions:**
-Temperature: 60–90 °C
-
-**Energy Consumption:**
-Electric efficiency: 55.1 kWh_el/kg_H2 (baseline); 47.5–75.0 kWh_el/kg_H2 (range)
-
-**Capital Expenditure (CAPEX):**
-System CAPEX: 790.5 €/kW (baseline); 437.8–1110.3 €/kW (range)
-
-**Operating Expenditure (OPEX):**
-Stack replacement: 48.9% of system CAPEX (baseline); 45.1–54.0% (range)
-
-**Stack Lifetime:**
-75,532 h (baseline); 60,000–94,444 h (range)
-
-**Technology Readiness:**
-MW-scale, commercially deployed with flexible operation capability
-
-**Maturity:**
-Currently dominant market technology alongside PEM
-
---- Long-Term Future (post-2035) ---
-**Energy Consumption:**
-Electric efficiency: 48.9 kWh_el/kg_H2 (baseline); 45.47–52.0 kWh_el/kg_H2 (range)
-
-**Capital Expenditure (CAPEX):**
-System CAPEX: 527.2 €/kW (baseline); 306.5–774.5 €/kW (range)
-
-**Operating Expenditure (OPEX):**
-Stack replacement: 48.8% of system CAPEX (baseline); 46.5–52.9% (range)
-
-**Stack Lifetime:**
-87,500 h (baseline); 80,000–100,000 h (range)
-
-**Cost Reduction:**
-33% reduction in CAPEX from near to long-term future
-
-───────────────────────────────────────────────────────────────
-
-═══ TECHNOLOGY 2: Proton exchange membrane electrolysis ═══
-
---- Near Future (by 2035) ---
-**Operating Conditions:**
-Temperature: 60–90 °C
-
-**Energy Consumption:**
-Electric efficiency: 57.9 kWh_el/kg_H2 (baseline); 48.8–83.0 kWh_el/kg_H2 (range)
-
-**Capital Expenditure (CAPEX):**
-System CAPEX: 1047.9 €/kW (baseline); 613.0–1225.9 €/kW (range)
-
-**Operating Expenditure (OPEX):**
-Stack replacement: 42.0% of system CAPEX (baseline); 28.6–60.0% (range)
-
-**Stack Lifetime:**
-64,026 h (baseline); 40,000–90,000 h (range)
-
-**Technology Readiness:**
-MW-scale, commercially deployed with flexible operation capability
-
-**Maturity:**
-Currently dominant market technology alongside AEC
-
---- Long-Term Future (post-2035) ---
-**Energy Consumption:**
-Electric efficiency: 53.1 kWh_el/kg_H2 (baseline); 47.0–64.0 kWh_el/kg_H2 (range)
-
-**Capital Expenditure (CAPEX):**
-System CAPEX: 473.5 €/kW (baseline); 257.9–700.5 €/kW (range)
-
-**Operating Expenditure (OPEX):**
-Stack replacement: 39.4% of system CAPEX (baseline); 27.8–55.6% (range)
-
-**Stack Lifetime:**
-85,420 h (baseline); 50,000–100,000 h (range)
-
-**Cost Reduction:**
-55% reduction in CAPEX from near to long-term future
-
-───────────────────────────────────────────────────────────────
-
-═══ TECHNOLOGY 3: Solid oxide electrolysis ═══
-
---- Near Future (by 2035) ---
-**Operating Conditions:**
-Temperature: 700–850 °C
-Operation below thermoneutral conditions
-
-**Energy Consumption:**
-Electric efficiency: 34.1 kWh_el/kg_H2 (baseline); 26.6–38.1 kWh_el/kg_H2 (range)
-Thermal energy: 8.3 kWh_th/kg_H2 (baseline); 6.7–11.0 kWh_th/kg_H2 (range)
-Heat source: Natural gas for high-temperature steam generation
-
-**Capital Expenditure (CAPEX):**
-System CAPEX: 1739.5 €/kW (baseline); 593.0–2770.0 €/kW (range)
-
-**Operating Expenditure (OPEX):**
-Stack replacement: 27.0% of system CAPEX (baseline); 23.5–30.0% (range)
-
-**Stack Lifetime:**
-30,308 h (baseline); 20,000–50,924 h (range)
-
-**Technology Readiness:**
-High-temperature operation with thermal integration opportunities
-Not yet commercialized at scale
-
-**Environmental Impact:**
-High life cycle GHG emissions due to natural gas input for steam (more than double compared to AEC/PEM depending on location)
-
---- Long-Term Future (post-2035) ---
-**Energy Consumption:**
-Electric efficiency: Assumed same as near future
-Thermal energy: Assumed same as near future
-
-**Capital Expenditure (CAPEX):**
-System CAPEX: 958.3 €/kW (baseline); 566.5–1723.3 €/kW (range)
-
-**Operating Expenditure (OPEX):**
-Stack replacement: 13.8% of system CAPEX (baseline); 12.5–15.0% (range)
-
-**Stack Lifetime:**
-71,991 h (baseline); 53,750–102,222 h (range)
-
-**Cost Reduction:**
-45% reduction in CAPEX from near to long-term future
-
-**Economic Advantage:**
-Can reduce Minimum Selling Price (MSP) by 42–218 €/t in The Netherlands
-Negligible cost benefits in Chile (3–11 €/t reduction)
-
-───────────────────────────────────────────────────────────────
-
-═══ TECHNOLOGY 4: Low-temperature direct air capture ═══
-
---- Near Future (by 2035) ---
-**Process Description:**
-Temperature–vacuum swing adsorption cycle with amine-functionalized sorbent
-Adjusts CAPEX and energy requirements based on ambient conditions (temperature, humidity)
-
-**Inputs:**
-Electricity: 0.48 MWh_el/t_CO2 (baseline); 0.25–0.70 MWh_el/t_CO2 (range)
-Heat (<100 °C): 2.53 MWh_th/t_CO2 (baseline); 1.75–3.30 MWh_th/t_CO2 (range)
-Sorbent: 7.50 kg/t_CO2 (baseline); 3.00 kg/t_CO2 (minimum)
-
-**Sorbent Cost:**
-21.5 €/kg_sorbent (baseline); 13.0–30.0 €/kg_sorbent (range)
-
-**Capital Expenditure (CAPEX):**
-730.0 €/t_CO2·y (baseline); 168.5–100.0 €/t_CO2·y (range, unclear reporting)
-Includes construction, vacuum pumps, blowers, heat exchangers
-
-**Life Cycle GHG Emissions (sorbent):**
-28.0 kg_CO2eq/t_CO2 (baseline); 10.0–46.0 kg_CO2eq/t_CO2 (range)
-
-**Location-Dependent Performance Factors (normalized to Iceland = 1.00):**
-- Iceland: CAPEX 1.00, electricity 1.00, heat 1.00
-- Netherlands: CAPEX 1.32, electricity 0.99, heat 1.11
-- Spain: CAPEX 1.69, electricity 1.29, heat 1.33
-- Chile: CAPEX 1.38, electricity 1.29, heat 1.30
-
-**Reference Application:**
-Climeworks Mammoth DAC plant: 36 kt_CO2/year nominal capacity
-
---- Long-Term Future (post-2035) ---
-**Energy Consumption:**
-Electricity: 0.38 MWh_el/t_CO2 (baseline); 0.25–0.50 MWh_el/t_CO2 (range)
-Heat: 1.50 MWh_th/t_CO2 (baseline)
-Sorbent: 3.00 kg/t_CO2 (baseline only)
-
-**Sorbent Cost:**
-7.4 €/kg_sorbent (baseline); 1.8–13.0 €/kg_sorbent (range)
-
-**Capital Expenditure (CAPEX):**
-237.0 €/t_CO2·y (baseline)
-
-**Life Cycle GHG Emissions (sorbent):**
-10.0–20.0 kg_CO2eq/t_CO2 (assumed lower range of near-future values)
-
-**Cost Reduction:**
-33.4% of total MSP reduction from near to long-term future attributed to sorbent cost decline and consumption reduction
-
-───────────────────────────────────────────────────────────────
-
-═══ TECHNOLOGY 5: High-temperature direct air capture ═══
-
---- Near Future (by 2035) ---
-**Process Description:**
-Aqueous absorption DAC process
-Energy-intensive calcination requiring natural gas
-Lower level of granularity in data compared to LT DAC
-
-**Carbon Footprint of CO2 Feedstock:**
-20–300 kg_CO2eq/t_CO2 (typical range for various absorption processes)
-Assumed: 100 kg_CO2eq/t_CO2 for this analysis
-
-**Cost Comparison:**
-MSPs 21.5% higher than LT DAC on average due to energy-intensive calcination
-No cost advantage over point-source capture in near term
-
-**Environmental Impact:**
-Lacking cost benefits compared to LT DAC in long term
-Depends on natural gas input
-
---- Long-Term Future (post-2035) ---
-**Cost Comparison:**
-No distinct advantage over LT DAC
-Does not offer cost benefits compared with LT adsorption DAC in long term despite natural gas utilization
-
-───────────────────────────────────────────────────────────────
-
-═══ TECHNOLOGY 6: Point-source capture ═══
-
---- Near Future (by 2035) ---
-**Process Description:**
-Postcombustion CO2 capture from flue gas (e.g., cement production)
-Uses amine-based absorbents
-
-**Capture Cost:**
-€30–70/t_CO2 (typical range for postcombustion processes)
-Assumed: €50/t_CO2 (average value for this analysis)
-
-**Carbon Footprint of CO2 Feedstock:**
-20–300 kg_CO2eq/t_CO2 (typical range for various capture processes)
-Assumed: 100 kg_CO2eq/t_CO2 (typical value for CO2 from hard-to-abate industries)
-
-**Economic Performance:**
-Products from PSC average 50% cheaper than those from LT DAC in near term
-PSC may act as catalyst for technological advancement while LT DAC capacities remain limited
-
-**Cost Comparison vs. LT DAC:**
-In long-term future Iceland scenario with AEC: PSC leads to 7.6% cheaper MSPs depending on product while emitting 10.9% more GHGs than LT DAC
-
---- Long-Term Future (post-2035) ---
-**Cost Advantage:**
-Marginal cost difference vs. LT DAC primarily driven by electricity consumption dominance for electrolysis
-Benefits diminish in long term as relative importance of capture cost decreases
-
-**Environmental Consideration:**
-CO2 emissions from fossil-based PSC do not lead to net-zero emissions even if considered climate neutral in regulations
-
-───────────────────────────────────────────────────────────────
-
-═══ TECHNOLOGY 7: Fischer-Tropsch synthesis ═══
-
---- Near Future (by 2035) ---
-**Process Description:**
-Two routes: reverse water-gas shift (RWGS) and electrochemical reduction (ER) of CO2
-
-**Route: RWGS**
-CO production (intermediate): 229.3 kt/y (capacity for 360 kt_CO2/y input)
-CAPEX (RWGS unit): 28.4 M€ (baseline); 14.4–42.5 M€ (range)
-
-**Route: ER**
-CO production (intermediate): 225.3 kt/y (capacity for 360 kt_CO2/y input)
-CAPEX (ER unit): 95.5 M€ (baseline); 68.9–122.2 M€ (range)
-
-**FT Synthesis (via RWGS)**
-Product output: 116.4 kt_FT-fuel/y
-CAPEX: 100.1 M€ (baseline); 44.9–195.8 M€ (range)
-
-**FT Synthesis (via ER)**
-Product output: 114.4 kt_FT-fuel/y
-CAPEX: 98.8 M€ (baseline); 44.4–193.4 M€ (range)
-
-**Minimum Selling Price (MSP):**
-1150–1750 €/t_product (baseline range by location)
-
-**Cost per ton CO2 avoided:**
-543–1969 €/t_CO2eq,av (near future, baseline range)
-
-**Life Cycle GHG Emissions:**
-Compared to fossil diesel: 55–88% lower (depending on location and electrolyzer)
-
-**Fossil Counterpart Benchmark:**
-Price: 456 €/t
-GHG emissions: 4164 kg_CO2eq/t
-Lower heating value (LHV): 44.3 MJ/kg
-
---- Long-Term Future (post-2035) ---
-**Minimum Selling Price (MSP):**
-1150–1750 €/t_product (baseline range)
-2.5–3.3 times higher than fossil counterpart (estimated range)
-
-**Cost per ton CO2 avoided:**
-225–537 €/t_CO2eq,av (baseline range by location)
-
-**Life Cycle GHG Emissions:**
-55–88% lower than fossil counterpart
-
-**Cost Reduction Drivers:**
-- Electricity cost reduction (accounts for ~20% of MSP reduction)
-- Electrolyzer efficiency improvements
-- Decline in sorbent cost and consumption (33.4% of total reduction)
-
-**Location Performance:**
-- Cheapest in Chile (lowest by 5% vs Spain; 15% vs Iceland; 45% vs Netherlands)
-- Long-term MSP: baseline 2.5–3.3 times fossil price
-- Most optimistic scenario: less than 1.5 times fossil price
-
-───────────────────────────────────────────────────────────────
-
-═══ TECHNOLOGY 8: Methanol synthesis ═══
-
---- Near Future (by 2035) ---
-**Process Description:**
-Direct route synthesis from CO2 and hydrogen
-
-**Inputs:**
-H2 from electrolysis, CO2 from DAC sources, electricity for electrolysis
-
-**Production Output:**
-246.6 kt_methanol/y (capacity for 360 kt_CO2/y input)
-
-**Capital Expenditure (CAPEX):**
-120.2 M€ (baseline); 59.0–181.9 M€ (range)
-
-**Minimum Selling Price (MSP):**
-580–840 €/t_product (baseline range by location)
-
-**Cost per ton CO2 avoided:**
-543–1969 €/t_CO2eq,av (near future, baseline range)
-
-**Life Cycle GHG Emissions:**
-65–91% lower than fossil counterpart (depending on location and electrolyzer)
-
-**Fossil Counterpart Benchmark:**
-Price: 261 €/t
-GHG emissions: 1870 kg_CO2eq/t
-Lower heating value (LHV): 19.9 MJ/kg
-
---- Long-Term Future (post-2035) ---
-**Production Output:**
-246.6 kt_methanol/y (same as near future)
-
-**Minimum Selling Price (MSP):**
-580–840 €/t_product (baseline range)
-2.2–3.0 times higher than fossil counterpart
-
-**Cost per ton CO2 avoided:**
-225–537 €/t_CO2eq,av (baseline range by location)
-
-**Life Cycle GHG Emissions:**
-65–91% lower than fossil counterpart
-
-**Cost Competitiveness:**
-Estimated to fall below 230 €/t_CO2eq,av
-Aligns well with existing EU climate change mitigation policies and incentives
-
-**European Refining Association Baseline Estimate:**
-Long-term future cost per ton CO2 avoided: 400–650 €/t_CO2eq,av
-
-───────────────────────────────────────────────────────────────
-
-═══ TECHNOLOGY 9: Methanation ═══
-
---- Near Future (by 2035) ---
-**Process Description:**
-Synthesis of methane from CO2 and hydrogen
-
-**Production Output:**
-124.6 kt_methane/y (capacity for 360 kt_CO2/y input)
-
-**Capital Expenditure (CAPEX):**
-36.8 M€ (baseline); 27.8–41.7 M€ (range)
-
-**Minimum Selling Price (MSP):**
-1050–1730 €/t_product (baseline range by location)
-
-**Cost per ton CO2 avoided:**
-543–1969 €/t_CO2eq,av (near future, baseline range)
-
-**Life Cycle GHG Emissions:**
-62–94% lower than fossil counterpart (depending on location and electrolyzer)
-
-**Fossil Counterpart Benchmark:**
-Price: 166 €/t
-GHG emissions: 3984 kg_CO2eq/t
-Lower heating value (LHV): 49.8 MJ/kg
-
-**Special Consideration:**
-For SOEC operation: 90% methane boiler efficiency would require ~41.6 kt_CH4 reused to reduce life cycle GHG emissions of SOEC operation (~1/3 of produced methane)
-
---- Long-Term Future (post-2035) ---
-**Minimum Selling Price (MSP):**
-1050–1730 €/t_product (baseline range)
-6.3–8.9 times higher than fossil counterpart
-
-**Cost per ton CO2 avoided:**
-225–537 €/t_CO2eq,av (baseline range by location)
-
-**Life Cycle GHG Emissions:**
-62–94% lower than fossil counterpart
-
-**Cost Challenge:**
-Highest multiplier relative to fossil counterpart among major products examined
-
-───────────────────────────────────────────────────────────────
-
-═══ TECHNOLOGY 10: Dimethyl ether synthesis ═══
-
---- Near Future (by 2035) ---
-**Process Description:**
-Synthesis of dimethyl ether (DME) from CO2 and hydrogen
-
-**Production Output:**
-186.7 kt_DME/y (capacity for 360 kt_CO2/y input)
-
-**Capital Expenditure (CAPEX):**
-85.7 M€ (baseline); 53.6–135.7 M€ (range)
-
-**Minimum Selling Price (MSP):**
-695–1060 €/t_product (baseline range by location)
-
-**Cost per ton CO2 avoided:**
-543–1969 €/t_CO2eq,av (near future, baseline range)
-
-**Life Cycle GHG Emissions:**
-77–96% lower than fossil counterpart (depending on location and electrolyzer)
-
-**Fossil Counterpart Benchmark:**
-Price: 356 €/t
-GHG emissions: 2304 kg_CO2eq/t
-Lower heating value (LHV): 28.8 MJ/kg
-
---- Long-Term Future (post-2035) ---
-**Minimum Selling Price (MSP):**
-695–1060 €/t_product (baseline range)
-2.2–3.0 times higher than fossil counterpart
-
-**Cost per ton CO2 avoided:**
-225–537 €/t_CO2eq,av (baseline range by location)
-
-**Life Cycle GHG Emissions:**
-77–96% lower than fossil counterpart
-
-**Cost Competitiveness:**
-Estimated to fall below 230 €/t_CO2eq,av
-Aligns well with existing EU climate change mitigation policies and incentives
-
-**Geographic Performance:**
-Lowest MSP in Chile, followed by Spain, Iceland, and The Netherlands
-Average production costs in Chile ~5% lower than Spain, 15% lower than Iceland, 45% lower than The Netherlands
-
-───────────────────────────────────────────────────────────────
-
-═══ TECHNOLOGY 11: Haber-Bosch process ═══
+═══ TECHNOLOGY 1: Fischer-Tropsch synthesis ═══
 
 --- Year: 2035 (near future) ---
-**Operating Conditions:**
-- Plant operating hours: 8000 h/year (production ramp-up: 30% year 1, 70% year 2)
-- Process includes air separation unit (ASU) for N₂ extraction from air
-- Reference capacity: 277.4 kt ammonia/year (based on 360 kt CO₂/year input)
+**Process Description:**
+- Converts syngas (CO + H₂) to liquid FT fuels (jet fuel/diesel product mix)
+- Operated as downstream unit of either RWGS or electrochemical reduction (ER) of CO₂
+- Reference CO₂ input capacity: 360 kt_CO₂/y
+- Plant lifetime: 25 y; operating hours: 8000 h/y (year 1: 30% capacity; year 2: 70%)
+- Delivery point: Basel, Switzerland
 
-**Inputs:**
-- CO₂: 360 kt/year (sourced via low-temperature solid sorbent DAC)
-- Hydrogen: produced via water electrolysis (AEC, PEM, or SOEC)
-- Electricity for ASU and hydrogen production: included in energy balance
-- N₂: from air separation unit
+**Inputs (via RWGS route):**
+- CO feed from RWGS unit: capacity corresponds to 229.3 kt_CO/y upstream
+- H₂ from electrolysis (AEC/PEM/SOEC)
 
-**Outputs:**
-- Ammonia (NH₃): 277.4 kt/year
-
-**Capital Costs (CAPEX):**
-- Baseline: €132.2 M (for 277.4 kt/y capacity)
-- Range: €107.9–€165.8 M
-
-**Operating Costs (OPEX):**
-- Includes electrolyzer stack replacement cost (recurring annual expense)
-- Component costs vary by location; detailed breakdown in supporting information
-
-**Efficiency:**
-- Electric efficiency of hydrogen production: 55.1 kWh/kg H₂ (AEC baseline, 47.5–75.0 range); 57.9 kWh/kg H₂ (PEM baseline, 48.8–83.0 range); 34.1 kWh/kg H₂ electric + 8.3 kWh/kg H₂ thermal (SOEC baseline, 26.6–38.1 electric, 6.7–11.0 thermal)
-
-**Lifetime and Scale:**
-- Investment lifetime: 25 years
-- Debt to equity ratio: 1.5
-
-**Life Cycle GHG Emissions (Long-term future baseline):**
-- 72–96% lower than fossil-based ammonia counterpart
-- Fossil baseline: 2660 kg CO₂ eq/t (cradle-to-gate)
-- Approximate CCU ammonia range: ~107–740 kg CO₂ eq/t (varies by location and electrolyzer type; The Netherlands lowest, Chile highest)
-
-**Minimum Selling Price (MSP):**
-- Near future (by 2035): specific values not isolated in text; ranges reported as ~410–670 €/t for long-term
-- Production location impact: Iceland ~45% cheaper than The Netherlands; 29% cheaper than Spain; 17% cheaper than Chile (near-term average)
-
-**Cost of CO₂ Avoided (CCA):**
-- Near future: 203–1087 €/t CO₂ eq,av (varies by location and electrolyzer)
-- Long-term future: 110–266 €/t CO₂ eq,av
-- Iceland lowest CCA in near-term; Iceland and Spain/Chile in long-term
-
-**Technology Readiness & Maturity:**
-- Commercial scale technology (well-established)
-- Haber-Bosch process with H₂ from renewables and CO₂ capture represents emerging commercialization
-
-**Regional/Locational Data:**
-- Studied locations: Iceland (geothermal energy + LT heat), The Netherlands (offshore wind), Spain (PV + solar thermal), Chile (PV)
-- Location-dependent CAPEX factor for LT DAC: Iceland 1.00, The Netherlands 1.32, Spain 1.69, Chile 1.38
-- Location-dependent electricity factor for DAC: Iceland 1.00, The Netherlands 0.99, Spain 1.29, Chile 1.29
-- Location-dependent heat factor for DAC: Iceland 1.00, The Netherlands 1.11, Spain 1.33, Chile 1.30
-
---- Year: 2050 (long-term future) ---
-**Operating Conditions:**
-- Same 8000 h/year operating profile; full commercialization after 2035
-- Improved electrolyzer stack lifetimes and efficiency
-
-**Inputs:**
-- Same as near-future scenario
+**Inputs (via ER route):**
+- CO feed from ER unit: capacity corresponds to 225.3 kt_CO/y upstream
 
 **Outputs:**
-- Ammonia: 277.4 kt/year
+- FT fuels (RWGS route): 116.4 kt_FT-fuel/y at reference scale
+- FT fuels (ER route): 114.4 kt_FT-fuel/y at reference scale
+- LHV of product: 44.3 MJ/kg (jet fuel/diesel)
 
-**Capital Costs (CAPEX):**
-- Electrolyzer CAPEX (AEC): €527.2/kW baseline (€306.5–€774.5 range), significantly reduced from near-term
-- Electrolyzer CAPEX (PEM): €473.5/kW baseline (€257.9–€700.5 range)
-- Electrolyzer CAPEX (SOEC): €958.3/kW baseline (€566.5–€1723.3 range)
-- DAC CAPEX projected lower due to technology maturation
+**CAPEX (at 360 kt_CO₂/y input, reference):**
+- RWGS route — FT synthesis unit: 100.1 M€ (min 44.9, max 195.8 M€)
+- ER route — FT synthesis unit: 98.8 M€ (min 44.4, max 193.4 M€)
+- CAPEX scaling factor k = 0.7 (applied to FT unit)
+- CAPEX includes compressors, heat exchangers, separation units
 
-**Efficiency:**
-- AEC: 48.9 kWh/kg H₂ (45.47–52.0 range)
-- PEM: 53.1 kWh/kg H₂ (47.0–64.0 range)
-- SOEC: 34.1 kWh/kg H₂ electric (no change) + 8.3 kWh/kg H₂ thermal (no change)
-- Electrolyzer stack lifetime (AEC): 87,500 h (80,000–100,000 range)
-- Electrolyzer stack lifetime (PEM): 85,420 h (50,000–100,000 range)
-- Electrolyzer stack lifetime (SOEC): 71,991 h (53,750–102,222 range)
+**MSP (near-future, LT DAC, all locations/electrolyzers):**
+- CCA range: 543–1969 €/t_CO₂eq,av (RWGS and ER routes combined with other fuels/chemicals)
+- Iceland lowest CCA near-future
 
-**Minimum Selling Price (MSP):**
-- Long-term (post-2035) baseline: 410–670 €/t ammonia (across all locations)
-- Location ranking (lowest to highest MSP): Chile ≈ Spain < Iceland < The Netherlands
-- Estimated reduction: 54.2% average decline from near to long-term future
+**Fossil benchmark:**
+- 2020 avg fossil price: 456 €/t (jet fuel/diesel)
+- Fossil GHG: 4164 kg_CO₂eq/t_product
+- Fossil comparator: 94 kg_CO₂eq/GJ_LHV and 80 kg_CO₂eq/GJ_LHV (EU RED)
+- CO₂-based fuel combustion emissions considered carbon neutral until 2040
 
-**Life Cycle GHG Emissions:**
-- Same percentage reduction (72–96%) vs fossil baseline
-- Actual emissions: ~74–740 kg CO₂ eq/t (lowest in The Netherlands with offshore wind; highest in Chile with PV)
-- Netherlands average: ~50% lower than other locations
+**LCA / GHG (near-future):**
+- Near-future avg over all products/electrolyzers/locations: 17.1% higher GHG (1319 kg_CO₂eq/t_product) than long-term future
+- Netherlands emits least; AEC most favorable electrolyzer
 
-**Cost of CO₂ Avoided (CCA):**
-- Long-term baseline: 110–266 €/t CO₂ eq,av
-- Ammonia specifically: estimated below 230 €/t CO₂ eq,av under baseline assumptions
-- Iceland: lowest CCA among all locations
+--- Year: 2050 (long-term) ---
+**CAPEX:** Same reference values as Table 1 apply (scaled via k = 0.7)
 
-**Energy Supply Costs & GHG (Long-term baseline):**
-- Geothermal (Iceland): €25.6/MWh (13.9 kg CO₂ eq/MWh); decreases to ~13.9 kg CO₂ eq/MWh with
+**MSP (long-term, LT DAC, baseline ranges across locations):**
+- FT fuels via RWGS: 1150–1750 €/t
+- FT fuels via ER: 1200–1900 €/t
+- Lowest MSP: Chile < Spain < Iceland < Netherlands
+- Chile avg ~5% lower than Spain, ~15% lower than Iceland, ~45% lower than Netherlands
+- SOEC reduces MSP by 42–218 €/t in Netherlands; benefit in Chile negligible (3–11 €/t)
+- Under baseline (Chile): FT fuels ≈ 2.5–3.3× fossil counterpart price
+- European Refining Association: <1.9 €/l (≈2200 €/t) Chile, <2.0 €/l (≈2350 €/t) South Europe
+- 20–30% cost reduction at 4% discount rate vs. 8% baseline
 
-───────────────────────────────────────────────────────────────
+**MSP sensitivity (long-term, RWGS, Iceland, AEC, Fig. 8):**
+- Discount rate range: 5–8% (baseline 6%)
+- Scaling exponent range: 0.6–0.9 (baseline 0.7)
+- Operating hours range: 4000–8000 h (baseline 8000 h)
+- Reduction 8000→4000 h can be compensated by cheaper electricity
+- MSP mainly sensitive to electricity prices and operating hours long-term
 
-═══ TECHNOLOGY 12: Urea synthesis ═══
+**MSP sensitivity — energy storage (long-term, RWGS, AEC, LT DAC, Chile):**
+- PV-BESS vs. PV (no storage): MSP increases 57.9% → 1830 €/t_FT-fuel
+- CSP-TES vs. no storage: MSP → 2245 €/t_FT-fuel (+93.7%)
 
---- Year: 2035 (near future) ---
+**CCA (long-term, LT DAC):**
+- FT fuels: 225–537 €/t_CO₂eq,av
+- European Refining Association baseline: 500–800 €/t_CO₂eq,av (e-kerosene)
+- CCA with CSP-TES: 1.5× higher than without storage
+- CCA with PV-BESS: 4.4× higher than without storage
 
-**Process Description and Operating Conditions:**
-Haber-Bosch process for ammonia production from CO2 and hydrogen. Energy balance includes electricity required for air separation unit to obtain N2 from air.
+**LCA / GHG (long-term):**
+- RWGS route: 55–88% lower GHG than fossil counterpart
+- ER route: 54–92% lower GHG than fossil counterpart
+- Netherlands products avg ~6% lower GHG than Iceland, ~50% lower than Spain, ~55% lower than Chile
+- AEC slight GHG advantage over PEM; SOEC can result in >2× life cycle GHG vs. AEC/PEM (due to NG for HT steam)
+- PSC vs. LT DAC (long-term, Iceland, AEC): avg 7.6% cheaper MSP; emits 10.9% more GHG
+- HT DAC vs. LT DAC (long-term, Iceland, AEC): MSP avg 21.5% higher; GHG 1.5× higher
 
-**Inputs:**
-- Hydrogen: from water electrolysis
-- Nitrogen (N2): from air separation
-
-**Outputs:**
-- Ammonia (NH3): 277.4 kt/y capacity
-
-**Capital Costs (CAPEX):**
-- Baseline: 132.2 M€
-- Range: 107.9–165.8 M€
-- Includes air separation unit and all necessary subunits
-
-**Efficiency:**
-- Not explicitly specified in near-term data
-
-**Lifetime:**
-- 25 years assumed for investment
-
-**Operating Hours:**
-- 8000 h/year (30% capacity year 1, 70% year 2, then full capacity)
-
-**Location-Dependent Data (LT DAC CO2 source):**
-- Iceland: baseline costs
-- Netherlands: ~29% higher cost than Iceland
-- Spain: ~45% higher cost than Iceland
-- Chile: ~17% higher cost than Iceland
-
-**Long-term Future Scenario (post-2035):**
-
-**Minimum Selling Price (MSP):**
-- Baseline range: 410–670 €/t
-- Chile: lowest (~5% lower than Spain)
-- Netherlands: highest
-
-**Life-Cycle GHG Emissions (vs. fossil counterpart):**
-- Reduction: 72–96% lower than fossil-based ammonia
-- Netherlands: lowest emissions (~6% lower than Iceland, 50% lower than Spain, 55% lower than Chile)
-- Baseline average: varies by location and electrolyzer type
-
-**Cost per ton of CO2 avoided:**
-- Near future: 203–1087 €/t CO2eq,av
-- Long term: 110–266 €/t CO2eq,av
-- Spain and Chile: approaching 100 €/t CO2eq,av in long term
-
-**Electrolyzer Technology Comparison (long-term):**
-- AEC: lower emissions, cost-effective
-- PEM: similar performance to AEC
-- SOEC: higher GHG emissions due to natural gas input for high-temperature steam
-
-**Sensitivity Parameters:**
-- Discount rate: 5–8% (baseline 6%)
-- Scaling factor: 0.6–0.9 (baseline 0.7)
-- Operating hours impact: reduction from 8000 to 4000 h/year requires cheaper electricity
+**MSP reduction near→long-term (Iceland, AEC):**
+- Overall MSPs decline avg 54.2%; projected annual decrease 5.1% (15-year horizon)
+- Sorbent cost/consumption decline = 33.4% of total MSP reduction potential (405 €/t absolute)
+- Electricity + electrolyzer efficiency ≈ 1/5 of total MSP reduction potential
+- ~20% of near-future MSPs = LT DAC sorbent cost
 
 ---
 
 ───────────────────────────────────────────────────────────────
 
-═══ TECHNOLOGY 13: Methanol-to-olefins ═══
+═══ TECHNOLOGY 2: Reverse water-gas shift ═══
 
 --- Year: 2035 (near future) ---
-
-**Process Description and Operating Conditions:**
-Urea synthesis via ammonia and CO2 conversion pathway.
-
-**Inputs:**
-- Ammonia (NH3)
-- CO2 (from LT DAC or alternative sources)
+**Process Description:**
+- Converts CO₂ + H₂ → CO + H₂O (syngas generation step upstream of FT synthesis)
+- Upstream CO₂ source: LT DAC, HT DAC, or PSC
+- H₂ from AEC, PEM, or SOEC electrolysis
+- Reference CO₂ input: 360 kt_CO₂/y
+- Operating hours: 8000 h/y
 
 **Outputs:**
-- Urea: 491.8 kt/y capacity
+- CO: 229.3 kt_CO/y at reference scale (feedstock to FT unit)
 
-**Capital Costs (CAPEX):**
-- Baseline: 50.1 M€
-- Range: 24.6–74.2 M€
-- Highest capacity among products assessed (491.8 kt/y)
+**CAPEX (at 360 kt_CO₂/y input reference):**
+- RWGS unit: 28.4 M€ baseline (min 14.4 M€, max 42.5 M€)
+- Scaling factor k = 0.7 applied
+- CAPEX includes compressors, heat exchangers, separation units
 
-**Efficiency:**
-- Not explicitly specified in near-term data
+**Carbon source cost (affects overall chain MSP):**
+- LT DAC near-future CAPEX: 730.0 €/(t_CO₂·y) [baseline], min 168.5, max not stated
+- PSC: 30–70 €/t_CO₂ (baseline 50 €/t_CO₂)
+- Near-term: PSC products avg 50% cheaper than LT DAC
 
-**Lifetime:**
-- 25 years assumed for investment
+**LCA:**
+- PSC carbon footprint: 20–300 kg_CO₂eq/t_CO₂ (baseline 100 kg_CO₂eq/t_CO₂, e.g. cement plants)
 
-**Operating Hours:**
-- 8000 h/year (30% capacity year 1, 70% year 2, then full capacity)
+--- Year: 2050 (long-term) ---
+**CAPEX:** Reference values same as Table 1 (28.4 M€ baseline); scaled by k = 0.7
 
-**Location-Dependent Factors (LT DAC CO2 source):**
-- Iceland: baseline
-- Netherlands: 29% higher cost
-- Spain: 45% higher cost
-- Chile: 17% higher cost
+**Performance in full chain (FT fuels, RWGS route, long-term):**
+- Full chain MSP: 1150–1750 €/t_FT-fuel (LT DAC, baseline ranges across locations)
+- Full chain LCA GHG: 55–88% lower than fossil
+- CCA: 225–537 €/t_CO₂eq,av (LT DAC)
+- PSC vs. LT DAC: avg 7.6% cheaper MSP, emits 10.9% more GHG
+- HT DAC vs. LT DAC: MSP avg 21.5% higher; GHG 1.5× higher
 
-**Long-term Future Scenario (post-2035):**
-
-**Minimum Selling Price (MSP):**
-- Baseline range: 360–510 €/t
-- Chile: lowest
-- Most cost-competitive with fossil counterparts (less than 2.5x for most locations)
-
-**Life-Cycle GHG Emissions (vs. fossil counterpart):**
-- Reduction: 68–89% lower than fossil-based urea
-- Cradle-to-gate emissions based on ecoinvent 3.9.1 database
-- Netherlands: lowest emissions
-
-**Cost per ton of CO2 avoided:**
-- Near future: 203–1087 €/t CO2eq,av
-- Long term: 110–266 €/t CO2eq,av
-- Below 230 €/t CO2eq,av estimated (aligns with EU climate mitigation policies)
-
-**Sensitivity Parameters:**
-- Discount rate: 5–8% (baseline 6%)
-- Scaling factor: 0.6–0.9 (baseline 0.7)
-
-**LCA Data:**
-- Fossil benchmark: 2020 price €202/t, GHG emissions 1406 kg CO2eq/t
-- No incineration assumed; cradle-to-gate assessment
-- Potential partial recycling or landfilling during primary application
+**MSP sensitivity:**
+- PV-BESS (Chile): MSP → 1830 €/t (+57.9% vs. PV without storage)
+- CSP-TES (Chile): MSP → 2245 €/t (+93.7%)
 
 ---
 
 ───────────────────────────────────────────────────────────────
 
-═══ TECHNOLOGY 14: Methanol-to-aromatics ═══
+═══ TECHNOLOGY 3: Electrochemical reduction of CO₂ ═══
 
 --- Year: 2035 (near future) ---
-
-**Process Description and Operating Conditions:**
-Thermally highly integrated process converting methanol to olefins. Energy balance reflects optimization for thermal integration (not based on average of references, per Supporting Information details).
-
-**Inputs:**
-- Methanol (from direct synthesis route)
-- Heat (integrated within process)
+**Process Description:**
+- Direct electrochemical reduction of CO₂ to CO (used as syngas feedstock for FT synthesis)
+- Alternative to RWGS for CO generation upstream of FT
+- Reference CO₂ input: 360 kt_CO₂/y
+- Operating hours: 8000 h/y
 
 **Outputs:**
-- Olefins (mixed product): 93.8 kt/y capacity
+- CO: 225.3 kt_CO/y at reference scale (feedstock to FT unit)
 
-**Capital Costs (CAPEX):**
-- Baseline: 92.1 M€
-- Range: 77.0–107.1 M€
-- Includes compressors, heat exchangers, and separation units
+**CAPEX (at 360 kt_CO₂/y input reference):**
+- ER unit: 95.5 M€ baseline (min 68.9 M€, max 122.2 M€)
+- Scaling factor k = 0.7 applied
+- CAPEX includes compressors, heat exchangers, separation units
 
-**Efficiency:**
-- Not explicitly quantified in near-term data
+**Downstream FT CAPEX (ER route):**
+- FT synth unit: 98.8 M€ (min 44.4, max 193.4 M€)
+- FT output: 114.4 kt_FT-fuel/y
 
-**Lifetime:**
-- 25 years assumed for investment
+**CCA (near-future, all locations/electrolyzers, LT DAC, combined with other fuels):**
+- 543–1969 €/t_CO₂eq,av (FT fuels group)
 
-**Operating Hours:**
-- 8000 h/year (30% capacity year 1, 70% year 2, then full capacity)
+--- Year: 2050 (long-term) ---
+**MSP (full chain, LT DAC, baseline ranges):**
+- FT fuels via ER: 1200–1900 €/t (slightly higher than RWGS route)
 
-**Location-Dependent Data (LT DAC CO2 source):**
-- Iceland: baseline
-- Netherlands: higher costs
-- Spain, Chile: competitive advantages in long term
+**LCA / GHG (long-term, full chain):**
+- ER route: 54–92% lower GHG than fossil counterpart
 
-**Long-term Future Scenario (post-2035):**
-
-**Minimum Selling Price (MSP):**
-- Baseline range: 1515–2240 €/t
-- Chile: lowest (~5% lower than Spain, 15% lower than Iceland, 45% lower than Netherlands)
-- Among higher-cost products assessed
-
-**Life-Cycle GHG Emissions (vs. fossil counterpart):**
-- Reduction: 50–87% lower than fossil olefins (benchmarked against EU PET plastic production)
-- Baseline average: depends on electrolyzer type and location
-- Netherlands (offshore wind): lowest emissions
-- Electricity consumption per ton contributes significantly
-
-**Cost per ton of CO2 avoided:**
-- Near future: baseline cost range shows high variability (€5062–26739 t CO2eq,av)
-- Long term: 395–1730 €/t CO2eq,av
-- High variability due to differences in fossil vs. CCU cost and GHG emission differences
-
-**Electrolyzer Sensitivity:**
-- SOEC: potential MSP reduction of 42–218 €/t in Netherlands; minimal (3–11 €/t) in Chile
-- AEC: most favorable for cost-effectiveness
-
-**Sensitivity Parameters:**
-- Discount rate: 5–8% impact
-- Scaling factor: 0.6–0.9
-- Operating hours: reduction to 4000 h/year possible with cheaper electricity
-
-**Environmental Considerations:**
-- Cradle-to-grave GHG emissions
-- 60% recycling, 20% incineration, 20% landfilling for fossil PET benchmark
+**CCA (long-term, LT DAC):**
+- 225–537 €/t_CO₂eq,av (combined FT fuels group)
 
 ---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 4: Methanol synthesis ═══
+
+--- Year: 2035 (near future) ---
+**Process Description:**
+- Direct CO₂ hydrogenation to methanol (direct route)
+- CO₂ source: LT DAC, HT DAC, or PSC; H₂ from electrolysis
+- Reference CO₂ input: 360 kt_CO₂/y
+- Plant lifetime: 25 y; operating hours: 8000 h/y
+
+**Outputs:**
+- Methanol: 246.6 kt_methanol/y at reference scale
+- LHV: 19.9 MJ/kg_product
+
+**CAPEX (at 360 kt_CO₂/y input reference):**
+- 120.2 M€ baseline (min 59.0 M€, max 181.9 M€)
+- Scaling factor k = 0.7 applied
+- CAPEX includes compressors, heat exchangers, separation units
+
+**Fossil benchmark:**
+- 2020 avg fossil methanol price: 261 €/t
+- Fossil GHG: 1870 kg_CO₂eq/t_product
+
+**CCA (near-future, LT DAC, all locations/electrolyzers):**
+- 543–1969 €/t_CO₂eq,av (grouped with FT fuels, methane, DME)
+
+--- Year: 2050 (long-term) ---
+**MSP (long-term, LT DAC, baseline ranges):**
+- 580–840 €/t_methanol
+- ≈ 2.2–3.0× fossil price baseline
+- Optimistic scenario: potentially <1.5× fossil cost
+
+**LCA / GHG (long-term):**
+- 65–91% lower GHG than fossil counterpart
+
+**CCA (long-term, LT DAC):**
+- 225–537 €/t_CO₂eq,av
+- European Refining Association baseline: 400–650 €/t_CO₂eq,av
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 5: Methanation ═══
+
+--- Year: 2035 (near future) ---
+**Process Description:**
+- CO₂ + 4H₂ → CH₄ + 2H₂O (Sabatier reaction)
+- CO₂ source: LT DAC, HT DAC, or PSC; H₂ from AEC, PEM, or SOEC
+- Reference CO₂ input: 360 kt_CO₂/y
+- Plant lifetime: 25 y; operating hours: 8000 h/y
+
+**Outputs:**
+- Methane: 124.6 kt_methane/y at reference scale
+- LHV: 49.8–49.9 MJ/kg_product (49.9 MJ/kg cited in SOEC analysis)
+
+**CAPEX (at 360 kt_CO₂/y input reference):**
+- 36.8 M€ baseline (min 27.8 M€, max 41.7 M€)
+- Scaling factor k = 0.7 applied
+- CAPEX includes compressors, heat exchangers, separation units
+
+**Fossil benchmark:**
+- 2020 avg fossil methane price: 166 €/t
+- Fossil GHG: 3984 kg_CO₂eq/t_product
+
+**CCA (near-future, LT DAC, all locations/electrolyzers):**
+- 543–1969 €/t_CO₂eq,av (grouped with FT fuels, methanol, DME)
+
+**SOEC-specific note:**
+- SOEC requires HT steam; assuming 90% methane boiler efficiency at 124.6 kt_CH₄/y and LHV 49.9 MJ/kg_CH₄ → ~1/3 (41.6 kt_CH₄) of produced CCU methane must be reused to supply SOEC steam, raising life cycle GHG significantly
+
+--- Year: 2050 (long-term) ---
+**MSP (long-term, LT DAC, baseline ranges):**
+- 1050–1730 €/t_methane
+- ≈ 6.3–8.9× fossil price (highest ratio of all products)
+- SOEC long-term energy requirements assumed same as near-future
+
+**LCA / GHG (long-term):**
+- 62–94% lower GHG than fossil counterpart
+- SOEC can result in >2× life cycle GHG vs. AEC/PEM depending on location (NG for HT steam)
+
+**CCA (long-term, LT DAC):**
+- 225–537 €/t_CO₂eq,av
+- European Refining Association baseline: 400–650 €/t_CO₂eq,av (e-methane)
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 6: Dimethyl ether synthesis ═══
+
+--- Year: 2035 (near future) ---
+**Process Description:**
+- Synthesis of DME from CO₂/H₂ (via methanol intermediate or direct route)
+- CO₂ source: LT DAC, HT DAC, or PSC; H₂ from electrolysis
+- Reference CO₂ input: 360 kt_CO₂/y
+- Plant lifetime: 25 y; operating hours: 8000 h/y
+
+**Outputs:**
+- DME: 186.7 kt_DME/y at reference scale
+- LHV: 28.8 MJ/kg_product
+
+**CAPEX (at 360 kt_CO₂/y input reference):**
+- 85.7 M€ baseline (min 53.6 M€, max 135.7 M€)
+- Scaling factor k = 0.7 applied
+- CAPEX includes compressors, heat exchangers, separation units
+
+**Fossil benchmark:**
+- 2020 avg fossil DME price: 356 €/t
+- Fossil GHG: 2304 kg_CO₂eq/t_product
+
+**CCA (near-future, LT DAC, all locations/electrolyzers):**
+- 543–1969 €/t_CO₂eq,av (grouped with FT fuels, methanol, methane)
+
+**Location note:**
+- DME in Chile with AEC → 3.6× higher life cycle GHG than Netherlands
+
+--- Year: 2050 (long-term) ---
+**MSP (long-term, LT DAC, baseline ranges):**
+- 695–1060 €/t_DME
+- ≈ 2.2–3.0× fossil price (baseline)
+- Optimistic scenario: potentially <1.5× fossil cost
+
+**LCA / GHG (long-term):**
+- 77–96% lower GHG than fossil counterpart (highest reduction range among fuel/chemical products)
+
+**CCA (long-term, LT DAC):**
+- 225–537 €/t_CO₂eq,av; DME CCA <230 €/t_CO₂eq,av (baseline)
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 7: Haber-Bosch process ═══
+
+--- Year: 2035 (near future) ---
+**Process Description:**
+- N₂ + 3H₂ → 2NH₃ (catalytic ammonia synthesis)
+- N₂ from air separation unit (ASU); H₂ from AEC, PEM, or SOEC electrolysis
+- CO₂ source (for overall chain accounting): LT DAC, HT DAC, or PSC
+- Reference CO₂ input: 360 kt_CO₂/y
+- Plant lifetime: 25 y; operating hours: 8000 h/y
+
+**Inputs:**
+- N₂ from ASU (included in CAPEX)
+- H₂ from electrolysis
+
+**Outputs:**
+- Ammonia: 277.4 kt_ammonia/y at reference scale
+
+**CAPEX (at 360 kt_CO₂/y input reference):**
+- 132.2 M€ baseline (min 107.9 M€, max 165.8 M€)
+- Scaling factor k = 0.7 applied
+- CAPEX explicitly includes ASU + compressors, heat exchangers, separation units
+
+**Fossil benchmark:**
+- 2020 avg fossil ammonia price: 193 €/t
+- Fossil GHG: 2660 kg_CO₂eq/t_product
+- LCA reference: ecoinvent 3.9.1 cutoff — "ammonia, anhydrous, liquid RER without RU"
+
+**CCA (near-future, LT DAC, all locations/electrolyzers):**
+- 203–1087 €/t_CO₂eq,av
+
+--- Year: 2050 (long-term) ---
+**MSP (long-term, LT DAC, baseline ranges):**
+- 410–670 €/t_ammonia
+- ≈ 2.2–3.0× fossil price (baseline)
+- Optimistic scenario: potentially <1.5× fossil cost
+- Chile/Spain: CCA approaches ~100 €/t_CO₂eq,av (≈ 2023 EU ETS CO₂ price)
+
+**LCA / GHG (long-term):**
+- 72–96% lower GHG than fossil counterpart
+
+**CCA (long-term, LT DAC):**
+- 110–266 €/t_CO₂eq,av; ammonia CCA <230 €/t_CO₂eq,av (baseline)
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 8: Urea synthesis ═══
+
+--- Year: 2035 (near future) ---
+**Process Description:**
+- 2NH₃ + CO₂ → (NH₂)₂CO + H₂O (Bosch-Meiser process)
+- Downstream of Haber-Bosch; CO₂ input provides both carbon source and reactant
+- Reference CO₂ input: 360 kt_CO₂/y
+- Plant lifetime: 25 y; operating hours: 8000 h/y
+
+**Inputs:**
+- NH₃ from Haber-Bosch
+- CO₂ from LT DAC, HT DAC, or PSC
+
+**Outputs:**
+- Urea: 491.8 kt_urea/y at reference scale (highest output volume of all products)
+
+**CAPEX (at 360 kt_CO₂/y input reference):**
+- 50.1 M€ baseline (min 24.6 M€, max 74.2 M€)
+- Scaling factor k = 0.7 applied
+- CAPEX includes compressors, heat exchangers, separation units
+
+**Fossil benchmark:**
+- 2020 avg fossil urea price: 202 €/t
+- Fossil GHG: 1406 kg_CO₂eq/t_product
+- LCA reference: ecoinvent 3.9.1 cutoff — "urea RER–market for urea" (cradle-to-gate)
+
+**CCA (near-future, LT DAC, all locations/electrolyzers):**
+- 203–1087 €/t_CO₂eq,av (grouped with ammonia)
+
+--- Year: 2050 (long-term) ---
+**MSP (long-term, LT DAC, baseline ranges):**
+- 360–510 €/t_urea (lowest MSP range of all products)
+- ≈ 2.2–3.0× fossil price (baseline)
+- Optimistic scenario: potentially <1.5× fossil cost
+
+**LCA / GHG (long-term):**
+- 68–89% lower GHG than fossil counterpart
+
+**CCA (long-term, LT DAC):**
+- 110–266 €/t_CO₂eq,av; urea CCA <230 €/t_CO₂eq,av (baseline)
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 9: Methanol-to-olefins synthesis ═══
+
+--- Year: 2035 (near future) ---
+**Process Description:**
+- Catalytic conversion of methanol to light olefins (ethylene, propylene mix)
+- Downstream of methanol synthesis unit
+- Reference CO₂ input: 360 kt_CO₂/y
+- Plant lifetime: 25 y; operating hours: 8000 h/y
+- Reference unit: 1 metric ton product mix (olefins)
+
+**Outputs:**
+- Olefins: 93.8 kt_olefins/y at reference scale
+
+**CAPEX (at 360 kt_CO₂/y input reference):**
+- 92.1 M€ baseline (min 77.0 M€, max 107.1 M€)
+- Scaling factor k = 0.7 applied
+- CAPEX includes compressors, heat exchangers, separation units
+
+**Fossil benchmark:**
+- 2020 avg fossil olefins price: 782 €/t
+- Fossil GHG: 3200 kg_CO₂eq/t_product
+- Fossil PET benchmark: cradle-to-grave, EU mix end-of-life = 60% recycling, 20% incineration, 20% landfilling
+
+**CCA (near-future, LT DAC):**
+- Spain/Chile with SOEC: 5062–26739 €/t_CO₂eq,av (very high due to NG for SOEC steam)
+- Iceland and Netherlands: 986–2561 €/t_CO₂eq,av
+
+--- Year: 2050 (long-term) ---
+**MSP (long-term, LT DAC, baseline ranges):**
+- 1515–2240 €/t_olefins
+- ≈ 2.5–3.3× fossil price (baseline)
+- Optimistic scenario: potentially <1.5× fossil cost
+
+**LCA / GHG (long-term):**
+- 50–87% lower GHG than fossil counterpart (lowest reduction range among all products)
+
+**CCA (long-term, LT DAC):**
+- 395–1730 €/t_CO₂eq,av
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 10: Methanol-to-aromatics synthesis ═══
+
+--- Year: 2035 (near future) ---
+**Process Description:**
+- Catalytic conversion of methanol to aromatic compounds (BTX product mix)
+- Downstream of methanol synthesis unit
+- Reference CO₂ input: 360 kt_CO₂/y
+- Plant lifetime: 25 y; operating hours: 8000 h/y
+- Reference unit: 1 metric ton product mix (aromatics)
+
+**Outputs:**
+- Aromatics: 97.2 kt_aromatics/y at reference scale
+
+**CAPEX (at 360 kt_CO₂/y input reference):**
+- 16.4 M€ baseline (min 14.1 M€, max 18.6 M€) — lowest CAPEX of all synthesis units
+- Scaling factor k = 0.7 applied
+- CAPEX includes compressors, heat exchangers, separation units
+
+**Fossil benchmark:**
+- 2020 avg fossil aromatics price: 605 €/t
+- Fossil GHG: 3200 kg_CO₂eq/t_product
+- Fossil PET benchmark: cradle-to-grave, EU mix end-of-life = 60% recycling, 20% incineration, 20% landfilling
+
+**CCA (near-future, LT DAC):**
+- Spain/Chile with SOEC: 5062–26739 €/t_CO₂eq,av (very high due to NG for SOEC steam)
+- Iceland and Netherlands: 986–2561 €/t_CO₂eq,av
+
+--- Year: 2050 (long-term) ---
+**MSP (long-term, LT DAC, baseline ranges):**
+- 1360–2050 €/t_aromatics
+- ≈ 2.2–3.0× fossil price (baseline)
+- Optimistic scenario: potentially <1.5× fossil cost
+
+**LCA / GHG (long-term):**
+- 55–87% lower GHG than fossil counterpart
+
+**CCA (long-term, LT DAC):**
+- 395–1730 €/t_CO₂eq,av
+
+---
+
+**Common model parameters applicable to all technologies:**
+
+| Parameter | Value |
+|---|---|
+| Plant lifetime | 25 years |
+| Operating hours | 8000 h/y |
+| Year 1 capacity | 30% |
+| Year 2 capacity | 70% |
+| Investment allocation | 30% at −2y, 50% at −1y, 20% at year 0 |
+| Debt-to-equity ratio | 1.5 |
+| Monetary basis | 2020 euros |
+| CAPEX scaling exponent k | 0.7 (synthesis units only) |
+| Reference CO₂ input | 360 kt_CO₂/y |
+| Discount rate (baseline) | 6–8% (baseline 8%; sensitivity 5–8%) |
+| HT heat source (all locations) | Natural gas boilers (>100 °C) |
+| LT heat (Iceland) | Geothermal (<100 °C) |
+| LT heat (Netherlands) | Industrial residual heat |
+| LT heat (Spain/Chile) | Industrial processes or solar thermal |
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 11: Alkaline water electrolysis ═══
+
+--- Year: 2035 (near future) ---
+**Process:** Electrochemical water splitting; operating temperature 60–90 °C; MW-scale commercially available
+**Output:** H₂
+**CAPEX (system):** baseline 790.5 €/kW; min 437.8 €/kW; max 1110.3 €/kW
+**OPEX (stack replacement):** baseline 48.9% of system CAPEX; min 45.1%; max 54.0%
+**Stack lifetime:** baseline 75,532 h; min 60,000 h; max 94,444 h
+**Electric efficiency:** baseline 55.1 kWh_el/kg_H₂; min 47.5 kWh_el/kg_H₂; max 75.0 kWh_el/kg_H₂
+**Notes:** Values inter/extrapolated to 2035; no CAPEX scaling applied (used at reference capacity)
+
+--- Year: 2050 (long-term) ---
+**Process:** Same as near future; 60–90 °C
+**CAPEX (system):** baseline 527.2 €/kW; min 306.5 €/kW; max 774.5 €/kW
+**OPEX (stack replacement):** baseline 48.8% of system CAPEX; min 46.5%; max 52.9%
+**Stack lifetime:** baseline 87,500 h; min 80,000 h; max 100,000 h
+**Electric efficiency:** baseline 48.9 kWh_el/kg_H₂; min 45.47 kWh_el/kg_H₂; max 52.0 kWh_el/kg_H₂
+**GHG/MSP context:** AEC has slight GHG advantage over PEM; best CCA of all electrolyzers in both scenarios; PEM–AEC CCA difference narrows long-term
+**MSP impact (SOEC vs AEC):** AEC baseline used; SOEC reduces MSP by 42–218 €/t_product in Netherlands; negligible benefit in Chile (3–11 €/t_product)
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 12: Proton exchange membrane electrolysis ═══
+
+--- Year: 2035 (near future) ---
+**Process:** Electrochemical water splitting; operating temperature 60–90 °C; MW-scale commercially available
+**Output:** H₂
+**CAPEX (system):** baseline 1047.9 €/kW; min 613.0 €/kW; max 1225.9 €/kW
+**OPEX (stack replacement):** baseline 42.0% of system CAPEX; min 28.6%; max 60.0%
+**Stack lifetime:** baseline 64,026 h; min 40,000 h; max 90,000 h
+**Electric efficiency:** baseline 57.9 kWh_el/kg_H₂; min 48.8 kWh_el/kg_H₂; max 83.0 kWh_el/kg_H₂
+
+--- Year: 2050 (long-term) ---
+**Process:** Same as near future; 60–90 °C
+**CAPEX (system):** baseline 473.5 €/kW; min 257.9 €/kW; max 700.5 €/kW
+**OPEX (stack replacement):** baseline 39.4% of system CAPEX; min 27.8%; max 55.6%
+**Stack lifetime:** baseline 85,420 h; min 50,000 h; max 100,000 h
+**Electric efficiency:** baseline 53.1 kWh_el/kg_H₂; min 47.0 kWh_el/kg_H₂; max 64.0 kWh_el/kg_H₂
+**GHG context:** slight GHG disadvantage vs. AEC; CCA gap vs. AEC narrows long-term
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 13: Solid oxide electrolysis ═══
+
+--- Year: 2035 (near future) ---
+**Process:** High-temperature electrochemical water splitting; operating temperature 700–850 °C; requires HT steam input
+**Output:** H₂
+**Inputs:** Electricity + thermal energy (HT steam)
+**CAPEX (system):** baseline 1739.5 €/kW; min 593.0 €/kW; max 2770.0 €/kW
+**OPEX (stack replacement):** baseline 27.0% of system CAPEX; min 23.5%; max 30.0%
+**Stack lifetime:** baseline 30,308 h; min 20,000 h; max 50,924 h
+**Electric efficiency:** baseline 34.1 kWh_el/kg_H₂; min 26.6 kWh_el/kg_H₂; max 38.1 kWh_el/kg_H₂
+**Thermal energy input:** baseline 8.3 kWh_th/kg_H₂; min 6.7 kWh_th/kg_H₂; max 11.0 kWh_th/kg_H₂
+**HT heat source:** natural gas (NG)-fed boilers at all locations; geothermal LT heat only at Iceland
+
+--- Year: 2050 (long-term) ---
+**Process:** Same as near future; 700–850 °C
+**CAPEX (system):** baseline 958.3 €/kW; min 566.5 €/kW; max 1723.3 €/kW
+**OPEX (stack replacement):** baseline 13.8% of system CAPEX; min 12.5%; max 15.0%
+**Stack lifetime:** baseline 71,991 h; min 53,750 h; max 102,222 h
+**Electric efficiency:** same as near-future values assumed (not separately listed)
+**Thermal energy input:** same as near-future values assumed
+**GHG context:** SOEC can result in >2× life-cycle GHG vs. AEC/PEM depending on location due to NG for HT steam; in methane case (90% boiler efficiency, 124.6 kt_CH₄/y, LHV 49.9 MJ/kg_CH₄), ~1/3 (41.6 kt_CH₄) of produced CCU methane must be reused to reduce SOEC life-cycle GHG
+**MSP impact:** reduces MSP by 42–218 €/t_product in Netherlands; negligible in Chile (3–11 €/t_product)
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 14: Low-temperature direct air capture ═══
+
+--- Year: 2035 (near future) ---
+**Process:** Solid sorbent, temperature–vacuum swing adsorption; amine-functionalized sorbent
+**Output:** 1 t_CO₂ captured
+**Inputs:**
+- Electricity: baseline 0.48 MWh_el/t_CO₂; min 0.25; max 0.70
+- Heat: baseline 2.53 MWh_th/t_CO₂; min 1.75; max 3.30
+- Sorbent consumption: baseline 7.50 kg/t_CO₂
+**CAPEX:** baseline 730.0 €/(t_CO₂·y); min 168.5 €/(t_CO₂·y); max not stated
+**Sorbent cost:** baseline 21.5 €/kg_sorbent; min 13.0; max 30.0
+**OPEX:** sorbent replacement included as OPEX; electrolyzer stack replacement also as OPEX
+**GHG (sorbent):** baseline 28.0 kg_CO₂eq/t_CO₂; min 10.0; max 46.0
+**Location factors (CAPEX, electricity, heat — normalized to Iceland):**
+- Iceland: 1.00 / 1.00 / 1.00
+- Netherlands: 1.32 / 0.99 / 1.11
+- Spain: 1.69 / 1.29 / 1.33
+- Chile: 1.38 / 1.29 / 1.30
+**Reference capacity:** 360 kt_CO₂/y (annual input reference); Climeworks Mammoth = 36 kt_CO₂/y; target multimegaton by 2030
+**No scaling applied** to DAC CAPEX (conservative)
+**MSP context:** sorbent cost ≈ 20% of product MSPs (Iceland, AEC); near-future MSPs ~50% higher than PSC
+**LCA:** no GHG attributed to LT waste heat; infrastructure construction/decommissioning GHG neglected
+
+--- Year: 2050 (long-term) ---
+**Inputs:**
+- Electricity: baseline 0.38 MWh_el/t_CO₂; min 0.25; max 0.50
+- Heat: baseline 1.50 MWh_th/t_CO₂
+- Sorbent consumption: baseline 3.00 kg/t_CO₂
+**CAPEX:** baseline 100.0 €/(t_CO₂·y); max 237.0 €/(t_CO₂·y); min not stated
+**Sorbent cost:** baseline 7.4 €/kg_sorbent; min 1.8; max 13.0
+**GHG (sorbent):** baseline 15.0 kg_CO₂eq/t_CO₂; min 10.0; max 20.0
+**MSP context (LT DAC vs. others):**
+- PSC avg 7.6% cheaper MSP than LT DAC; emits 10.9% more GHG
+- HT DAC MSP avg 21.5% higher than LT DAC; GHG 1.5× higher
+**MSP reduction from near to long-term:** sorbent cost/consumption decline = 33.4% of total MSP reduction potential (405 €/t_product absolute, FT fuels RWGS, Iceland, AEC)
+**Overall MSP decline near→long-term:** avg 54.2%; projected annual decrease 5.1% over 15 years
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 15: High-temperature direct air capture ═══
+
+--- Year: 2035 (near future) ---
+**Process:** Aqueous absorption (hydroxide-based); high-temperature calcination step for sorbent regeneration; HT heat supplied by NG-fed boilers
+**Note:** Ambient condition effects on CAPEX/energy neglected (lower granularity than LT DAC); details in Section S2.2 of source paper
+**Comparative data vs. LT DAC (long-term, Iceland, AEC):**
+- MSP avg 21.5% higher than LT DAC
+- GHG 1.5× higher than LT DAC (due to NG-intensive calcination)
+
+--- Year: 2050 (long-term) ---
+**Comparative data vs. LT DAC (long-term, Iceland, AEC):**
+- MSP avg 21.5% higher than LT DAC
+- GHG 1.5× higher than LT DAC
+**HT heat source:** natural gas boilers at all locations; no location-specific CAPEX/energy correction applied
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 16: Point-source capture ═══
+
+--- Year: 2035 (near future) ---
+**Process:** Postcombustion capture using amine absorbers (e.g., cement plants)
+**Output:** 1 t_CO₂ captured
+**CAPEX/Cost:** €30–70/t_CO₂ range; baseline €50/t_CO₂
+**GHG (carbon footprint):** 20–300 kg_CO₂eq/t_CO₂; baseline 100 kg_CO₂eq/t_CO₂ (typical cement plant)
+**MSP context:** PSC products avg 50% cheaper than LT DAC (near-future); MSP avg 7.6% cheaper than LT DAC (long-term)
+**GHG context:** PSC emits 10.9% more GHG per t_product than LT DAC (long-term)
+
+--- Year: 2050 (long-term) ---
+**Cost:** same range assumed (€30–70/t_CO₂; baseline €50/t_CO₂) — no separate long-term value stated
+**GHG:** same baseline 100 kg_CO₂eq/t_CO₂ — no separate long-term value stated
+**Comparative MSP:** avg 7.6% cheaper than LT DAC long-term products (FT fuels RWGS, Iceland, AEC)
+**Comparative GHG:** 10.9% more GHG per t_product than LT DAC
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 17: Photovoltaics ═══
+
+--- Year: 2035 (near future) ---
+**Locations:** Spain (Tabernas), Chile (Sierra Gorda); also PV-BESS variant
+**Electricity cost (Spain):** baseline 34.7 €/MWh_el; min 23.0; max 45.0
+**Electricity cost (Chile):** baseline 26.4 €/MWh_el; min 18.4; max 38.9
+**Electricity cost (PV-BESS):** baseline 68.2 €/MWh_el; min 50.0; max 88.0
+**GHG (PV):** baseline 66.0 kg_CO₂eq/MWh_el; min 20.0; max 123.8
+**GHG (PV-BESS):** baseline 124.3 kg_CO₂eq/MWh_el; min 95.0; max 153.0
+**Operating hours:** PV-BESS LCOE includes storage costs for 8000 h/y full-load operation
+**LT heat supply (Spain/Chile):** from industrial processes or solar thermal collectors
+
+--- Year: 2050 (long-term) ---
+**Electricity cost (Spain):** baseline 18.1 €/MWh_el; min 14.0; max 20.4
+**Electricity cost (Chile):** baseline 13.7 €/MWh_el; min 11.0; max 15.0
+**Electricity cost (PV-BESS):** baseline 45.2 €/MWh_el; min 30.0; max 66.0
+**GHG (PV):** baseline 57.2 kg_CO₂eq/MWh_el; min 15.9; max 98.4
+**GHG reduction vs. near-future:** PV baseline GHG -41% (interpolated linearly to 2035)
+**PV-BESS long-term GHG:** not stated separately
+**MSP sensitivity (Chile, FT fuels RWGS, AEC, LT DAC):**
+- PV-BESS vs. PV (no storage): MSP +57.9% → 1830 €/t; avg all products +51.2%
+- PV-BESS CCA: 4.4× higher than without storage
+- PV-BESS GHG avg ~2 t_CO₂eq/t_product more than CSP-TES
+**General note:** long-term Central European electricity expected <25–50 €/MWh during most hours March–October
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 18: Offshore wind ═══
+
+--- Year: 2035 (near future) ---
+**Location:** Netherlands (near Rotterdam)
+**Electricity cost:** baseline 63.9 €/MWh_el; min 50.0; max 80.0
+**GHG:** baseline 12.6 kg_CO₂eq/MWh_el; min 4.6; max 19.0
+**LT heat supply (Netherlands):** from industrial residual heat
+**Operating hours:** 8000 h/y (used in model; enables continuous operation without dedicated storage)
+
+--- Year: 2050 (long-term) ---
+**Electricity cost:** baseline 40.0 €/MWh_el; min 25.0; max 55.0
+**GHG:** baseline 11.3 kg_CO₂eq/MWh_el; min 4.4; max 18.2
+**GHG reduction vs. near-future baseline:** -9%
+**MSP context:** Netherlands products avg ~6% lower GHG than Iceland (geothermal); ~50% lower than Spain PV; ~55% lower than Chile PV
+**Note:** Netherlands electricity = offshore wind in model; lowest life-cycle GHG per product among European locations
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 19: Geothermal energy ═══
+
+--- Year: 2035 (near future) ---
+**Location:** Iceland; co-located with Climeworks Hellisheidi DAC plant
+**Electricity cost:** baseline 25.6 €/MWh_el; min 16.5; max 35.0
+**GHG:** baseline 17.0 kg_CO₂eq/MWh_el; min 8.5; max 32.0
+**Heat supply:** provides electricity + LT heat (<100 °C); HT heat (>100 °C) still from NG boilers
+**Operating hours:** 8000 h/y full-load (geothermal is baseload; no storage cost embedded)
+**Long-term GHG reduction note:** no long-term electricity cost stated (only near-future)
+
+--- Year: 2050 (long-term) ---
+**Electricity cost:** not separately stated for long-term
+**GHG:** baseline 13.9 kg_CO₂eq/MWh_el; min 5.8; max 21.9
+**GHG reduction vs. near-future baseline:** -63%
+**MSP context:** Iceland avg ~15% cheaper than Netherlands, ~17% cheaper than Chile, ~29% cheaper than Spain (near-future averaging all products/electrolyzers)
+**CCA:** Iceland lowest CCA near-future; also lowest long-term for most products
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 20: Concentrated solar power with thermal energy storage ═══
+
+--- Year: 2035 (near future) ---
+**Location:** Spain (Tabernas) or Chile (Sierra Gorda) implied by PV/CSP context
+**Electricity cost:** baseline 82.1 €/MWh_el; min 79.0; max 88.0
+**GHG:** baseline 16.0 kg_CO₂eq/MWh_el; min 9.8; max 24.3
+**Operating hours:** LCOE includes storage costs for 8000 h/y full-load operation
+**Note:** Long-term GHG for CSP-TES not separately stated
+
+--- Year: 2050 (long-term) ---
+**Electricity cost:** baseline 63.1 €/MWh_el; min 47.0; max 88.0
+**GHG:** not stated separately for long-term
+**MSP sensitivity (Chile, FT fuels RWGS, AEC, LT DAC):**
+- CSP-TES vs. no storage: MSP for FT fuel (RWGS) → 2245 €/t (+93.7% vs. no-storage baseline)
+- CCA with CSP-TES: 1.5× higher than without storage
+- CSP-TES GHG ≈ offshore wind Netherlands (~10% higher)
+- PV-BESS GHG avg ~2 t_CO₂eq/t_product more than CSP-TES
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 21: Battery energy storage ═══
+
+--- Year: 2035 (near future) ---
+**Process description:** PV coupled with battery energy storage system (PV-BESS); LCOE includes storage costs for 8000 h/y full-load operation.
+
+**Cost:**
+- LCOE: 68.2 €/MWh_el (min: 50.0, max: 88.0)
+
+**LCA / GHG emissions:**
+- 124.3 kg_CO₂eq/MWh_el (min: 95.0, max: 153.0)
+
+**System-level impact (FT fuels RWGS, AEC, LT DAC, Chile):**
+- PV-BESS vs. PV without storage: MSP increases by 51.2% avg across all products; FT fuels RWGS → 1830 €/t (+57.9%)
+- CCA with PV-BESS: 4.4× higher than without storage
+
+--- Year: 2050 (long-term) ---
+**Cost:**
+- LCOE: 45.2 €/MWh_el (min: 30.0, max: 66.0)
+
+**LCA / GHG emissions:**
+- Not reported for long-term scenario
+
+**System-level impact:**
+- PV-BESS GHG avg ~2 t_CO₂eq/t_product more than CSP-TES (long-term, Chile)
+- No scaling factor applied (modular assumption, same as WCT and DAC)
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 22: Natural gas boilers ═══
+
+--- Year: 2035 (near future) ---
+**Process description:** NG-fed boilers supply high-temperature (HT) heat >100 °C to all plant locations (Iceland, Netherlands, Spain, Chile). Used for processes requiring HT steam (e.g., SOEC operation, HT DAC calcination).
+
+**Inputs:**
+- Natural gas fuel
+
+**Outputs:**
+- HT thermal energy (>100 °C)
+
+**Cost:**
+- 25.0 €/MWh_th (min: 15.0 [EU avg 2020], max: 40.0 [EU April 2023 price])
+
+**Efficiency:**
+- Assumed boiler efficiency: 90% (referenced for SOEC methane case)
+
+**LCA / GHG emissions:**
+- 232.5 kg_CO₂eq/MWh_th (near future baseline; no min/max reported)
+
+**System-level impact:**
+- SOEC electrolyzer requires NG boiler for HT steam → results in >2× life-cycle GHG vs. AEC/PEM depending on location
+- HT DAC (vs. LT DAC): MSP avg 21.5% higher; GHG 1.5× higher due to NG-intensive calcination
+- SOEC methane case: ~1/3 of produced CCU methane (41.6 kt_CH₄/y out of 124.6 kt_CH₄/y) must be reused to offset SOEC life-cycle GHG from NG boiler
+
+--- Year: 2050 (long-term) ---
+**Cost:**
+- No long-term value reported (only near-future range given in Table 3)
+
+**LCA / GHG emissions:**
+- No long-term value reported
+
+**Notes:**
+- Iceland substitutes LT heat (<100 °C) with geothermal; NG boilers still required for HT heat at all locations including Iceland
+- Netherlands: LT heat from industrial residual heat (7.5 €/MWh_th baseline; range 5.0–10.0)
+- Spain/Chile: LT heat from industrial processes or solar thermal collectors
+
+---
+
+───────────────────────────────────────────────────────────────
+
+═══ TECHNOLOGY 23: Wet cooling tower ═══
+
+--- Year: 2035 (near future) ---
+**Process description:** Wet cooling tower used for process heat rejection across all CCU plant configurations and locations. Modular assumption applied (no economy-of-scale scaling).
+
+**Inputs:**
+- Electricity: 33.0 Wh_el/kWh_cooling (range: 5.0–60.0 Wh_el/kWh_cooling)
+- Water (implied by "wet" cooling; no quantity specified)
+
+**Outputs:**
+- Cooling duty (rejected heat)
+
+**CAPEX:**
+- Baseline: 24.5 k€/MW_cooling (range: 22–27 k€/MW_cooling)
+
+**Reference capacity / scale:**
+- WCT capacity range in model: 8.0–284.2 MW_cooling
+
+**Scaling:**
+- No scaling factor applied (modular assumption)
+
+**OPEX:** Not reported separately.
+
+**LCA / GHG:** Not reported separately for WCT.
+
+--- Year: 2050 (long-term) ---
+No separate long-term values reported; same parameters as near-future baseline applied.
 
 ───────────────────────────────────────────────────────────────
 
