@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
-using GitHub.Copilot.SDK;
 using static TechClassificationApp.TechClassifierHelpers;
 
 namespace TechClassificationApp;
@@ -216,7 +215,7 @@ public static class TechnologySummarizer
     }
 
     private static async Task<string> SendBatchAsync(
-        CopilotSession session, List<string> chunks, List<string> batchTechs)
+        IChatSession session, List<string> chunks, List<string> batchTechs)
     {
         var prompt = BuildSummaryTechnologyPrompt(chunks, batchTechs);
         return await Program.SendMessageAndStreamToConsoleAsync(session, prompt);

@@ -1,11 +1,9 @@
-using GitHub.Copilot.SDK;
-
 namespace TechClassificationApp;
 
 // App-wide runtime context created once at startup and passed to the command handlers:
-// the Copilot connection, the chosen model, and the workspace directory layout.
+// the chat backend connection, the chosen model, and the workspace directory layout.
 public sealed record Workspace(
-    CopilotClient Client,
+    IChatClient Client,
     string Model,
     string PdfDir,
     string CacheDir,

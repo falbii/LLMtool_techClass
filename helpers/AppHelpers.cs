@@ -1,19 +1,12 @@
-using GitHub.Copilot.SDK;
-using Refractored.GitHub.Copilot.SDK.Helpers;
-
 namespace TechClassificationApp;
 
-// Single place that defines how sessions are created, so streaming/permission policy
-// changes happen once instead of at 8 call sites.
+// Single place that defines how sessions are created, so a policy change (or a different
+// backend) happens once instead of at 8 call sites. Provider-specific session config
+// (streaming, permissions, ...) lives in the IChatClient implementation.
 public static class Sessions
 {
-    public static Task<CopilotSession> NewAsync(CopilotClient client, string model) =>
-        client.CreateSessionAsync(new SessionConfig
-        {
-            Model = model,
-            Streaming = true,
-            OnPermissionRequest = PermissionHandler.ApproveAll
-        });
+    public static Task<IChatSession> NewAsync(IChatClient client, string model) =>
+        client.CreateSessionAsync(model);
 }
 
 // Color-coded console output helpers. Replace the repeated

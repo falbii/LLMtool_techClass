@@ -1,5 +1,3 @@
-using System.Text;
-using GitHub.Copilot.SDK;
 using Refractored.GitHub.Copilot.SDK.Helpers;
 using TechClassificationApp;
 
@@ -23,13 +21,12 @@ if (!CliChecker.IsReady(status))
     return;
 }
 
-CopilotClient? client = null;
-CopilotSession? session = null;
+IChatClient? client = null;
+IChatSession? session = null;
 
 try
 {
-    client = new CopilotClient(new CopilotClientOptions());
-    await client.StartAsync();
+    client = await CopilotChatClient.ConnectAsync();
 
     var modelsWithInfo = await GetModelsWithInfoAsync(client);
 
@@ -247,13 +244,13 @@ public partial class Program
         return text.PadLeft(left + text.Length).PadRight(width);
     }
 
-    private static async Task<ModelInfo[]> GetModelsWithInfoAsync(CopilotClient client)
+    private static async Task<ChatModelInfo[]> GetModelsWithInfoAsync(IChatClient client)
     {
         var models = await client.ListModelsAsync();
         return models.OrderBy(model => model.Id, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
-    private static Task<string?> SelectModelAsync(ModelInfo[] models)
+    private static Task<string?> SelectModelAsync(ChatModelInfo[] models)
     {
         if (models.Length == 0)
         {
@@ -270,7 +267,7 @@ public partial class Program
 
         for (int i = 0; i < models.Length; i++)
         {
-            var reasoning = models[i].SupportedReasoningEfforts is { Count: > 0 } ? "Yes" : "No";
+            var reasoning = models[i].SupportsReasoning ? "Yes" : "No";
             Console.WriteLine($"   {i + 1,2}  {models[i].Id,-30}  {Center(reasoning, 9)}");
         }
 
@@ -340,11 +337,11 @@ public partial class Program
     public static Task RunWithSpinnerAsync(string message, Func<Task> action)
         => RunWithSpinnerAsync<int>(message, async () => { await action(); return 0; });
 
-    // Shows a spinner while waiting for the first token, then streams delta/reasoning events in real time.
-    public static async Task SendMessageWithSpinnerAsync(CopilotSession session, string message)
+    // Shows a spinner while waiting for the first token, then streams reasoning/content deltas in real time.
+    public static async Task SendMessageWithSpinnerAsync(IChatSession session, string message)
     {
-        var done = new TaskCompletionSource();
         var hasStartedResponse = false;
+        var hasStartedReasoning = false;
         using var spinnerCts = new CancellationTokenSource();
 
         Console.CursorVisible = false;
@@ -365,111 +362,74 @@ public partial class Program
             }
         });
 
-        var hasStartedReasoning = false;
-
-        var subscription = session.On(evt =>
+        void StopSpinner()
         {
-            switch (evt)
+            spinnerCts.Cancel();
+            Console.SetCursorPosition(spinnerLeft, spinnerTop);
+            Console.Write(" ");
+            Console.SetCursorPosition(spinnerLeft, spinnerTop);
+            Console.CursorVisible = true;
+        }
+
+        void OnReasoningDelta(string chunk)
+        {
+            if (!hasStartedReasoning)
             {
-                case AssistantReasoningDeltaEvent reasoningDelta:
-                    if (!hasStartedReasoning)
-                    {
-                        spinnerCts.Cancel();
-                        Console.SetCursorPosition(spinnerLeft, spinnerTop);
-                        Console.Write(" ");
-                        Console.SetCursorPosition(spinnerLeft, spinnerTop);
-                        Console.CursorVisible = true;
-                        Console.ForegroundColor = ConsoleColor.DarkGray;
-                        Console.Write("💭 ");
-                        hasStartedReasoning = true;
-                    }
-                    Console.Write(reasoningDelta.Data.DeltaContent);
-                    break;
-
-                case AssistantMessageDeltaEvent delta:
-                    if (!hasStartedResponse)
-                    {
-                        // After reasoning, start a new "Copilot:" line for the final answer.
-                        if (hasStartedReasoning)
-                        {
-                            Console.ResetColor();
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            Console.Write("\nCopilot: ");
-                            Console.ResetColor();
-                        }
-                        else
-                        {
-                            spinnerCts.Cancel();
-                            Console.SetCursorPosition(spinnerLeft, spinnerTop);
-                            Console.Write(" ");
-                            Console.SetCursorPosition(spinnerLeft, spinnerTop);
-                            Console.CursorVisible = true;
-                        }
-                        hasStartedResponse = true;
-                    }
-                    Console.Write(delta.Data.DeltaContent);
-                    break;
-
-                case AssistantMessageEvent msg:
-                    // Fired by non-streaming models; skip if deltas already covered the content.
-                    if (!hasStartedResponse)
-                    {
-                        if (hasStartedReasoning)
-                        {
-                            Console.ResetColor();
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            Console.Write("\nCopilot: ");
-                            Console.ResetColor();
-                        }
-                        else
-                        {
-                            spinnerCts.Cancel();
-                            Console.SetCursorPosition(spinnerLeft, spinnerTop);
-                            Console.Write(" ");
-                            Console.SetCursorPosition(spinnerLeft, spinnerTop);
-                            Console.CursorVisible = true;
-                        }
-                        Console.Write(msg.Data.Content);
-                    }
-                    break;
-
-                case SessionIdleEvent:
-                    done.TrySetResult();
-                    break;
-
-                case SessionErrorEvent err:
-                    spinnerCts.Cancel();
-                    Console.CursorVisible = true;
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"\n❌ Error: {err.Data.Message}");
-                    Console.ResetColor();
-                    done.TrySetResult();
-                    break;
+                StopSpinner();
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.Write("💭 ");
+                hasStartedReasoning = true;
             }
-        });
+            Console.Write(chunk);
+        }
+
+        void OnContentDelta(string chunk)
+        {
+            if (!hasStartedResponse)
+            {
+                // After reasoning, start a new "Copilot:" line for the final answer.
+                if (hasStartedReasoning)
+                {
+                    Console.ResetColor();
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write("\nCopilot: ");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    StopSpinner();
+                }
+                hasStartedResponse = true;
+            }
+            Console.Write(chunk);
+        }
 
         try
         {
-            await session.SendAsync(new MessageOptions { Prompt = message });
-            await done.Task;
+            await session.SendAsync(message, OnReasoningDelta, OnContentDelta);
             Console.WriteLine("\n");
+        }
+        catch (Exception ex)
+        {
+            // Chat errors are reported inline and don't abort the interactive loop.
+            spinnerCts.Cancel();
+            Console.CursorVisible = true;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\n❌ Error: {ex.Message}");
+            Console.ResetColor();
         }
         finally
         {
             spinnerCts.Cancel();
             await spinnerTask;
             Console.CursorVisible = true;
-            subscription.Dispose();
         }
     }
 
     // Collects the full response as a string while showing a "Copilot: " spinner.
     // Use SendMessageAndStreamToConsoleAsync instead when real-time output is needed.
-    public static async Task<string> SendMessageAndCollectResponseAsync(CopilotSession session, string message)
+    public static async Task<string> SendMessageAndCollectResponseAsync(IChatSession session, string message)
     {
-        var done = new TaskCompletionSource();
-        var response = new StringBuilder();
-        var hasDelta = false;
         using var spinnerCts = new CancellationTokenSource();
 
         Console.CursorVisible = false;
@@ -490,101 +450,39 @@ public partial class Program
             }
         });
 
-        var subscription = session.On(evt =>
-        {
-            switch (evt)
-            {
-                case AssistantMessageDeltaEvent delta:
-                    // hasDelta prevents double-appending when the SDK fires both delta and full-message events.
-                    hasDelta = true;
-                    response.Append(delta.Data.DeltaContent);
-                    break;
-                case AssistantMessageEvent msg:
-                    if (!hasDelta)
-                        response.Append(msg.Data.Content);
-                    break;
-                case SessionIdleEvent:
-                    done.TrySetResult();
-                    break;
-                case SessionErrorEvent err:
-                    done.TrySetException(new InvalidOperationException(err.Data.Message));
-                    break;
-            }
-        });
-
         try
         {
-            await session.SendAsync(new MessageOptions { Prompt = message });
-            await done.Task;
+            var response = await session.SendAsync(message);
             Console.WriteLine();
-            return response.ToString();
+            return response;
         }
         finally
         {
             spinnerCts.Cancel();
             await spinnerTask;
             Console.CursorVisible = true;
-            subscription.Dispose();
         }
     }
 
     // Silent collection with a 15-minute guard. Used for batch/background calls where no spinner is needed.
-    // The SDK's SendAsync has no cancellation token; the timeout is injected by failing the TCS from a
-    // background CancellationToken.Register callback.
-    public static async Task<string> SendMessageAndCollectResponseSilentAsync(CopilotSession session, string message)
+    public static async Task<string> SendMessageAndCollectResponseSilentAsync(IChatSession session, string message)
     {
-        var done = new TaskCompletionSource();
-        var response = new StringBuilder();
-        var hasDelta = false;
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(15));
-
-        var subscription = session.On(evt =>
-        {
-            switch (evt)
-            {
-                case AssistantMessageDeltaEvent delta:
-                    hasDelta = true;
-                    response.Append(delta.Data.DeltaContent);
-                    break;
-                case AssistantMessageEvent msg:
-                    if (!hasDelta)
-                        response.Append(msg.Data.Content);
-                    break;
-                case SessionIdleEvent:
-                    done.TrySetResult();
-                    break;
-                case SessionErrorEvent err:
-                    done.TrySetException(new InvalidOperationException(err.Data.Message));
-                    break;
-            }
-        });
-
         try
         {
-            // Registered before the send so the timeout also covers a hang inside SendAsync itself.
-            using var timeoutRegistration = timeoutCts.Token.Register(() => done.TrySetException(
-                new TimeoutException("Copilot service did not respond within 15 minutes.")));
-
-            var sendTask = session.SendAsync(new MessageOptions { Prompt = message });
-            if (await Task.WhenAny(sendTask, done.Task) == sendTask)
-                await sendTask; // propagate any send failure before waiting on the response events
-
-            await done.Task;
-            return response.ToString();
+            return await session.SendAsync(message, cancellationToken: timeoutCts.Token);
         }
-        finally
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
         {
-            subscription.Dispose();
+            throw new TimeoutException("The model service did not respond within 15 minutes.");
         }
     }
 
     // Streams delta tokens to the console in real time (dim grey, word-wrapped at 100 chars)
     // and returns the full collected response. The spinner is cancelled on the first token arrival.
     public static async Task<string> SendMessageAndStreamToConsoleAsync(
-        CopilotSession session, string message, string linePrefix = "   ")
+        IChatSession session, string message, string linePrefix = "   ")
     {
-        var done = new TaskCompletionSource();
-        var response = new StringBuilder();
         var hasDelta = false;
         var lineLen = 0;
         const int wrapAt = 100;
@@ -607,79 +505,58 @@ public partial class Program
             }
         });
 
-        var subscription = session.On(evt =>
+        void OnContentDelta(string chunk)
         {
-            switch (evt)
+            if (!hasDelta)
             {
-                case AssistantMessageDeltaEvent delta:
-                    if (!hasDelta)
+                // First token: clear the spinner line and start fresh with the prefix.
+                spinnerCts.Cancel();
+                Console.SetCursorPosition(0, waitTop);
+                Console.Write(new string(' ', Console.WindowWidth - 1));
+                Console.SetCursorPosition(0, waitTop);
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.Write(linePrefix);
+                lineLen = 0;
+            }
+            hasDelta = true;
+            foreach (var ch in chunk)
+            {
+                if (ch == '\n')
+                {
+                    Console.WriteLine();
+                    Console.Write(linePrefix);
+                    lineLen = 0;
+                }
+                else
+                {
+                    if (lineLen >= wrapAt)
                     {
-                        // First token: clear the spinner line and start fresh with the prefix.
-                        spinnerCts.Cancel();
-                        Console.SetCursorPosition(0, waitTop);
-                        Console.Write(new string(' ', Console.WindowWidth - 1));
-                        Console.SetCursorPosition(0, waitTop);
-                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        Console.WriteLine();
                         Console.Write(linePrefix);
                         lineLen = 0;
                     }
-                    hasDelta = true;
-                    var chunk = delta.Data.DeltaContent ?? string.Empty;
-                    response.Append(chunk);
-                    foreach (var ch in chunk)
-                    {
-                        if (ch == '\n')
-                        {
-                            Console.WriteLine();
-                            Console.Write(linePrefix);
-                            lineLen = 0;
-                        }
-                        else
-                        {
-                            if (lineLen >= wrapAt)
-                            {
-                                Console.WriteLine();
-                                Console.Write(linePrefix);
-                                lineLen = 0;
-                            }
-                            Console.Write(ch);
-                            lineLen++;
-                        }
-                    }
-                    break;
-                case AssistantMessageEvent msg:
-                    if (!hasDelta)
-                        response.Append(msg.Data.Content);
-                    break;
-                case SessionIdleEvent:
-                    done.TrySetResult();
-                    break;
-                case SessionErrorEvent err:
-                    done.TrySetException(new InvalidOperationException(err.Data.Message));
-                    break;
+                    Console.Write(ch);
+                    lineLen++;
+                }
             }
-        });
+        }
 
         try
         {
-            // Registered before the send so the timeout also covers a hang inside SendAsync itself.
-            using var timeoutRegistration = timeoutCts.Token.Register(() => done.TrySetException(
-                new TimeoutException("Copilot service did not respond within 15 minutes.")));
-
-            var sendTask = session.SendAsync(new MessageOptions { Prompt = message });
-            if (await Task.WhenAny(sendTask, done.Task) == sendTask)
-                await sendTask; // propagate any send failure before waiting on the response events
-
-            await done.Task;
+            var response = await session.SendAsync(message, onContentDelta: OnContentDelta,
+                cancellationToken: timeoutCts.Token);
             Console.WriteLine();
-            return response.ToString();
+            return response;
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+        {
+            throw new TimeoutException("The model service did not respond within 15 minutes.");
         }
         finally
         {
             spinnerCts.Cancel();
             await spinnerTask;
             Console.ResetColor();
-            subscription.Dispose();
         }
     }
 }

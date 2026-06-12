@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using GitHub.Copilot.SDK;
 using static TechClassificationApp.TechClassifierHelpers;
 
 namespace TechClassificationApp;

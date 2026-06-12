@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using GitHub.Copilot.SDK;
 using static TechClassificationApp.TechClassifierHelpers;
 
 namespace TechClassificationApp;

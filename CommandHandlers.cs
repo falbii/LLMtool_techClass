@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text;
-using GitHub.Copilot.SDK;
 
 namespace TechClassificationApp;
 
@@ -258,7 +257,7 @@ public static class CommandHandlers
     }
 
     public static async Task HandleBatchAnalyzeAsync(
-        Workspace ws, CopilotSession session, string question)
+        Workspace ws, IChatSession session, string question)
     {
         if (!Directory.Exists(ws.PdfDir))
         {
@@ -336,7 +335,7 @@ public static class CommandHandlers
             Console.Write($"   ▶ {modelInfo.Id,-35}");
             Console.ResetColor();
 
-            CopilotSession? benchSession = null;
+            IChatSession? benchSession = null;
             try
             {
                 benchSession = await Sessions.NewAsync(ws.Client, modelInfo.Id);
