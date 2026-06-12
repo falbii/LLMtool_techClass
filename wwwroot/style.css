@@ -1,0 +1,131 @@
+/* Simple two-column layout; dark, terminal-inspired theme. */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: #1e1e1e;
+  color: #ddd;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  background: #173a4d;
+}
+header h1 { font-size: 1.1rem; margin: 0; }
+.status { color: #8fd6ff; font-size: 0.85rem; }
+
+#setup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  background: #252526;
+  border-bottom: 1px solid #333;
+}
+#setup label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
+
+select, input[type="text"], #chat-input {
+  background: #1b1b1b;
+  color: #ddd;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+}
+
+button {
+  background: #0e639c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { background: #1177bb; }
+button:disabled { background: #3a3a3a; color: #777; cursor: not-allowed; }
+
+/* hide the raw file input; the label acts as the button */
+.upload-label {
+  background: #0e639c;
+  border-radius: 4px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+.upload-label input { display: none; }
+.upload-label:hover { background: #1177bb; }
+
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1rem;
+  padding: 1rem;
+  min-height: 0; /* lets the panels scroll instead of growing */
+}
+
+#chat-panel, #side-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+h2 { font-size: 0.95rem; margin: 0 0 0.5rem; color: #9cdcfe; }
+
+#chat {
+  flex: 1;
+  overflow-y: auto;
+  background: #252526;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bubble {
+  max-width: 92%;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.92rem;
+}
+.bubble.user      { align-self: flex-end; background: #0e639c; color: white; }
+.bubble.assistant { align-self: flex-start; background: #333; }
+.bubble.reasoning { align-self: flex-start; background: #2a2a2a; color: #888; font-style: italic; font-size: 0.85rem; }
+.bubble.error     { align-self: flex-start; background: #5a1d1d; color: #ffb4b4; }
+
+#chat-form { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+#chat-input { flex: 1; }
+
+#commands {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+#progress {
+  flex: 1;
+  overflow-y: auto;
+  background: #1b1b1b;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 0.6rem;
+  font-family: Consolas, monospace;
+  font-size: 0.8rem;
+}
+.log          { white-space: pre-wrap; word-break: break-word; }
+.log.info     { color: #4fc1ff; }
+.log.success  { color: #6fcf6f; }
+.log.warn     { color: #e5c07b; }
+.log.error    { color: #ff7b7b; }
+.log.dim      { color: #777; }

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Smart Document Analysis Tool</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <h1>📄 Smart Document Analysis Tool</h1>
+    <span id="session-status" class="status">no session</span>
+  </header>
+
+  <!-- Setup bar: pick a model, start a session, pick/upload a PDF -->
+  <section id="setup">
+    <label>Model
+      <select id="model-select"><option>loading…</option></select>
+    </label>
+    <button id="start-session">Start session</button>
+
+    <label>PDF
+      <select id="pdf-select"><option value="">— none —</option></select>
+    </label>
+    <label class="upload-label">
+      ⬆ Upload PDF<input type="file" id="pdf-file" accept=".pdf">
+    </label>
+  </section>
+
+  <main>
+    <!-- Left: chat -->
+    <section id="chat-panel">
+      <h2>💬 Chat</h2>
+      <div id="chat"></div>
+      <form id="chat-form">
+        <input id="chat-input" placeholder="Ask something about the selected PDF…" autocomplete="off" disabled>
+        <button id="chat-send" disabled>Send</button>
+      </form>
+    </section>
+
+    <!-- Right: pipeline commands + live progress -->
+    <section id="side-panel">
+      <h2>⚙️ Commands</h2>
+      <div id="commands">
+        <button class="cmd" data-cmd="summarize">Auto-summarize</button>
+        <button class="cmd" data-cmd="classify">Auto-classify</button>
+        <button class="cmd" data-cmd="condense-check">Condense-check</button>
+        <button class="cmd" data-cmd="benchmark">Benchmark</button>
+      </div>
+
+      <h2>📜 Progress</h2>
+      <div id="progress"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
