@@ -13,16 +13,23 @@ public static class Sessions
 // "ForegroundColor = X; WriteLine(...); ResetColor()" triplet.
 public static class ConsoleEx
 {
-    public static void Error(string message)   => Write(ConsoleColor.Red, message);
-    public static void Success(string message) => Write(ConsoleColor.Green, message);
-    public static void Warn(string message)    => Write(ConsoleColor.Yellow, message);
-    public static void Info(string message)    => Write(ConsoleColor.Cyan, message);
-    public static void Dim(string message)     => Write(ConsoleColor.DarkGray, message);
+    // Raised for every line in addition to the console write, so other UIs
+    // (the web progress panel) can mirror pipeline output without the
+    // pipeline classes knowing about them. Args: level ("error", "success",
+    // "warn", "info", "dim"), text.
+    public static event Action<string, string>? MessageLogged;
 
-    private static void Write(ConsoleColor color, string message)
+    public static void Error(string message)   => Write(ConsoleColor.Red, "error", message);
+    public static void Success(string message) => Write(ConsoleColor.Green, "success", message);
+    public static void Warn(string message)    => Write(ConsoleColor.Yellow, "warn", message);
+    public static void Info(string message)    => Write(ConsoleColor.Cyan, "info", message);
+    public static void Dim(string message)     => Write(ConsoleColor.DarkGray, "dim", message);
+
+    private static void Write(ConsoleColor color, string level, string message)
     {
         Console.ForegroundColor = color;
         Console.WriteLine(message);
         Console.ResetColor();
+        MessageLogged?.Invoke(level, message);
     }
 }
