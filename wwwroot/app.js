@@ -10,8 +10,13 @@ function addChatBubble(cssClass) {
   const div = document.createElement("div");
   div.className = `bubble ${cssClass}`;
   $("chat").appendChild(div);
-  $("chat").scrollTop = $("chat").scrollHeight;
+  scrollChatDown();
   return div;
+}
+
+function scrollChatDown() {
+  const wrap = $("chat-wrap");
+  wrap.scrollTop = wrap.scrollHeight;
 }
 
 function addProgressLine(level, text) {
@@ -169,12 +174,22 @@ $("chat-form").addEventListener("submit", async (e) => {
       } else if (evt === "error") {
         addChatBubble("error").textContent = `❌ ${payload.text}`;
       }
-      $("chat").scrollTop = $("chat").scrollHeight;
+      scrollChatDown();
     }
   }
   setBusy(false);
   $("chat-input").focus();
 });
+
+// --- progress panel ----------------------------------------------------------
+
+$("progress-toggle").addEventListener("click", () => {
+  $("progress-panel").classList.toggle("open");
+});
+
+function openProgressPanel() {
+  $("progress-panel").classList.add("open");
+}
 
 // --- pipeline commands -----------------------------------------------------------
 
@@ -182,6 +197,7 @@ document.querySelectorAll(".cmd").forEach((button) => {
   button.addEventListener("click", async () => {
     const cmd = button.dataset.cmd;
     setBusy(true);
+    openProgressPanel(); // commands report through the progress log — show it
     addProgressLine("info", `▶ Running ${cmd}…`);
     try {
       const resp = await fetch(`/api/run/${cmd}`, { method: "POST" });
