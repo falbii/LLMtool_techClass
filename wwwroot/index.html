@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Smart Document Analysis Tool</title>
-  <link rel="stylesheet" href="style.css">
+  <!-- ?v=N defeats stale browser caches: bump it when these files change -->
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 
@@ -18,10 +19,6 @@
     <div class="controls">
       <select id="model-select" title="Model"><option>loading…</option></select>
       <button id="start-session">Start session</button>
-      <select id="pdf-select" title="PDF"><option value="">— no PDF —</option></select>
-      <label class="upload-label" title="Upload a PDF">
-        ⬆ PDF<input type="file" id="pdf-file" accept=".pdf">
-      </label>
     </div>
   </header>
 
@@ -34,11 +31,29 @@
     <div id="composer">
       <div id="chips">
         <button class="cmd" data-cmd="summarize">✨ Auto-summarize</button>
-        <button class="cmd" data-cmd="classify">🗂 Auto-classify</button>
+        <button class="cmd" data-cmd="classify">▦ Auto-classify</button>
+        <span class="chip-divider" aria-hidden="true"></span>
         <button class="cmd" data-cmd="condense-check">🔎 Condense-check</button>
         <button class="cmd" data-cmd="benchmark">🏁 Benchmark</button>
       </div>
       <form id="chat-form">
+        <!-- PDF attach: pick one of the available PDFs or upload a new one.
+             The button label shows the attached file's name. -->
+        <div id="pdf-attach-wrap">
+          <button type="button" id="pdf-attach" title="Attach a PDF">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+            <span id="pdf-attach-label">PDF</span>
+          </button>
+          <input type="file" id="pdf-file" accept=".pdf" hidden>
+          <div id="pdf-menu">
+            <div class="menu-header">Attach a PDF</div>
+            <div id="pdf-list"></div>
+            <button type="button" id="pdf-upload-item">⬆ Upload a PDF…</button>
+          </div>
+        </div>
         <input id="chat-input" placeholder="Ask something about the selected PDF…" autocomplete="off" disabled>
         <button id="chat-send" title="Send" disabled>➤</button>
       </form>
@@ -52,6 +67,6 @@
     <div id="progress"></div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>

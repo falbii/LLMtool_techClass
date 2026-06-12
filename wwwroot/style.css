@@ -85,18 +85,6 @@ button:hover:not(:disabled) { background: #1d4ed8; }
 button:active:not(:disabled) { transform: translateY(1px); }
 button:disabled { background: #c9d6e8; color: #8a99ad; cursor: not-allowed; box-shadow: none; }
 
-.upload-label {
-  background: white;
-  color: #2563eb;
-  border: 1px solid #cfdef2;
-  border-radius: 999px;
-  padding: 0.4rem 1rem;
-  font-size: 0.85rem;
-  cursor: pointer;
-  box-shadow: 0 1px 4px rgba(30, 64, 175, 0.06);
-}
-.upload-label:hover { border-color: #2563eb; }
-.upload-label input { display: none; }
 
 /* --- centered chat column ---------------------------------------------- */
 
@@ -127,9 +115,9 @@ main {
 
 /* friendly hint while the conversation is still empty */
 #chat:empty::before {
-  content: "Pick a model, start a session, choose a PDF — then ask anything about it.";
+  content: "Pick a model, start a session, attach a PDF with the PDF button — then ask anything about it.";
   margin: auto;
-  padding-top: 22vh;
+  padding-top: 18vh;
   color: #93a3b8;
   font-size: 1.02rem;
   text-align: center;
@@ -187,7 +175,7 @@ main {
 
 #composer {
   width: min(780px, 94vw);
-  padding: 0.4rem 0 1.2rem;
+  padding: 0.4rem 0 2.2rem; /* lifts the chat bar a touch off the bottom edge */
 }
 
 #chips {
@@ -208,6 +196,14 @@ main {
 .cmd:hover:not(:disabled) { background: #eaf2ff; }
 .cmd:disabled { background: rgba(255, 255, 255, 0.5); color: #aab8ca; border-color: #e2eaf4; }
 
+/* vertical line separating the auto-pipelines from the diagnostic commands */
+.chip-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.15rem 0.25rem;
+  background: #c6d6ea;
+}
+
 #chat-form {
   display: flex;
   align-items: center;
@@ -215,19 +211,122 @@ main {
   background: white;
   border: 1px solid #d8e3f0;
   border-radius: 999px;
-  padding: 0.35rem 0.4rem 0.35rem 1.2rem;
+  padding: 0.35rem 0.4rem;
   box-shadow: 0 6px 24px rgba(30, 64, 175, 0.1);
 }
 #chat-form:focus-within { border-color: #93bdf5; box-shadow: 0 6px 28px rgba(37, 99, 235, 0.18); }
 
+/* --- paperclip (PDF attach) ---------------------------------------------- */
+
+#pdf-attach-wrap { position: relative; display: flex; flex-shrink: 0; }
+
+/* pill button: paperclip icon + "PDF", or the attached file's name */
+#pdf-attach {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 38px;
+  padding: 0 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #f1f6fc;
+  color: #4a5b70;
+  border: 1px solid #dbe6f3;
+  box-shadow: none;
+}
+#pdf-attach:hover:not(:disabled) { background: #eaf2ff; border-color: #b9d2f3; }
+#pdf-attach:disabled { background: #f6f9fd; color: #c2cfdf; border-color: #e6eef7; }
+#pdf-attach svg { flex-shrink: 0; }
+
+#pdf-attach-label {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* a file is attached: tint the pill blue */
+#pdf-attach.attached {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+#pdf-attach.attached:hover:not(:disabled) { background: rgba(59, 130, 246, 0.16); }
+
+/* pop-up menu anchored above the paperclip */
+#pdf-menu {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: -6px;
+  width: min(300px, 86vw);
+  display: none;
+  background: white;
+  border: 1px solid #d8e3f0;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(30, 64, 175, 0.18);
+  overflow: hidden;
+  z-index: 10;
+}
+#pdf-menu.open { display: block; }
+
+#pdf-menu .menu-header {
+  padding: 0.5rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #2563eb;
+  border-bottom: 1px solid #e6eef7;
+  background: rgba(234, 242, 255, 0.6);
+}
+
+#pdf-list { max-height: 220px; overflow-y: auto; }
+
+.pdf-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: #1f2a37;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.83rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pdf-item:hover:not(:disabled) { background: #eaf2ff; }
+.pdf-item.selected { color: #2563eb; font-weight: 600; }
+.pdf-item.selected::before { content: "✓ "; }
+
+.pdf-empty {
+  padding: 0.6rem 0.9rem;
+  font-size: 0.8rem;
+  color: #93a3b8;
+}
+
+#pdf-upload-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: #2563eb;
+  border-top: 1px solid #e6eef7;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.83rem;
+}
+#pdf-upload-item:hover:not(:disabled) { background: #eaf2ff; }
+
 #chat-input {
   flex: 1;
+  min-width: 0; /* lets the input shrink instead of overflowing the bar */
   border: none;
   outline: none;
   background: transparent;
   font-size: 0.95rem;
   color: #1f2a37;
-  padding: 0.45rem 0;
+  padding: 0.45rem 0.3rem;
 }
 #chat-input::placeholder { color: #9fb0c4; }
 
