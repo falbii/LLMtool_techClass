@@ -21,12 +21,31 @@ if (!CliChecker.IsReady(status))
     return;
 }
 
+// Directory layout shared by console and web mode.
+string baseDir = Directory.GetCurrentDirectory();
+string pdfInputDirectory = Path.Combine(baseDir, "1_pdf_to_analyze");
+string cacheDirectory = Path.Combine(baseDir, "2_md_condensed_pdf");
+string mdDirectory = Path.Combine(baseDir, "3_output", "1_md_summary");
+string csvDirectory = Path.Combine(baseDir, "3_output", "2_csv_classification");
+Directory.CreateDirectory(pdfInputDirectory);
+Directory.CreateDirectory(cacheDirectory);
+Directory.CreateDirectory(mdDirectory);
+Directory.CreateDirectory(csvDirectory);
+
 IChatClient? client = null;
 IChatSession? session = null;
 
 try
 {
     client = await CopilotChatClient.ConnectAsync();
+
+    if (args.Contains("--web", StringComparer.OrdinalIgnoreCase))
+    {
+        // Web mode: the browser page replaces the console loop; model selection
+        // and session creation happen through the page.
+        await WebServer.RunAsync(client, pdfInputDirectory, cacheDirectory, mdDirectory, csvDirectory);
+        return;
+    }
 
     var modelsWithInfo = await GetModelsWithInfoAsync(client);
 
@@ -52,16 +71,6 @@ try
     }
 
     ConsoleEx.Dim($"   Session ID: {session.SessionId}\n");
-
-    string baseDir = Directory.GetCurrentDirectory();
-    string pdfInputDirectory = Path.Combine(baseDir, "1_pdf_to_analyze");
-    string cacheDirectory = Path.Combine(baseDir, "2_md_condensed_pdf");
-    string mdDirectory = Path.Combine(baseDir, "3_output", "1_md_summary");
-    string csvDirectory = Path.Combine(baseDir, "3_output", "2_csv_classification");
-    Directory.CreateDirectory(pdfInputDirectory);
-    Directory.CreateDirectory(cacheDirectory);
-    Directory.CreateDirectory(mdDirectory);
-    Directory.CreateDirectory(csvDirectory);
 
     var workspace = new Workspace(client, model, pdfInputDirectory, cacheDirectory, mdDirectory, csvDirectory);
 
