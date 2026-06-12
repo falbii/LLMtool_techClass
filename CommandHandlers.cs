@@ -9,12 +9,14 @@ public static class CommandHandlers
     // numbers in the raw PDF survive into the cached condensed text. Raw extraction is deterministic
     // iText; the condensed side is read from the existing cache only — never generated here, so the
     // audit can never trigger a model call. Run 'auto-summarize' first to produce the cache.
-    public static async Task HandleCondenseCheckAsync(Workspace ws, string pdfFile)
+    // Returns false when the audit could not run (missing PDF/cache or an unexpected error),
+    // so non-console callers (the web API) can report failure instead of silent success.
+    public static async Task<bool> HandleCondenseCheckAsync(Workspace ws, string pdfFile)
     {
         if (string.IsNullOrWhiteSpace(pdfFile) || !File.Exists(pdfFile))
         {
             ConsoleEx.Error("❌ PDF not found or invalid path.");
-            return;
+            return false;
         }
 
         var cachePath = PdfCondenser.GetCachePath(pdfFile, ws.CacheDir);
@@ -23,7 +25,7 @@ public static class CommandHandlers
             ConsoleEx.Warn("⚠️  No cached condensed file found — run 'auto-summarize' first.");
             ConsoleEx.Warn($"    Expected at: {cachePath}");
             ConsoleEx.Dim("    (The audit reads the existing cache only; it never calls the model.)");
-            return;
+            return false;
         }
 
         ConsoleEx.Info("🔬 Auditing condensation fidelity (raw PDF vs cached condensed) — no LLM used...\n");
@@ -82,10 +84,12 @@ public static class CommandHandlers
             ConsoleEx.Info($"   📁 Full report: {reportPath}");
             ConsoleEx.Dim("   Note: some 'missing' values can be PDF-extraction artifacts (split/garbled spacing),");
             ConsoleEx.Dim("   not true condensation loss — scan the list to judge how many are real data drops.");
+            return true;
         }
         catch (Exception ex)
         {
             ConsoleEx.Error($"❌ Condense audit failed: {ex.Message}");
+            return false;
         }
     }
 
@@ -301,13 +305,15 @@ public static class CommandHandlers
         "(2) production cost range (in USD/kg H2), (3) key efficiency metric, and (4) extra: if possible, provide CAPEX, OPEX, input and output ratios, and lifetime. " +
         "Be concise and use a structured format.";
 
-    public static async Task HandleBenchmarkAsync(Workspace ws)
+    // Returns false when the benchmark could not run at all (missing PDF, no models);
+    // per-model errors are reported in the results table and still count as a run.
+    public static async Task<bool> HandleBenchmarkAsync(Workspace ws)
     {
         var pdfPath = Path.Combine(ws.PdfDir, BenchmarkPdfName);
         if (!File.Exists(pdfPath))
         {
             ConsoleEx.Error($"❌ Benchmark PDF not found. Place it at: {pdfPath}");
-            return;
+            return false;
         }
 
         string fullPrompt = string.Empty;
@@ -320,7 +326,7 @@ public static class CommandHandlers
         if (modelsWithInfo == null || modelsWithInfo.Count == 0)
         {
             ConsoleEx.Error("❌ No models available.");
-            return;
+            return false;
         }
 
         Console.WriteLine();
@@ -331,9 +337,7 @@ public static class CommandHandlers
 
         foreach (var modelInfo in modelsWithInfo)
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write($"   ▶ {modelInfo.Id,-35}");
-            Console.ResetColor();
+            ConsoleEx.Dim($"   ▶ {modelInfo.Id}…");
 
             IChatSession? benchSession = null;
             try
@@ -347,12 +351,12 @@ public static class CommandHandlers
                 var words = response.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
                 results.Add((modelInfo.Id, sw.ElapsedMilliseconds, words, response, "OK"));
 
-                ConsoleEx.Success($"  {sw.ElapsedMilliseconds,6} ms  {words,5} words");
+                ConsoleEx.Success($"   ✓ {modelInfo.Id,-35}  {sw.ElapsedMilliseconds,6} ms  {words,5} words");
             }
             catch (Exception ex)
             {
                 results.Add((modelInfo.Id, 0, 0, string.Empty, $"ERROR: {ex.Message}"));
-                ConsoleEx.Error($"  ❌ {ex.Message}");
+                ConsoleEx.Error($"   ❌ {modelInfo.Id,-35}  {ex.Message}");
             }
             finally
             {
@@ -365,15 +369,11 @@ public static class CommandHandlers
 
         Console.WriteLine();
         ConsoleEx.Warn("📊 Benchmark Results:");
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"   {"Model",-35} {"Latency (ms)",13}  {"Words",6}  Status");
-        Console.WriteLine($"   {"─────────────────────────────────",35} {"─────────────",13}  {"─────",6}  ──────");
-        Console.ResetColor();
+        ConsoleEx.Dim($"   {"Model",-35} {"Latency (ms)",13}  {"Words",6}  Status");
+        ConsoleEx.Dim($"   {"─────────────────────────────────",35} {"─────────────",13}  {"─────",6}  ──────");
 
         foreach (var (model, latencyMs, wordCount, _, status) in results)
-            Console.WriteLine($"   {model,-35} {latencyMs,13}  {wordCount,6}  {status}");
-
-        Console.ResetColor();
+            ConsoleEx.Plain($"   {model,-35} {latencyMs,13}  {wordCount,6}  {status}");
 
         Console.WriteLine();
         ConsoleEx.Info("🔬 Auto-classifying each model's response...");
@@ -384,9 +384,7 @@ public static class CommandHandlers
 
         foreach (var r in results.Where(r => r.Status == "OK"))
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write($"   ▶ {r.Model,-35}");
-            Console.ResetColor();
+            ConsoleEx.Dim($"   ▶ {r.Model}…");
 
             try
             {
@@ -410,7 +408,7 @@ public static class CommandHandlers
                 if (!TechnologyClassifier.IsValidJsonArray(json))
                 {
                     classifyResults[r.Model] = (0, "No valid JSON");
-                    ConsoleEx.Warn("  ⚠️ No valid JSON returned");
+                    ConsoleEx.Warn($"   ⚠️ {r.Model,-35}  no valid JSON returned");
                     continue;
                 }
 
@@ -432,12 +430,12 @@ public static class CommandHandlers
 
                 allClassifiedRows.Add((r.Model, merged));
                 classifyResults[r.Model] = (merged.Count, "OK");
-                ConsoleEx.Success($"  {merged.Count,3} rows");
+                ConsoleEx.Success($"   ✓ {r.Model,-35}  {merged.Count,3} rows");
             }
             catch (Exception ex)
             {
                 classifyResults[r.Model] = (0, $"ERROR: {ex.Message}");
-                ConsoleEx.Error($"  ❌ {ex.Message}");
+                ConsoleEx.Error($"   ❌ {r.Model,-35}  {ex.Message}");
             }
         }
 
@@ -481,14 +479,12 @@ public static class CommandHandlers
         {
             Console.WriteLine();
             ConsoleEx.Warn("📋 Classification Comparison:");
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"   {"Model",-35}  {"Rows",5}  Classification Status");
-            Console.WriteLine($"   {"─────────────────────────────────",35}  {"─────",5}  ────────────────────");
-            Console.ResetColor();
+            ConsoleEx.Dim($"   {"Model",-35}  {"Rows",5}  Classification Status");
+            ConsoleEx.Dim($"   {"─────────────────────────────────",35}  {"─────",5}  ────────────────────");
             foreach (var kvp in classifyResults)
             {
                 var rowsStr = kvp.Value.Status == "OK" ? kvp.Value.RowCount.ToString() : "-";
-                Console.WriteLine($"   {kvp.Key,-35}  {rowsStr,5}  {kvp.Value.Status}");
+                ConsoleEx.Plain($"   {kvp.Key,-35}  {rowsStr,5}  {kvp.Value.Status}");
             }
             Console.WriteLine();
         }
@@ -530,5 +526,6 @@ public static class CommandHandlers
         if (classificationCsvPath != null)
             ConsoleEx.Info($"💾 Classification saved → {classificationCsvPath}");
         Console.WriteLine();
+        return true;
     }
 }

@@ -430,7 +430,7 @@ public static class TechnologyClassifier
                 var batchCount = Math.Min(batchSize, sections.Count - batchStart);
                 var batchSections = sections.Skip(batchStart).Take(batchCount).ToList();
 
-                Console.WriteLine($"   Batch {batchIndex + 1}/{totalBatches} (technologies {batchStart + 1}-{batchStart + batchCount})");
+                ConsoleEx.Plain($"   Batch {batchIndex + 1}/{totalBatches} (technologies {batchStart + 1}-{batchStart + batchCount})");
 
                 var batchRows = await ClassifyBatchAsync(ws, batchSections);
 
@@ -480,9 +480,9 @@ public static class TechnologyClassifier
                 Console.WriteLine();
                 ConsoleEx.Warn($"⚠️  Parsing notes ({rowErrors.Count} items):");
                 foreach (var error in rowErrors.Take(10))
-                    Console.WriteLine($"   {error}");
+                    ConsoleEx.Plain($"   {error}");
                 if (rowErrors.Count > 10)
-                    Console.WriteLine($"   ...and {rowErrors.Count - 10} more");
+                    ConsoleEx.Plain($"   ...and {rowErrors.Count - 10} more");
             }
 
             await VerifyGroundingAsync(ws, pdfFile, outputPath);

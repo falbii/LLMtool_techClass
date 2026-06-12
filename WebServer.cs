@@ -11,6 +11,12 @@ public static class WebServer
 {
     private const string Url = "http://localhost:5179";
 
+    // Every way a browser can legitimately name this server. Used by the
+    // CSRF guard below: a cross-site request carries the attacker's page as
+    // its Origin, which won't be in this list.
+    private static readonly string[] AllowedOrigins =
+        ["http://localhost:5179", "http://127.0.0.1:5179", "http://[::1]:5179"];
+
     private sealed class WebAppState(IChatClient client)
     {
         public IChatClient Client { get; } = client;
@@ -36,8 +42,39 @@ public static class WebServer
         builder.Logging.SetMinimumLevel(LogLevel.Warning); // keep the terminal readable
         var app = builder.Build();
 
+        // --- CSRF / DNS-rebinding guard --------------------------------------
+        // Binding to localhost keeps remote machines out, but not other websites
+        // open in the same browser: a malicious page can still fire requests at
+        // http://localhost:5179 (CSRF), and DNS rebinding can point a foreign
+        // hostname at 127.0.0.1. Two header checks close both holes:
+        //  - Host must be a loopback name (blocks DNS rebinding);
+        //  - Origin, when the browser sends one, must be ours (blocks CSRF —
+        //    cross-site requests always carry the foreign page's Origin).
+        app.Use(async (ctx, next) =>
+        {
+            var host = ctx.Request.Host.Host;
+            var origin = ctx.Request.Headers.Origin.ToString();
+            var hostOk = host is "localhost" or "127.0.0.1" or "::1" or "[::1]";
+            var originOk = string.IsNullOrEmpty(origin) ||
+                AllowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase);
+            if (!hostOk || !originOk)
+            {
+                ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await ctx.Response.WriteAsJsonAsync(new { error = "Cross-origin requests are not allowed." });
+                return;
+            }
+            await next();
+        });
+
         app.UseDefaultFiles();   // "GET /" -> wwwroot/index.html
-        app.UseStaticFiles();
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            // Always revalidate: without this, browsers may keep an old
+            // style.css/app.js after the files change, leaving the page with
+            // new HTML but stale styling. Localhost, so the cost is nil.
+            OnPrepareResponse = ctx =>
+                ctx.Context.Response.Headers.CacheControl = "no-cache",
+        });
 
         // --- Setup -------------------------------------------------------------
 
@@ -103,13 +140,28 @@ public static class WebServer
             if (!name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
                 return Results.BadRequest(new { error = "Only .pdf files are accepted." });
 
-            var target = Path.Combine(pdfDir, name);
-            await using (var stream = File.Create(target))
-                await file.CopyToAsync(stream);
+            // Gate the write: an ungated upload could overwrite the very PDF a
+            // running pipeline is reading from.
+            if (!await state.Gate.WaitAsync(0))
+                return Results.Conflict(new { error = "Another operation is running." });
+            try
+            {
+                var target = Path.Combine(pdfDir, name);
+                await using (var stream = File.Create(target))
+                    await file.CopyToAsync(stream);
 
-            state.SelectedPdf = target;
-            ConsoleEx.Success($"📄 Uploaded: {name}");
-            return Results.Json(new { name });
+                state.SelectedPdf = target;
+                // Re-uploading a file with the same name changes its content, so the
+                // text already injected into the session no longer matches it.
+                if (target.Equals(state.PdfInjectedIntoSession, StringComparison.OrdinalIgnoreCase))
+                    state.PdfInjectedIntoSession = null;
+                ConsoleEx.Success($"📄 Uploaded: {name}");
+                return Results.Json(new { name });
+            }
+            finally
+            {
+                state.Gate.Release();
+            }
         });
 
         app.MapPost("/api/select", (SelectRequest req) =>
@@ -160,16 +212,24 @@ public static class WebServer
                 http.Response.Headers.CacheControl = "no-cache";
 
                 // SendAsync's callbacks are synchronous; a channel bridges them to
-                // the async HTTP response writer.
+                // the async HTTP response writer. The request-aborted token flows into
+                // SendAsync so an abandoned browser tab cancels the model call instead
+                // of letting it run (and bill tokens) to completion.
                 var channel = Channel.CreateUnbounded<(string Evt, string Data)>();
+                var session = state.Session;
                 var sendTask = Task.Run(async () =>
                 {
                     try
                     {
-                        await state.Session.SendAsync(finalMessage,
+                        await session.SendAsync(finalMessage,
                             onReasoningDelta: c => channel.Writer.TryWrite(("reasoning", c)),
-                            onContentDelta: c => channel.Writer.TryWrite(("token", c)));
+                            onContentDelta: c => channel.Writer.TryWrite(("token", c)),
+                            cancellationToken: http.RequestAborted);
                         channel.Writer.TryWrite(("done", string.Empty));
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Browser tab closed mid-answer; nothing to report.
                     }
                     catch (Exception ex)
                     {
@@ -181,14 +241,22 @@ public static class WebServer
                     }
                 });
 
-                await foreach (var (evt, data) in channel.Reader.ReadAllAsync(http.RequestAborted))
-                    await WriteSseAsync(http.Response, evt, new { text = data });
-
-                await sendTask;
-            }
-            catch (OperationCanceledException)
-            {
-                // Browser tab closed mid-answer; nothing to do.
+                try
+                {
+                    await foreach (var (evt, data) in channel.Reader.ReadAllAsync(http.RequestAborted))
+                        await WriteSseAsync(http.Response, evt, new { text = data });
+                }
+                catch (OperationCanceledException)
+                {
+                    // Browser tab closed mid-answer; nothing to do.
+                }
+                finally
+                {
+                    // Whatever happened to the response, wait for the model call to
+                    // finish before the outer finally releases the gate — otherwise a
+                    // new request could hit the same session concurrently.
+                    await sendTask;
+                }
             }
             finally
             {
@@ -198,17 +266,27 @@ public static class WebServer
 
         // --- Pipeline commands ---------------------------------------------------
 
+        // The pipelines report failures through ConsoleEx (mirrored to the progress
+        // panel) and signal them via their return value: a null output path or false.
         app.MapPost("/api/run/summarize", () => RunGatedAsync(state, needsPdf: true,
-            (ws, pdf) => TechnologySummarizer.RunAsync(ws, pdf!)));
+            async (ws, pdf) =>
+            {
+                var output = await TechnologySummarizer.RunAsync(ws, pdf!);
+                return (output != null, output);
+            }));
 
         app.MapPost("/api/run/classify", () => RunGatedAsync(state, needsPdf: true,
-            (ws, pdf) => TechnologyClassifier.RunAsync(ws, pdf!)));
+            async (ws, pdf) =>
+            {
+                var output = await TechnologyClassifier.RunAsync(ws, pdf!);
+                return (output != null, output);
+            }));
 
         app.MapPost("/api/run/condense-check", () => RunGatedAsync(state, needsPdf: true,
-            async (ws, pdf) => { await CommandHandlers.HandleCondenseCheckAsync(ws, pdf!); return null; }));
+            async (ws, pdf) => (await CommandHandlers.HandleCondenseCheckAsync(ws, pdf!), null)));
 
         app.MapPost("/api/run/benchmark", () => RunGatedAsync(state, needsPdf: false,
-            async (ws, _) => { await CommandHandlers.HandleBenchmarkAsync(ws); return null; }));
+            async (ws, _) => (await CommandHandlers.HandleBenchmarkAsync(ws), null)));
 
         // --- Progress (SSE mirror of ConsoleEx) ----------------------------------
 
@@ -251,10 +329,11 @@ public static class WebServer
         await app.RunAsync(Url);
     }
 
-    // Runs one long pipeline operation with the busy-guard; returns the output
-    // path (if the pipeline produces one) or a JSON error.
+    // Runs one long pipeline operation with the busy-guard. The action reports
+    // success/failure explicitly (the pipelines swallow their own exceptions and
+    // log through ConsoleEx), plus an optional output path on success.
     private static async Task<IResult> RunGatedAsync(
-        WebAppState state, bool needsPdf, Func<Workspace, string?, Task<string?>> action)
+        WebAppState state, bool needsPdf, Func<Workspace, string?, Task<(bool Ok, string? Output)>> action)
     {
         if (state.Workspace is not { } ws)
             return Results.BadRequest(new { error = "Start a session first (pick a model)." });
@@ -265,8 +344,10 @@ public static class WebServer
             return Results.Conflict(new { error = "Another operation is already running." });
         try
         {
-            var output = await action(ws, pdf);
-            return Results.Json(new { output });
+            var (ok, output) = await action(ws, pdf);
+            return ok
+                ? Results.Json(new { output })
+                : Results.Json(new { error = "Operation failed — see the progress log for details." }, statusCode: 500);
         }
         catch (Exception ex)
         {

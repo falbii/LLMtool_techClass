@@ -25,6 +25,14 @@ public static class ConsoleEx
     public static void Info(string message)    => Write(ConsoleColor.Cyan, "info", message);
     public static void Dim(string message)     => Write(ConsoleColor.DarkGray, "dim", message);
 
+    // Uncolored output that still reaches MessageLogged subscribers — use instead
+    // of raw Console.WriteLine for lines the web progress panel should also show.
+    public static void Plain(string message)
+    {
+        Console.WriteLine(message);
+        MessageLogged?.Invoke("plain", message);
+    }
+
     private static void Write(ConsoleColor color, string level, string message)
     {
         Console.ForegroundColor = color;

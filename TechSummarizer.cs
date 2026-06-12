@@ -169,7 +169,7 @@ public static class TechnologySummarizer
                 var batchCount = Math.Min(batchSize, technologyNames.Count - batchStart);
                 var batchTechs = technologyNames.Skip(batchStart).Take(batchCount).ToList();
 
-                Console.WriteLine($"   Batch {batchIndex + 1}/{totalBatches} (technologies {batchStart + 1}-{batchStart + batchCount})");
+                ConsoleEx.Plain($"   Batch {batchIndex + 1}/{totalBatches} (technologies {batchStart + 1}-{batchStart + batchCount})");
 
                 try
                 {
