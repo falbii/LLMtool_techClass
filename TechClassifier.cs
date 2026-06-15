@@ -444,7 +444,7 @@ public static class TechnologyClassifier
 
                 // Incremental save: rewrite the CSV after each batch so a later failure
                 // doesn't throw away the batches already completed.
-                var save = SaveCsv(newRecords, outputPath);
+                var save = SaveCsv(newRecords, outputPath, ws.Model);
                 if (save == null)
                     return null; // write failed — message already printed
                 (writtenCount, mergedCount) = save.Value;
@@ -661,7 +661,7 @@ public static class TechnologyClassifier
     // Called after every batch for crash resilience. Returns (rowsWritten, rowsMerged),
     // or null if the write failed.
     private static (int written, int merged)? SaveCsv(
-        List<TechnologyRecord> newRecords, string outputPath)
+        List<TechnologyRecord> newRecords, string outputPath, string model)
     {
         var meaningful = newRecords.Where(HasMeaningfulData).ToList();
 
@@ -671,7 +671,7 @@ public static class TechnologyClassifier
 
         try
         {
-            TechnologyCsv.WriteCsv(outputPath, merged);
+            TechnologyCsv.WriteCsv(outputPath, merged, model);
         }
         catch (Exception ex)
         {

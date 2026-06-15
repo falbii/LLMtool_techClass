@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LLM Tool for Extraction of Technical Data</title>
   <!-- ?v=N defeats stale browser caches: bump it when these files change -->
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
 
@@ -19,6 +19,8 @@
     <div class="controls">
       <select id="model-select" title="Model"><option>loading…</option></select>
       <button id="start-session">Start session</button>
+      <!-- Blunt "Ctrl+C": shuts the whole server down (relaunch to continue) -->
+      <button id="stop-server" title="Stop the server (like Ctrl+C in the terminal)">⏹ Stop server</button>
     </div>
   </header>
 
@@ -101,6 +103,20 @@
     <div id="progress"></div>
   </div>
 
-  <script src="app.js?v=10"></script>
+  <!-- Confirmation window for the Stop server button -->
+  <div id="confirm-overlay" hidden>
+    <div id="confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <div class="confirm-title" id="confirm-title">Stop the server?</div>
+      <div class="confirm-text">
+        Any running operation will be terminated and you'll need to relaunch the app to continue.
+      </div>
+      <div class="confirm-actions">
+        <button type="button" id="confirm-cancel">Cancel</button>
+        <button type="button" id="confirm-stop">⏹ Stop server</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=16"></script>
 </body>
 </html>

@@ -330,6 +330,22 @@ public static class WebServer
             }
         });
 
+        // --- Shutdown (the web UI's blunt "Ctrl+C") ------------------------------
+        // Stops the whole process, exactly like Ctrl+C in the terminal. Used as a
+        // last-resort way to abort a long-running operation from the browser; the
+        // user relaunches the app to continue.
+        app.MapPost("/api/shutdown", () =>
+        {
+            ConsoleEx.Warn("🛑 Shutdown requested from the web UI.");
+            // Stop after a short delay so this response reaches the browser first.
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(250);
+                app.Lifetime.StopApplication();
+            });
+            return Results.Json(new { ok = true });
+        });
+
         app.Lifetime.ApplicationStarted.Register(() =>
         {
             ConsoleEx.Info($"🌐 Web UI running at {Url}  (Ctrl+C to stop)");

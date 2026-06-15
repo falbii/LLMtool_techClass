@@ -18,10 +18,15 @@ public static class TechnologyCsv
         "lifetime", "lifetime_unit", "ref_year", "summary"
     ];
 
-    public static void WriteCsv(string filePath, IEnumerable<TechnologyRecord> rows)
+    // When model is supplied, a rightmost "model" column records which model produced the rows.
+    // Left optional so the benchmark's combined CSV (which prepends its own Model column) is unaffected.
+    public static void WriteCsv(string filePath, IEnumerable<TechnologyRecord> rows, string? model = null)
     {
+        bool includeModel = !string.IsNullOrWhiteSpace(model);
+        var header = includeModel ? HeaderOrder.Append("model") : HeaderOrder;
+
         var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',', HeaderOrder.Select(TechClassifierHelpers.EscapeCsv)));
+        sb.AppendLine(string.Join(',', header.Select(TechClassifierHelpers.EscapeCsv)));
 
         foreach (var row in rows)
         {
@@ -61,6 +66,8 @@ public static class TechnologyCsv
                 TechClassifierHelpers.FormatInt(row.RefYear),
                 row.Summary ?? string.Empty
             };
+            if (includeModel)
+                fields.Add(model!);
 
             sb.AppendLine(string.Join(',', fields.Select(TechClassifierHelpers.EscapeCsv)));
         }

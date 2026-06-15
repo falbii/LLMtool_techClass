@@ -98,6 +98,50 @@ button:disabled { background: #c9d6e8; color: #8a99ad; cursor: not-allowed; box-
 #start-session.started { opacity: 0.5; box-shadow: none; }
 #start-session.started:hover:not(:disabled) { opacity: 0.8; }
 
+/* Stop-server: a quiet danger button (it's destructive, but rarely the focus).
+   Only meaningful once a session is live, so it stays hidden until then. */
+#stop-server {
+  display: none;
+  background: rgba(185, 28, 28, 0.08);
+  color: #b91c1c;
+  box-shadow: none;
+}
+body.session-active #stop-server { display: inline-block; }
+#stop-server:hover:not(:disabled) { background: rgba(185, 28, 28, 0.16); }
+
+/* confirmation window for stopping the server */
+#confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(2px);
+}
+#confirm-overlay[hidden] { display: none; }
+
+#confirm-box {
+  width: min(380px, 90vw);
+  background: white;
+  border: 1px solid #e6eef7;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3);
+  padding: 1.3rem 1.4rem 1.1rem;
+  animation: rise 0.18s ease-out;
+}
+.confirm-title { font-weight: 700; font-size: 1.05rem; margin-bottom: 0.5rem; }
+.confirm-text { color: #4a5b70; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.1rem; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+#confirm-cancel { background: #eef2f7; color: #1f2a37; box-shadow: none; }
+#confirm-cancel:hover:not(:disabled) { background: #e2e8f0; }
+#confirm-stop { background: #dc2626; color: white; }
+#confirm-stop:hover:not(:disabled) { background: #b91c1c; }
+
+/* Once stopped, the server is gone — grey the page out and block interaction. */
+body.server-stopped main,
+body.server-stopped header { opacity: 0.5; pointer-events: none; }
+
 /* Once a session starts the top bar collapses to reclaim space; a small tab
    below pulls it back into view. */
 header { transition: opacity 0.2s; }
@@ -297,18 +341,45 @@ main {
 .bubble.pipeline.ok     .pipeline-title::after { content: "✓"; color: #15803d; margin-left: auto; }
 .bubble.pipeline.failed .pipeline-title::after { content: "✗"; color: #b91c1c; margin-left: auto; }
 
-.pipeline-spinner {
+/* the morphing "thinking" droplet, reused as the pipeline's working indicator.
+   Same liquid-glass look as .thinking .blob, a touch smaller for the title row. */
+.pipeline-blob {
+  position: relative;
   flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(37, 99, 235, 0.25);
-  border-top-color: #2563eb;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(157, 198, 255, 0.04) 0%,
+    rgba(96, 165, 250, 0.16) 48%,
+    rgba(37, 99, 235, 0.5) 100%);
+  border: 1px solid rgba(147, 197, 253, 0.45);
+  box-shadow:
+    0 0 12px rgba(37, 99, 235, 0.35),
+    inset 0 0 8px rgba(96, 165, 250, 0.3),
+    inset 2px 2px 5px rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(2px);
+  animation: droplet-morph 2.2s ease-in-out infinite, droplet-float 3.4s ease-in-out infinite;
 }
-/* the spinner only belongs to an in-flight run */
-.bubble.pipeline:not(.running) .pipeline-spinner { display: none; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.pipeline-blob::before {
+  content: "";
+  position: absolute;
+  top: 16%;
+  left: 22%;
+  width: 34%;
+  height: 28%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  filter: blur(1px);
+}
+/* tint the droplet to match each command's glow (hue-rotated from the base blue) */
+body.glow-summarize      .pipeline-blob { filter: hue-rotate(-160deg) saturate(1.4); }
+body.glow-classify       .pipeline-blob { filter: hue-rotate(70deg)   saturate(1.4); }
+body.glow-condense-check .pipeline-blob { filter: hue-rotate(-80deg)  saturate(1.4); }
+body.glow-benchmark      .pipeline-blob { filter: hue-rotate(120deg)  saturate(1.5); }
+
+/* the droplet only belongs to an in-flight run */
+.bubble.pipeline:not(.running) .pipeline-blob { display: none; }
 
 .pipeline-steps {
   display: flex;
@@ -432,6 +503,7 @@ main {
   z-index: 1;
 }
 #pdf-clear:hover:not(:disabled) { background: rgba(37, 99, 235, 0.28); }
+#pdf-clear:disabled { background: rgba(37, 99, 235, 0.07); color: #aab8ca; cursor: not-allowed; }
 #pdf-clear[hidden] { display: none; }
 
 /* pop-up menu anchored above the paperclip */

@@ -34,6 +34,7 @@ function setBusy(busy) {
   $("chat-send").disabled = busy || !hasSession;
   $("chat-input").disabled = busy || !hasSession;
   $("pdf-attach").disabled = busy; // attaching works before a session, but not mid-operation
+  $("pdf-clear").disabled = busy;  // don't let the PDF be detached mid-operation
 }
 
 let hasSession = false;
@@ -187,6 +188,9 @@ function setSessionButtonStarted(started) {
   const btn = $("start-session");
   btn.classList.toggle("started", started);
   btn.textContent = started ? "Session started" : "Start session";
+  // No point re-starting the same model: lock the button until the model changes
+  // (the model-select change handler calls this with false to re-enable it).
+  btn.disabled = started;
 }
 
 // Records the header's height in a CSS var so the toggle tab can sit flush under
@@ -245,6 +249,28 @@ $("start-session").addEventListener("click", async () => {
 // Picking a different model means the next click starts a new session, so
 // restore the button to its default look as a cue.
 $("model-select").addEventListener("change", () => setSessionButtonStarted(false));
+
+// Blunt "Ctrl+C": shut the whole server down. Anything running is terminated and
+// the app must be relaunched — so confirm through the dialog first.
+$("stop-server").addEventListener("click", () => $("confirm-overlay").hidden = false);
+$("confirm-cancel").addEventListener("click", () => $("confirm-overlay").hidden = true);
+// Clicking the dimmed backdrop (but not the box) also cancels.
+$("confirm-overlay").addEventListener("click", (e) => {
+  if (e.target === $("confirm-overlay")) $("confirm-overlay").hidden = true;
+});
+
+$("confirm-stop").addEventListener("click", async () => {
+  $("confirm-overlay").hidden = true;
+  try {
+    await fetch("/api/shutdown", { method: "POST" });
+  } catch {
+    // The server may drop the connection as it stops — that's expected.
+  }
+  document.body.classList.add("server-stopped");
+  $("session-status").textContent = "server stopped";
+  addProgressLine("warn", "🛑 Server stopped — relaunch the app to continue.");
+  openProgressPanel();
+});
 
 // --- paperclip menu (PDF select / upload) ---------------------------------
 
@@ -315,6 +341,7 @@ function removeThinkingIndicator() {
 function setChatGenerating(generating) {
   document.querySelectorAll(".cmd").forEach((b) => (b.disabled = generating));
   $("pdf-attach").disabled = generating;
+  $("pdf-clear").disabled = generating; // can't detach while the model is answering
   $("chat-input").disabled = generating || !hasSession;
   const send = $("chat-send");
   send.classList.toggle("stop", generating);
@@ -437,7 +464,8 @@ function addCmdBubble(label) {
   const title = document.createElement("div");
   title.className = "pipeline-title";
   title.append(
-    Object.assign(document.createElement("span"), { className: "pipeline-spinner" }),
+    // morphing droplet (same "thinking" look), tinted to the command's glow colour
+    Object.assign(document.createElement("span"), { className: "pipeline-blob" }),
     Object.assign(document.createElement("span"), { textContent: label }));
   const steps = document.createElement("div");
   steps.className = "pipeline-steps";
@@ -465,7 +493,6 @@ document.querySelectorAll(".cmd").forEach((button) => {
     const cmd = button.dataset.cmd;
     setBusy(true);
     document.body.classList.add(`glow-${cmd}`); // tints the corner glow per command
-    openProgressPanel(); // commands report through the progress log — show it
     cmdBubble = addCmdBubble(button.textContent.trim());
     addProgressLine("info", `▶ Running ${cmd}…`);
     try {

@@ -44,6 +44,7 @@ public sealed class OllamaChatClient : IChatClient
                 $"Could not reach Ollama at {BaseUrl}. Is it running? Start it with 'ollama serve'. ({ex.Message})");
         }
 
+        ConsoleEx.Dim($"   Ollama context window: num_ctx={OllamaChatSession.NumCtx} (override with OLLAMA_NUM_CTX)");
         return new OllamaChatClient(http);
     }
 
@@ -81,6 +82,15 @@ public sealed class OllamaChatClient : IChatClient
 // running message history and resends it on every turn.
 internal sealed class OllamaChatSession(HttpClient http, string model) : IChatSession
 {
+    // Ollama defaults num_ctx to a small window (~2k–4k tokens) and *silently truncates*
+    // anything longer. Our prompts prepend a whole (condensed) PDF, which easily exceeds
+    // that — so without a larger context the model never sees the document. Default to a
+    // generous window; override with OLLAMA_NUM_CTX if a model/RAM needs something smaller.
+    internal static readonly int NumCtx =
+        int.TryParse(Environment.GetEnvironmentVariable("OLLAMA_NUM_CTX"), out var n) && n > 0
+            ? n
+            : 32768;
+
     public string SessionId { get; } = Guid.NewGuid().ToString("N");
 
     private readonly List<Message> _history = [];
@@ -95,7 +105,8 @@ internal sealed class OllamaChatSession(HttpClient http, string model) : IChatSe
 
         using var httpReq = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
         {
-            Content = JsonContent.Create(new ChatRequest(model, _history, Stream: true)),
+            Content = JsonContent.Create(
+                new ChatRequest(model, _history, Stream: true, new ChatOptions(NumCtx))),
         };
 
         using var resp = await http.SendAsync(
@@ -149,7 +160,11 @@ internal sealed class OllamaChatSession(HttpClient http, string model) : IChatSe
     private sealed record ChatRequest(
         [property: JsonPropertyName("model")] string Model,
         [property: JsonPropertyName("messages")] IReadOnlyList<Message> Messages,
-        [property: JsonPropertyName("stream")] bool Stream);
+        [property: JsonPropertyName("stream")] bool Stream,
+        [property: JsonPropertyName("options")] ChatOptions Options);
+
+    private sealed record ChatOptions(
+        [property: JsonPropertyName("num_ctx")] int NumCtx);
 
     private sealed record Message(
         [property: JsonPropertyName("role")] string Role,
