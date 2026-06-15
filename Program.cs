@@ -6,7 +6,7 @@ System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Inst
 
 Console.ForegroundColor = ConsoleColor.Cyan;
 Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
-Console.WriteLine("║          Smart Document Analysis Tool - Copilot SDK          ║");
+Console.WriteLine("║           LLM Tool for Extraction of Technical Data          ║");
 Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
 Console.ResetColor();
 Console.WriteLine();
@@ -36,10 +36,14 @@ string pdfInputDirectory = Path.Combine(baseDir, "1_pdf_to_analyze");
 string cacheDirectory = Path.Combine(baseDir, "2_md_condensed_pdf");
 string mdDirectory = Path.Combine(baseDir, "3_output", "1_md_summary");
 string csvDirectory = Path.Combine(baseDir, "3_output", "2_csv_classification");
+string benchmarkDirectory = Path.Combine(baseDir, "3_output", "3_benchmark");
+string checkDirectory = Path.Combine(baseDir, "3_output", "4_condensed_check");
 Directory.CreateDirectory(pdfInputDirectory);
 Directory.CreateDirectory(cacheDirectory);
 Directory.CreateDirectory(mdDirectory);
 Directory.CreateDirectory(csvDirectory);
+Directory.CreateDirectory(benchmarkDirectory);
+Directory.CreateDirectory(checkDirectory);
 
 IChatClient? client = null;
 IChatSession? session = null;
@@ -60,7 +64,7 @@ try
     {
         // Web mode: the browser page replaces the console loop; model selection
         // and session creation happen through the page.
-        await WebServer.RunAsync(client, pdfInputDirectory, cacheDirectory, mdDirectory, csvDirectory);
+        await WebServer.RunAsync(client, pdfInputDirectory, cacheDirectory, mdDirectory, csvDirectory, benchmarkDirectory, checkDirectory);
         return;
     }
 
@@ -89,7 +93,7 @@ try
 
     ConsoleEx.Dim($"   Session ID: {session.SessionId}\n");
 
-    var workspace = new Workspace(client, model, pdfInputDirectory, cacheDirectory, mdDirectory, csvDirectory);
+    var workspace = new Workspace(client, model, pdfInputDirectory, cacheDirectory, mdDirectory, csvDirectory, benchmarkDirectory, checkDirectory);
 
     string? selectedPdfPath = null;
     // Path of the PDF whose text has already been sent into the chat session. Free-form questions
@@ -204,7 +208,7 @@ try
 
         if (command.Equals("benchmark", StringComparison.OrdinalIgnoreCase))
         {
-            await CommandHandlers.HandleBenchmarkAsync(workspace);
+            await Benchmark.RunAsync(workspace);
             continue;
         }
 

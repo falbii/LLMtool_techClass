@@ -532,7 +532,7 @@ public static class TechnologyClassifier
                 ConsoleEx.Dim($"     ...and {report.UngroundedCount - 15} more");
 
             var reportPath = Path.Combine(
-                Path.GetDirectoryName(csvPath)!,
+                ws.CheckDir,
                 $"{Path.GetFileNameWithoutExtension(pdfFile)}_check_verifier.txt");
             await File.WriteAllTextAsync(
                 reportPath, GroundingVerifier.FormatReport(Path.GetFileName(pdfFile), report), Encoding.UTF8);
@@ -547,7 +547,7 @@ public static class TechnologyClassifier
     // The source's publication year: taken from the PDF filename (e.g. "Allgoewer_2024.pdf" -> 2024),
     // else the first plausible year near the top of the condensed text (papers carry their
     // publication year on the first page). Null if neither yields one.
-    private static int? ExtractSourceYear(Workspace ws, string pdfFile)
+    public static int? ExtractSourceYear(Workspace ws, string pdfFile)
     {
         var fileName = Path.GetFileNameWithoutExtension(pdfFile);
         var match = Regex.Match(fileName, @"\b(19|20)\d{2}\b");

@@ -122,8 +122,10 @@ CopilotSDK_techClass/
 ├── 1_pdf_to_analyze/       input PDFs (auto-created)
 ├── 2_md_condensed_pdf/     condensed .md cache (auto-created, regenerable)
 └── 3_output/
-    ├── 1_md_summary/       auto-summarize Markdown output
-    └── 2_csv_classification/  auto-classify CSV output
+    ├── 1_md_summary/         auto-summarize Markdown output
+    ├── 2_csv_classification/ auto-classify CSV output
+    ├── 3_benchmark/          benchmark CSV/TXT + per-model classification CSV
+    └── 4_condensed_check/    condense-check + numeric grounding reports
 ```
 
 ---
@@ -146,6 +148,7 @@ CopilotSDK_techClass/
 
 ## Version History
 
+- **v0.5** — Output folders reorganized: benchmark files now go to `3_output/3_benchmark/`, and condense-check + grounding-verifier reports to `3_output/4_condensed_check/`
 - **v0.4** — Token-saving condensation PDFs; new folders structure (`1_pdf_to_analyze`, `2_md_condensed_pdf`, `3_output/{1_txt_summary,2_csv_classification}`); helpers files moved to `helpers/`;
 - **v0.3** — Code refactored into dedicated modules; prompt templates externalized to `prompt/`; bug fixes, dead code removed
 - **v0.2** — Working prototype: model selection at startup; `benchmark` command (multi-model comparison + auto-classification)

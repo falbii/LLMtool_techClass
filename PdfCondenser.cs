@@ -52,7 +52,7 @@ public static class PdfCondenser
 
         var result = condensed.ToString().TrimEnd();
 
-        var header = $"<!-- condensed from {Path.GetFileName(pdfFile)} on {DateTime.Now:yyyy-MM-dd HH:mm:ss} -->\n\n";
+        var header = $"<!-- condensed from {Path.GetFileName(pdfFile)} by {ws.Model} on {DateTime.Now:yyyy-MM-dd HH:mm:ss} -->\n\n";
         await File.WriteAllTextAsync(cachePath, header + result, Encoding.UTF8);
 
         var rawKb = Encoding.UTF8.GetByteCount(rawText) / 1024;

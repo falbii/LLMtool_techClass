@@ -35,7 +35,8 @@ public static class WebServer
     private sealed record ChatRequest(string Text);
 
     public static async Task RunAsync(
-        IChatClient client, string pdfDir, string cacheDir, string mdDir, string csvDir)
+        IChatClient client, string pdfDir, string cacheDir, string mdDir, string csvDir,
+        string benchmarkDir, string checkDir)
     {
         var state = new WebAppState(client);
 
@@ -106,7 +107,7 @@ public static class WebServer
                 if (state.Session != null)
                     await state.Session.DisposeAsync();
                 state.Session = await Sessions.NewAsync(state.Client, req.Model);
-                state.Workspace = new Workspace(state.Client, req.Model, pdfDir, cacheDir, mdDir, csvDir);
+                state.Workspace = new Workspace(state.Client, req.Model, pdfDir, cacheDir, mdDir, csvDir, benchmarkDir, checkDir);
                 state.PdfInjectedIntoSession = null;
                 ConsoleEx.Info($"🌐 Web session started with {req.Model} (id: {state.Session.SessionId})");
                 return Results.Json(new { model = req.Model, sessionId = state.Session.SessionId });
@@ -294,8 +295,8 @@ public static class WebServer
         app.MapPost("/api/run/condense-check", () => RunGatedAsync(state, needsPdf: true,
             async (ws, pdf) => (await CommandHandlers.HandleCondenseCheckAsync(ws, pdf!), null)));
 
-        app.MapPost("/api/run/benchmark", () => RunGatedAsync(state, needsPdf: false,
-            async (ws, _) => (await CommandHandlers.HandleBenchmarkAsync(ws), null)));
+        app.MapPost("/api/run/benchmark", () => RunGatedAsync(state, needsPdf: true,
+            async (ws, pdf) => (await Benchmark.RunAsync(ws, pdf!), null)));
 
         // --- Progress (SSE mirror of ConsoleEx) ----------------------------------
 

@@ -8,4 +8,6 @@ public sealed record Workspace(
     string PdfDir,
     string CacheDir,
     string MdDir,
-    string CsvDir);
+    string CsvDir,
+    string BenchmarkDir,
+    string CheckDir);
