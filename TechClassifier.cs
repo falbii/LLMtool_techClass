@@ -485,7 +485,7 @@ public static class TechnologyClassifier
                     ConsoleEx.Plain($"   ...and {rowErrors.Count - 10} more");
             }
 
-            await VerifyGroundingAsync(ws, pdfFile, outputPath);
+            await VerifyAgainstSourceAsync(ws, pdfFile, outputPath);
 
             return outputPath;
         }
@@ -501,9 +501,9 @@ public static class TechnologyClassifier
     // passes). Verification only — it never edits the CSV. Best-effort: a failure here is reported
     // but never fails the run, since the data has already been saved.
     //
-    // Grounds against the condensed .md (the source the extraction chain actually reads), falling
+    // Verifies against the condensed .md (the source the extraction chain actually reads), falling
     // back to the raw PDF text if the cache is missing. Switch to raw to also catch condensation drift.
-    private static async Task VerifyGroundingAsync(Workspace ws, string pdfFile, string csvPath)
+    private static async Task VerifyAgainstSourceAsync(Workspace ws, string pdfFile, string csvPath)
     {
         try
         {
@@ -516,31 +516,31 @@ public static class TechnologyClassifier
                 ? await File.ReadAllTextAsync(cachePath, Encoding.UTF8)
                 : await PdfExtractor.ExtractTextAsync(pdfFile);
 
-            var report = GroundingVerifier.Verify(records, sourceText);
+            var report = CondensedVerifier.Verify(records, sourceText);
 
             Console.WriteLine();
-            if (report.UngroundedCount == 0)
+            if (report.UnverifiedCount == 0)
             {
-                ConsoleEx.Success($"   🔎 Grounding: all {report.TotalValues} numeric values verified against the source.");
+                ConsoleEx.Success($"   🔎 Verification: all {report.TotalValues} numeric values verified against the source.");
                 return;
             }
 
-            ConsoleEx.Warn($"   🔎 Grounding: {report.UngroundedCount}/{report.TotalValues} numeric value(s) not found in the source (possible LLM drift):");
-            foreach (var f in report.Ungrounded.Take(15))
+            ConsoleEx.Warn($"   🔎 Verification: {report.UnverifiedCount}/{report.TotalValues} numeric value(s) not found in the source (possible LLM drift):");
+            foreach (var f in report.Unverified.Take(15))
                 ConsoleEx.Dim($"     • [{f.TechId}] {f.Field} = {f.Value}");
-            if (report.UngroundedCount > 15)
-                ConsoleEx.Dim($"     ...and {report.UngroundedCount - 15} more");
+            if (report.UnverifiedCount > 15)
+                ConsoleEx.Dim($"     ...and {report.UnverifiedCount - 15} more");
 
             var reportPath = Path.Combine(
                 ws.CheckDir,
                 $"{Path.GetFileNameWithoutExtension(pdfFile)}_check_verifier.txt");
             await File.WriteAllTextAsync(
-                reportPath, GroundingVerifier.FormatReport(Path.GetFileName(pdfFile), report), Encoding.UTF8);
+                reportPath, CondensedVerifier.FormatReport(Path.GetFileName(pdfFile), report), Encoding.UTF8);
             ConsoleEx.Dim($"     📁 Full report: {reportPath}");
         }
         catch (Exception ex)
         {
-            ConsoleEx.Dim($"   (grounding check skipped: {ex.Message})");
+            ConsoleEx.Dim($"   (verification check skipped: {ex.Message})");
         }
     }
 

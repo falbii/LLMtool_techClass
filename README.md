@@ -114,7 +114,7 @@ CopilotSDK_techClass/
 ├── TechnologyRecord.cs     the record data to classify
 ├── TechnologyCsv.cs        cassification CSV read/write
 ├── TechnologyMd.cs         summary Markdown read/write
-├── GroundingVerifier.cs    deterministic numeric grounding check
+├── CondensedVerifier.cs    deterministic numeric verification check
 ├── helpers/
 │   ├── AppHelpers.cs       session factory + console output helpers
 │   └── TechClassifierHelpers.cs  shared parsing/formatting utilities
@@ -125,7 +125,7 @@ CopilotSDK_techClass/
     ├── 1_md_summary/         auto-summarize Markdown output
     ├── 2_csv_classification/ auto-classify CSV output
     ├── 3_benchmark/          benchmark CSV/TXT + per-model classification CSV
-    └── 4_condensed_check/    condense-check + numeric grounding reports
+    └── 4_condensed_check/    condense-check + numeric verification reports
 ```
 
 ---

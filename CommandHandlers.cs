@@ -35,9 +35,9 @@ public static class CommandHandlers
             var rawText = await PdfExtractor.ExtractTextAsync(pdfFile);
             var condensedText = await File.ReadAllTextAsync(cachePath, Encoding.UTF8);
 
-            var rawDistinct = GroundingVerifier.ExtractNumbers(rawText).Distinct().ToList();
-            var condensedIndex = GroundingVerifier.ExtractNumbers(condensedText);
-            var missing = rawDistinct.Where(v => !GroundingVerifier.Contains(condensedIndex, v)).ToList();
+            var rawDistinct = CondensedVerifier.ExtractNumbers(rawText).Distinct().ToList();
+            var condensedIndex = CondensedVerifier.ExtractNumbers(condensedText);
+            var missing = rawDistinct.Where(v => !CondensedVerifier.Contains(condensedIndex, v)).ToList();
 
             // "Data-like" numbers: non-integers (0.65, 63.5) or magnitude >= 100 (years, capex, ...).
             // Filters out list indices and other trivial small integers that aren't real data points.

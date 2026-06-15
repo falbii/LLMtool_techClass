@@ -13,17 +13,17 @@ namespace TechClassificationApp;
 // "Deterministic" here means the verifier itself contains no model call and no randomness: given
 // the same records and the same source text it returns the identical report every run. It checks
 // numeric *presence* in the source, not semantic correctness.
-public static class GroundingVerifier
+public static class CondensedVerifier
 {
     public sealed record Finding(string TechId, string Field, string Value);
 
-    public sealed class GroundingReport
+    public sealed class VerificationReport
     {
         public int TotalValues { get; init; }
-        public int GroundedValues { get; init; }
-        public IReadOnlyList<Finding> Ungrounded { get; init; } = [];
-        public int UngroundedCount => Ungrounded.Count;
-        public double GroundedPercent => TotalValues == 0 ? 100.0 : 100.0 * GroundedValues / TotalValues;
+        public int VerifiedValues { get; init; }
+        public IReadOnlyList<Finding> Unverified { get; init; } = [];
+        public int UnverifiedCount => Unverified.Count;
+        public double VerifiedPercent => TotalValues == 0 ? 100.0 : 100.0 * VerifiedValues / TotalValues;
     }
 
     // A run of digits with optional internal '.'/',' separators. Spaces are intentionally NOT part
@@ -31,11 +31,11 @@ public static class GroundingVerifier
     private static readonly Regex NumberToken =
         new(@"[-+]?\d+(?:[.,]\d+)*", RegexOptions.Compiled);
 
-    public static GroundingReport Verify(IEnumerable<TechnologyRecord> records, string sourceText)
+    public static VerificationReport Verify(IEnumerable<TechnologyRecord> records, string sourceText)
     {
         var index = BuildNumericIndex(sourceText);
-        var ungrounded = new List<Finding>();
-        int total = 0, grounded = 0;
+        var unverified = new List<Finding>();
+        int total = 0, verified = 0;
 
         foreach (var rec in records)
         {
@@ -43,38 +43,38 @@ public static class GroundingVerifier
             foreach (var (field, value, exact) in NumericFields(rec))
             {
                 total++;
-                if (IsGrounded(value, exact, index))
-                    grounded++;
+                if (IsVerified(value, exact, index))
+                    verified++;
                 else
-                    ungrounded.Add(new Finding(id, field, FormatValue(value)));
+                    unverified.Add(new Finding(id, field, FormatValue(value)));
             }
         }
 
-        return new GroundingReport
+        return new VerificationReport
         {
             TotalValues = total,
-            GroundedValues = grounded,
-            Ungrounded = ungrounded
+            VerifiedValues = verified,
+            Unverified = unverified
         };
     }
 
-    public static string FormatReport(string pdfName, GroundingReport report)
+    public static string FormatReport(string pdfName, VerificationReport report)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"Numeric grounding report — {pdfName}");
+        sb.AppendLine($"Numeric verification report — {pdfName}");
         sb.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine($"Checked {report.TotalValues} numeric values; " +
-                      $"{report.GroundedValues} found in source ({report.GroundedPercent:0.#}%).");
+                      $"{report.VerifiedValues} found in source ({report.VerifiedPercent:0.#}%).");
         sb.AppendLine();
-        if (report.UngroundedCount == 0)
+        if (report.UnverifiedCount == 0)
         {
             sb.AppendLine("All numeric values were found in the source text.");
             return sb.ToString();
         }
 
-        sb.AppendLine($"{report.UngroundedCount} value(s) NOT found verbatim in the source — review for LLM drift:");
+        sb.AppendLine($"{report.UnverifiedCount} value(s) NOT found verbatim in the source — review for LLM drift:");
         sb.AppendLine();
-        foreach (var f in report.Ungrounded)
+        foreach (var f in report.Unverified)
             sb.AppendLine($"  • [{f.TechId}] {f.Field} = {f.Value}");
         return sb.ToString();
     }
@@ -84,14 +84,14 @@ public static class GroundingVerifier
     public static List<double> ExtractNumbers(string text) => BuildNumericIndex(text);
 
     // True if value occurs in the index within a tight tolerance. Near-exact (not the 0.5% used for
-    // cross-stage grounding) because condensation is supposed to preserve numbers verbatim, so any
+    // cross-stage verification) because condensation is supposed to preserve numbers verbatim, so any
     // real deviation is itself the signal we want to surface.
     public static bool Contains(List<double> index, double value)
         => ContainsWithin(index, value, Math.Max(Math.Abs(value) * 1e-9, 1e-9));
 
-    // The numeric fields worth grounding, with a flag for exact (integer) matching.
+    // The numeric fields worth verifying, with a flag for exact (integer) matching.
     // Years and TRL are matched exactly; measured quantities allow a small tolerance and
-    // percentage-form equivalence (handled in IsGrounded).
+    // percentage-form equivalence (handled in IsVerified).
     private static IEnumerable<(string field, double value, bool exact)> NumericFields(TechnologyRecord r)
     {
         if (r.ReferenceUnitSize.HasValue)   yield return ("reference_unit_size", r.ReferenceUnitSize.Value, false);
@@ -107,7 +107,7 @@ public static class GroundingVerifier
         for (int i = 0; i < r.RatiosOut.Count; i++) yield return ($"ratios_out[{i}]", r.RatiosOut[i], false);
     }
 
-    private static bool IsGrounded(double value, bool exact, List<double> index)
+    private static bool IsVerified(double value, bool exact, List<double> index)
     {
         if (exact)
             // Half-unit window so an integer matches its own token but not a neighbour.
