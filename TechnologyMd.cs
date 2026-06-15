@@ -37,7 +37,6 @@ public static class TechnologyMd
             md.AppendLine("- **Finished:** (in progress)");
         }
         md.AppendLine($"- **Total Technologies:** {technologyNames.Count}");
-        md.AppendLine($"- **Completed Technologies:** {technologyDetails.Count}");
         md.AppendLine();
         md.AppendLine("---");
         md.AppendLine();

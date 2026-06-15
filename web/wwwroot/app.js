@@ -25,6 +25,8 @@ function addProgressLine(level, text) {
   div.textContent = text;
   $("progress").appendChild(div);
   $("progress").scrollTop = $("progress").scrollHeight;
+  // While a pipeline command runs, mirror its progress live into the chat bubble.
+  if (cmdBubble) appendCmdStep(cmdBubble, level, text);
 }
 
 function setBusy(busy) {
@@ -36,6 +38,9 @@ function setBusy(busy) {
 
 let hasSession = false;
 let selectedPdfName = null;
+// Non-null while a pipeline command (summarize/classify/…) runs; its presence
+// makes addProgressLine mirror each step into this chat bubble.
+let cmdBubble = null;
 
 // --- startup -----------------------------------------------------------------
 
@@ -76,6 +81,7 @@ async function init() {
       $("session-status").textContent = `session: ${st.model}`;
       if (st.model) $("model-select").value = st.model;
       setSessionButtonStarted(true);
+      collapseHeaderForSession();
     }
     if (st.selectedPdf) showSelectedPdf(st.selectedPdf);
     busy = st.busy;
@@ -131,9 +137,22 @@ function showSelectedPdf(name) {
   selectedPdfName = name;
   $("pdf-attach-label").textContent = name ?? "PDF";
   $("pdf-attach").classList.toggle("attached", !!name);
+  $("pdf-clear").hidden = !name;
   document.querySelectorAll(".pdf-item").forEach(
     (i) => i.classList.toggle("selected", i.textContent === name));
 }
+
+// Detaches the current PDF (clears it server-side too, so a reload stays clear).
+$("pdf-clear").addEventListener("click", async (e) => {
+  e.stopPropagation(); // don't let the click bubble up and open the menu
+  try {
+    await fetch("/api/deselect", { method: "POST" });
+  } catch (err) {
+    addProgressLine("error", `Could not remove the PDF: ${err.message}`);
+  }
+  showSelectedPdf(null);
+  addProgressLine("info", "Removed the attached PDF.");
+});
 
 async function selectPdf(name) {
   try {
@@ -170,6 +189,31 @@ function setSessionButtonStarted(started) {
   btn.textContent = started ? "Session started" : "Start session";
 }
 
+// Records the header's height in a CSS var so the toggle tab can sit flush under
+// the bar when it's open. Only measures while the header is visible (its height
+// is 0 when collapsed), keeping the last known value otherwise.
+function syncHeaderHeight() {
+  const h = document.querySelector("header").offsetHeight;
+  if (h) document.body.style.setProperty("--header-h", `${h}px`);
+}
+
+// Reveals the collapse tab and folds the top bar away once a session is live,
+// leaving the small arrow as the way to bring it back.
+function collapseHeaderForSession() {
+  syncHeaderHeight(); // capture the height before hiding the bar
+  document.body.classList.add("session-active", "header-collapsed");
+}
+
+$("header-toggle").addEventListener("click", () => {
+  document.body.classList.toggle("header-collapsed");
+  if (!document.body.classList.contains("header-collapsed")) syncHeaderHeight();
+});
+
+// Re-measure when the bar may have reflowed to a different height.
+window.addEventListener("resize", () => {
+  if (!document.body.classList.contains("header-collapsed")) syncHeaderHeight();
+});
+
 $("start-session").addEventListener("click", async () => {
   const model = $("model-select").value;
   if (!model) return;
@@ -189,6 +233,7 @@ $("start-session").addEventListener("click", async () => {
     hasSession = true;
     setBusy(false);
     setSessionButtonStarted(true);
+    collapseHeaderForSession();
     $("session-status").textContent = `session: ${data.model}`;
     $("chat-input").focus();
   } catch (err) {
@@ -374,28 +419,73 @@ $("progress-toggle").addEventListener("click", () => {
   $("progress-panel").classList.toggle("open");
 });
 
+$("progress-close").addEventListener("click", () => {
+  $("progress-panel").classList.remove("open");
+});
+
 function openProgressPanel() {
   $("progress-panel").classList.add("open");
 }
 
 // --- pipeline commands -----------------------------------------------------------
 
+// A chat bubble that shows a pipeline run live: a title with a spinner, plus the
+// progress steps streamed in as they happen (fed by addProgressLine while this
+// is the active cmdBubble).
+function addCmdBubble(label) {
+  const bubble = addChatBubble("pipeline running");
+  const title = document.createElement("div");
+  title.className = "pipeline-title";
+  title.append(
+    Object.assign(document.createElement("span"), { className: "pipeline-spinner" }),
+    Object.assign(document.createElement("span"), { textContent: label }));
+  const steps = document.createElement("div");
+  steps.className = "pipeline-steps";
+  bubble.append(title, steps);
+  bubble._steps = steps;
+  return bubble;
+}
+
+function appendCmdStep(bubble, level, text) {
+  const line = document.createElement("div");
+  line.className = `pipeline-step ${level}`;
+  line.textContent = text;
+  bubble._steps.appendChild(line);
+  scrollChatDown();
+}
+
+// Stops the spinner and marks the title with a ✓ / ✗ once the run ends.
+function finishCmdBubble(bubble, ok) {
+  bubble.classList.remove("running");
+  bubble.classList.add(ok ? "ok" : "failed");
+}
+
 document.querySelectorAll(".cmd").forEach((button) => {
   button.addEventListener("click", async () => {
     const cmd = button.dataset.cmd;
     setBusy(true);
+    document.body.classList.add(`glow-${cmd}`); // tints the corner glow per command
     openProgressPanel(); // commands report through the progress log — show it
+    cmdBubble = addCmdBubble(button.textContent.trim());
     addProgressLine("info", `▶ Running ${cmd}…`);
     try {
       const resp = await fetch(`/api/run/${cmd}`, { method: "POST" });
       const data = await resp.json();
-      if (!resp.ok) addProgressLine("error", data.error ?? `${cmd} failed.`);
-      else if (data.output) addProgressLine("success", `✓ ${cmd} done → ${data.output}`);
-      else addProgressLine("success", `✓ ${cmd} done`);
+      if (!resp.ok) {
+        addProgressLine("error", data.error ?? `${cmd} failed.`);
+        finishCmdBubble(cmdBubble, false);
+      } else {
+        addProgressLine("success", data.output ? `✓ ${cmd} done → ${data.output}` : `✓ ${cmd} done`);
+        finishCmdBubble(cmdBubble, true);
+      }
     } catch (err) {
       addProgressLine("error", `${cmd}: ${err.message}`);
+      finishCmdBubble(cmdBubble, false);
+    } finally {
+      cmdBubble = null;
+      document.body.classList.remove(`glow-${cmd}`);
+      setBusy(false);
     }
-    setBusy(false);
   });
 });
 

@@ -183,6 +183,13 @@ public static class WebServer
             return Results.Json(new { name = Path.GetFileName(path) });
         });
 
+        // Detaches the current PDF without deleting the file — mirrors the × in the UI.
+        app.MapPost("/api/deselect", () =>
+        {
+            state.SelectedPdf = null;
+            return Results.Json(new { ok = true });
+        });
+
         // --- Chat (SSE token stream) --------------------------------------------
 
         app.MapPost("/api/chat", async (HttpContext http, ChatRequest req) =>

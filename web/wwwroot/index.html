@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Smart Document Analysis Tool</title>
+  <title>LLM Tool for Extraction of Technical Data</title>
   <!-- ?v=N defeats stale browser caches: bump it when these files change -->
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 
@@ -13,7 +13,7 @@
   <header>
     <div class="brand">
       <span class="logo">📄</span>
-      <span class="title">Smart Document Analysis</span>
+      <span class="title">LLM Tool for Extraction of Technical Data</span>
       <span id="session-status" class="status">no session</span>
     </div>
     <div class="controls">
@@ -21,6 +21,14 @@
       <button id="start-session">Start session</button>
     </div>
   </header>
+
+  <!-- Small tab to re-open the top bar after it collapses (once a session starts) -->
+  <button id="header-toggle" title="Show/hide controls" aria-label="Show or hide controls">
+    <svg class="chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+         stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <polyline points="6 9 12 15 18 9"/>
+    </svg>
+  </button>
 
   <!-- Centered chat column -->
   <main>
@@ -56,6 +64,14 @@
             </svg>
             <span id="pdf-attach-label">PDF</span>
           </button>
+          <!-- clears the attachment; only shown while a PDF is attached -->
+          <button type="button" id="pdf-clear" title="Remove PDF" aria-label="Remove attached PDF" hidden>
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor"
+                 stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="6" y1="6" x2="18" y2="18"/>
+              <line x1="18" y1="6" x2="6" y2="18"/>
+            </svg>
+          </button>
           <input type="file" id="pdf-file" accept=".pdf" hidden>
           <div id="pdf-menu">
             <div class="menu-header">Attach a PDF</div>
@@ -72,10 +88,19 @@
   <!-- Floating progress log (bottom-right), toggled by the round button -->
   <button id="progress-toggle" title="Show progress log">📜</button>
   <div id="progress-panel">
-    <div class="panel-header">Progress</div>
+    <div class="panel-header">
+      <span>Progress</span>
+      <button id="progress-close" title="Collapse" aria-label="Collapse progress log">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+             stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="6" y1="6" x2="18" y2="18"/>
+          <line x1="18" y1="6" x2="6" y2="18"/>
+        </svg>
+      </button>
+    </div>
     <div id="progress"></div>
   </div>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>
