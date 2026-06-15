@@ -75,6 +75,7 @@ async function init() {
       hasSession = true;
       $("session-status").textContent = `session: ${st.model}`;
       if (st.model) $("model-select").value = st.model;
+      setSessionButtonStarted(true);
     }
     if (st.selectedPdf) showSelectedPdf(st.selectedPdf);
     busy = st.busy;
@@ -161,6 +162,14 @@ function closePdfMenu() {
 
 // --- setup bar actions ---------------------------------------------------------
 
+// Reflects whether a session is live on the start button: relabels to
+// "Session started" and fades it (it stays clickable, to start a fresh session).
+function setSessionButtonStarted(started) {
+  const btn = $("start-session");
+  btn.classList.toggle("started", started);
+  btn.textContent = started ? "Session started" : "Start session";
+}
+
 $("start-session").addEventListener("click", async () => {
   const model = $("model-select").value;
   if (!model) return;
@@ -179,6 +188,7 @@ $("start-session").addEventListener("click", async () => {
     }
     hasSession = true;
     setBusy(false);
+    setSessionButtonStarted(true);
     $("session-status").textContent = `session: ${data.model}`;
     $("chat-input").focus();
   } catch (err) {
@@ -186,6 +196,10 @@ $("start-session").addEventListener("click", async () => {
     addProgressLine("error", `Could not start session: ${err.message}`);
   }
 });
+
+// Picking a different model means the next click starts a new session, so
+// restore the button to its default look as a cue.
+$("model-select").addEventListener("change", () => setSessionButtonStarted(false));
 
 // --- paperclip menu (PDF select / upload) ---------------------------------
 
@@ -231,22 +245,67 @@ $("pdf-file").addEventListener("change", async () => {
 
 // --- chat ----------------------------------------------------------------------
 
+// Non-null only while a chat answer is streaming; its presence is what turns the
+// send button into a Stop button (see the click handler and setChatGenerating).
+let chatAbort = null;
+
+// Appends the animated "thinking" droplet on the assistant side. Removed as soon
+// as the first reasoning/answer token arrives (or the request ends).
+function addThinkingIndicator() {
+  if ($("thinking")) return;
+  const wrap = document.createElement("div");
+  wrap.id = "thinking";
+  wrap.className = "thinking";
+  wrap.appendChild(Object.assign(document.createElement("div"), { className: "blob" }));
+  $("chat").appendChild(wrap);
+  scrollChatDown();
+}
+
+function removeThinkingIndicator() {
+  $("thinking")?.remove();
+}
+
+// Toggles the page into/out of "answer streaming" mode. Unlike setBusy, this
+// keeps the send button enabled — as a Stop button — so the user can abort.
+function setChatGenerating(generating) {
+  document.querySelectorAll(".cmd").forEach((b) => (b.disabled = generating));
+  $("pdf-attach").disabled = generating;
+  $("chat-input").disabled = generating || !hasSession;
+  const send = $("chat-send");
+  send.classList.toggle("stop", generating);
+  send.title = generating ? "Stop generating" : "Send";
+  send.disabled = generating ? false : !hasSession;
+}
+
+// While generating, the send button aborts the request instead of submitting a
+// new one. preventDefault stops the click from also submitting the form.
+$("chat-send").addEventListener("click", (e) => {
+  if (chatAbort) {
+    e.preventDefault();
+    chatAbort.abort();
+  }
+});
+
 $("chat-form").addEventListener("submit", async (e) => {
   e.preventDefault(); // a form submit normally reloads the page — we handle it ourselves
+  if (chatAbort) return; // already streaming; the button is acting as Stop
   const text = $("chat-input").value.trim();
   if (!text || !hasSession) return;
   $("chat-input").value = "";
-  setBusy(true);
 
+  chatAbort = new AbortController();
+  setChatGenerating(true);
   addChatBubble("user").textContent = text;
+  addThinkingIndicator();
 
-  // Everything from here can fail mid-flight (network blip, server restart);
-  // the finally block guarantees the input is re-enabled no matter what.
+  // Everything from here can fail mid-flight (network blip, server restart, or
+  // the user hitting Stop); the finally block guarantees the UI is reset.
   try {
     const resp = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
+      signal: chatAbort.signal,
     });
 
     if (!resp.ok) {
@@ -282,21 +341,29 @@ $("chat-form").addEventListener("submit", async (e) => {
         const payload = data ? JSON.parse(data) : {};
 
         if (evt === "reasoning") {
+          removeThinkingIndicator(); // real output is arriving now
           reasoningBubble ??= addChatBubble("reasoning");
           reasoningBubble.textContent += payload.text;
         } else if (evt === "token") {
+          removeThinkingIndicator();
           answerBubble ??= addChatBubble("assistant");
           answerBubble.textContent += payload.text;
         } else if (evt === "error") {
+          removeThinkingIndicator();
           addChatBubble("error").textContent = `❌ ${payload.text}`;
         }
         scrollChatDown();
       }
     }
   } catch (err) {
-    addChatBubble("error").textContent = `❌ ${err.message}`;
+    if (err.name === "AbortError")
+      addChatBubble("note").textContent = "⏹ Stopped.";
+    else
+      addChatBubble("error").textContent = `❌ ${err.message}`;
   } finally {
-    setBusy(false);
+    removeThinkingIndicator();
+    chatAbort = null;
+    setChatGenerating(false);
     $("chat-input").focus();
   }
 });
