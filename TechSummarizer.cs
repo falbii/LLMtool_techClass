@@ -127,7 +127,7 @@ public static class TechnologySummarizer
             var pdfText = await PdfCondenser.GetCondensedTextAsync(ws, pdfFile);
             var chunks = PdfExtractor.SplitIntoChunks(pdfText);
             var mdPath = Path.Combine(ws.MdDir,
-                $"{Path.GetFileNameWithoutExtension(pdfFile)}.md");
+                $"{Path.GetFileNameWithoutExtension(pdfFile)}_summary.md");
 
             ConsoleEx.Warn("   1. Finding technologies...");
 

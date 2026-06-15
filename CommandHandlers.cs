@@ -77,7 +77,7 @@ public static class CommandHandlers
             report.AppendLine("Data-like numbers present in raw PDF but absent from condensed text:");
             foreach (var v in sigMissing.OrderBy(x => x))
                 report.AppendLine($"  • {v.ToString("0.########", CultureInfo.InvariantCulture)}");
-            var reportPath = Path.Combine(ws.CheckDir, $"{Path.GetFileNameWithoutExtension(pdfFile)}_condense_check.txt");
+            var reportPath = Path.Combine(ws.CheckDir, $"{Path.GetFileNameWithoutExtension(pdfFile)}_check_pdf_condensed.txt");
             await File.WriteAllTextAsync(reportPath, report.ToString(), Encoding.UTF8);
 
             Console.WriteLine();

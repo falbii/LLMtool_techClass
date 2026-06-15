@@ -63,7 +63,7 @@ Commands also work without the leading `/`, but an unknown `/command` reports an
 
 ```
 1. /list or /upload     → select a PDF
-2. /auto-summarize      → 3_output/1_md_summary/document.md   (review/edit freely)
+2. /auto-summarize      → 3_output/1_md_summary/document_summary.md   (review/edit freely)
 3. /auto-classify       → 3_output/2_csv_classification/document_classification.csv
 ```
 
@@ -77,7 +77,7 @@ Commands also work without the leading `/`, but an unknown `/command` reports an
 #### Token-saving condensation cache
 
 The first time any operation needs a PDF, the tool condenses it once into a compact
-`2_md_condensed_pdf/<name>.condensed.md` — preserving every number, unit, table, and technology name
+`2_md_condensed_pdf/<name>_condensed.md` — preserving every number, unit, table, and technology name
 but stripping prose. All later operations (auto-summarize, batch-analyze, Q&A, benchmark)
 read this cached `.md` instead of re-sending the full PDF, cutting token usage substantially.
 

@@ -488,6 +488,92 @@ function finishCmdBubble(bubble, ok) {
   bubble.classList.add(ok ? "ok" : "failed");
 }
 
+// HTML-escape first, then apply a tiny, safe subset of Markdown. Because the text
+// is escaped up front, the tags we add below are the only HTML in the output.
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function renderMarkdownLite(md) {
+  const inline = (s) =>
+    s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+     .replace(/`([^`]+)`/g, "<code>$1</code>");
+
+  let html = "";
+  let inList = false;
+  const closeList = () => { if (inList) { html += "</ul>"; inList = false; } };
+
+  for (const line of escapeHtml(md).split(/\r?\n/)) {
+    const t = line.trim();
+    let m;
+    if (/^-{3,}$/.test(t)) { closeList(); html += "<hr>"; }
+    else if ((m = t.match(/^(#{1,6})\s+(.*)$/))) { closeList(); html += `<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`; }
+    else if ((m = t.match(/^[-*]\s+(.*)$/))) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${inline(m[1])}</li>`; }
+    else if (t === "") { closeList(); }
+    else { closeList(); html += `<p>${inline(t)}</p>`; }
+  }
+  closeList();
+  return html;
+}
+
+// Parses CSV text into rows of fields, honouring quoted fields (which may contain
+// commas, newlines and "" escapes) — matching how the app writes the CSV.
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (c === '"') inQuotes = false;
+      else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ',') { row.push(field); field = ""; }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ""; }
+    else if (c !== '\r') field += c;
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((c) => c.trim() !== ""));
+}
+
+function renderCsvTable(text) {
+  const rows = parseCsv(text);
+  if (rows.length === 0) return "<p>(empty)</p>";
+  const [head, ...body] = rows;
+  const cell = (tag, v) => `<${tag} title="${escapeHtml(v)}">${escapeHtml(v)}</${tag}>`;
+  let html = "<table><thead><tr>" + head.map((h) => cell("th", h)).join("") + "</tr></thead><tbody>";
+  for (const r of body)
+    html += "<tr>" + head.map((_, c) => cell("td", r[c] ?? "")).join("") + "</tr>";
+  return html + "</tbody></table>";
+}
+
+// Fetches a generated output file and appends a collapsible preview to the bubble:
+// a Markdown render for .md, a scrollable table for .csv. Best-effort — a failed
+// fetch just skips the preview.
+async function appendOutputPreview(bubble, path) {
+  try {
+    const resp = await fetch(`/api/output?path=${encodeURIComponent(path)}`);
+    if (!resp.ok) return;
+    const text = await resp.text();
+    const isCsv = path.toLowerCase().endsWith(".csv");
+
+    const preview = document.createElement("div");
+    preview.className = "md-preview";
+    const head = document.createElement("div");
+    head.className = "md-preview-head";
+    head.textContent = `${isCsv ? "📊" : "📄"} ${path.split(/[\\/]/).pop()}`;
+    head.addEventListener("click", () => preview.classList.toggle("collapsed"));
+    const body = document.createElement("div");
+    body.className = "md-preview-body" + (isCsv ? " csv" : "");
+    body.innerHTML = isCsv ? renderCsvTable(text) : renderMarkdownLite(text);
+
+    preview.append(head, body);
+    bubble.appendChild(preview);
+    scrollChatDown();
+  } catch {
+    // preview is a nicety — ignore failures
+  }
+}
+
 document.querySelectorAll(".cmd").forEach((button) => {
   button.addEventListener("click", async () => {
     const cmd = button.dataset.cmd;
@@ -504,6 +590,9 @@ document.querySelectorAll(".cmd").forEach((button) => {
       } else {
         addProgressLine("success", data.output ? `✓ ${cmd} done → ${data.output}` : `✓ ${cmd} done`);
         finishCmdBubble(cmdBubble, true);
+        // Preview the generated summary (.md) or classification (.csv) in the chat.
+        if (data.output && /\.(md|csv)$/i.test(data.output))
+          await appendOutputPreview(cmdBubble, data.output);
       }
     } catch (err) {
       addProgressLine("error", `${cmd}: ${err.message}`);

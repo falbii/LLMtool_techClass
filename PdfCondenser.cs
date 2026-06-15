@@ -4,12 +4,12 @@ using static TechClassificationApp.TechClassifierHelpers;
 
 namespace TechClassificationApp;
 
-// Produces a condensed Markdown version of a PDF and caches it under cache/<name>.condensed.md.
+// Produces a condensed Markdown version of a PDF and caches it under cache/<name>_condensed.md.
 // The condensed file preserves all numbers/units/tables but strips prose, cutting the token cost
 // of every downstream operation that would otherwise re-send the full PDF text.
 public static class PdfCondenser
 {
-    private const string CacheSuffix = ".condensed.md";
+    private const string CacheSuffix = "_condensed.md";
 
     public static string GetCachePath(string pdfFile, string cacheDirectory)
         => Path.Combine(cacheDirectory, $"{Path.GetFileNameWithoutExtension(pdfFile)}{CacheSuffix}");

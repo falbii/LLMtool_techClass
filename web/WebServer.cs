@@ -305,6 +305,28 @@ public static class WebServer
         app.MapPost("/api/run/benchmark", () => RunGatedAsync(state, needsPdf: true,
             async (ws, pdf) => (await Benchmark.RunAsync(ws, pdf!), null)));
 
+        // Returns the text of a generated output file so the UI can preview it (e.g. the
+        // summary .md after auto-summarize). Read-only and locked to the output folders:
+        // the resolved path must sit inside one of them, which blocks path-traversal.
+        app.MapGet("/api/output", async (string path) =>
+        {
+            string full;
+            try { full = Path.GetFullPath(path); }
+            catch { return Results.BadRequest(new { error = "Invalid path." }); }
+
+            var roots = new[] { mdDir, csvDir, checkDir, benchmarkDir }.Select(Path.GetFullPath);
+            if (!roots.Any(r => full.StartsWith(r + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                return Results.BadRequest(new { error = "Path not allowed." });
+
+            var ext = Path.GetExtension(full).ToLowerInvariant();
+            if (ext is not (".md" or ".csv" or ".txt"))
+                return Results.BadRequest(new { error = "Unsupported file type." });
+            if (!File.Exists(full))
+                return Results.NotFound(new { error = "File not found." });
+
+            return Results.Text(await File.ReadAllTextAsync(full), "text/plain");
+        });
+
         // --- Progress (SSE mirror of ConsoleEx) ----------------------------------
 
         app.MapGet("/api/progress", async (HttpContext http) =>

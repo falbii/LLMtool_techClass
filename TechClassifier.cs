@@ -370,7 +370,7 @@ public static class TechnologyClassifier
         }
 
         var mdPath = Path.Combine(ws.MdDir,
-            $"{Path.GetFileNameWithoutExtension(pdfFile)}.md");
+            $"{Path.GetFileNameWithoutExtension(pdfFile)}_summary.md");
 
         if (!File.Exists(mdPath))
         {
@@ -533,7 +533,7 @@ public static class TechnologyClassifier
 
             var reportPath = Path.Combine(
                 ws.CheckDir,
-                $"{Path.GetFileNameWithoutExtension(pdfFile)}_check_verifier.txt");
+                $"{Path.GetFileNameWithoutExtension(pdfFile)}_check_condensed_csv.txt");
             await File.WriteAllTextAsync(
                 reportPath, CondensedVerifier.FormatReport(Path.GetFileName(pdfFile), report), Encoding.UTF8);
             ConsoleEx.Dim($"     📁 Full report: {reportPath}");
