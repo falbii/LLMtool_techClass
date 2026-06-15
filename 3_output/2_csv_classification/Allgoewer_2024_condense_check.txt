@@ -1,5 +1,5 @@
 ﻿Condensation fidelity audit — Allgoewer_2024.pdf
-Generated: 2026-06-12 15:55:12
+Generated: 2026-06-12 16:00:50
 Raw distinct numbers: 732 | survived: 328 (44.8%)
 Data-like numbers: 613 | survived: 260 (42.4%) | missing: 353
 

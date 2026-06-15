@@ -1,10 +1,11 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Threading.Channels;
+using Microsoft.Extensions.FileProviders;
 
 namespace TechClassificationApp;
 
-// Local web UI: serves wwwroot/index.html on localhost and exposes the same
+// Local web UI: serves web/wwwroot/index.html on localhost and exposes the same
 // operations as the console loop through a small JSON/SSE API. Single-user by
 // design — one shared state object, one operation at a time (Gate).
 public static class WebServer
@@ -42,6 +43,13 @@ public static class WebServer
         builder.Logging.SetMinimumLevel(LogLevel.Warning); // keep the terminal readable
         var app = builder.Build();
 
+        // The static files (index.html/app.js/style.css) now live under web/wwwroot
+        // instead of the ASP.NET-default ./wwwroot. Serve them through an explicit
+        // physical file provider so they resolve regardless of the conventional web
+        // root. Rooted at the content root, which is the launch directory.
+        var webRoot = Path.Combine(app.Environment.ContentRootPath, "web", "wwwroot");
+        var webFiles = new PhysicalFileProvider(webRoot);
+
         // --- CSRF / DNS-rebinding guard --------------------------------------
         // Binding to localhost keeps remote machines out, but not other websites
         // open in the same browser: a malicious page can still fire requests at
@@ -66,9 +74,10 @@ public static class WebServer
             await next();
         });
 
-        app.UseDefaultFiles();   // "GET /" -> wwwroot/index.html
+        app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = webFiles }); // "GET /" -> web/wwwroot/index.html
         app.UseStaticFiles(new StaticFileOptions
         {
+            FileProvider = webFiles,
             // Always revalidate: without this, browsers may keep an old
             // style.css/app.js after the files change, leaving the page with
             // new HTML but stale styling. Localhost, so the cost is nil.

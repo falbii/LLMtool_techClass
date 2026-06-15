@@ -11,14 +11,23 @@ Console.WriteLine("╚═══════════════════�
 Console.ResetColor();
 Console.WriteLine();
 
-Console.WriteLine("🔍 Checking prerequisites...\n");
-var status = await CliChecker.CheckCopilotStatusAsync();
+// --local (or --ollama) runs against a local Ollama server instead of GitHub
+// Copilot. The rest of the app is provider-neutral, so only the client creation
+// and this prerequisite check differ between the two modes.
+bool useLocal = args.Contains("--local", StringComparer.OrdinalIgnoreCase)
+    || args.Contains("--ollama", StringComparer.OrdinalIgnoreCase);
 
-if (!CliChecker.IsReady(status))
+if (!useLocal)
 {
-    ConsoleEx.Warn("Press any key to exit...");
-    Console.ReadKey(true);
-    return;
+    Console.WriteLine("🔍 Checking prerequisites...\n");
+    var status = await CliChecker.CheckCopilotStatusAsync();
+
+    if (!CliChecker.IsReady(status))
+    {
+        ConsoleEx.Warn("Press any key to exit...");
+        Console.ReadKey(true);
+        return;
+    }
 }
 
 // Directory layout shared by console and web mode.
@@ -37,7 +46,15 @@ IChatSession? session = null;
 
 try
 {
-    client = await CopilotChatClient.ConnectAsync();
+    if (useLocal)
+    {
+        client = await OllamaChatClient.ConnectAsync();
+        ConsoleEx.Info("🦙 Using local Ollama models.\n");
+    }
+    else
+    {
+        client = await CopilotChatClient.ConnectAsync();
+    }
 
     if (args.Contains("--web", StringComparer.OrdinalIgnoreCase))
     {
