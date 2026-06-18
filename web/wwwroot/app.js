@@ -574,9 +574,137 @@ async function appendOutputPreview(bubble, path) {
   }
 }
 
+// How many technologies the benchmark runs on — mirrors Benchmark.SelectionCount on the server.
+const BENCH_PICK = 3;
+
+// Two-step benchmark: find every technology in the paper, let the user pick exactly BENCH_PICK in a
+// modal, then run all models on them. One chat bubble tracks the whole flow; the gate is held server
+// side only during the two fetches, so the modal sits between two separate gated operations.
+async function runBenchmarkFlow(button) {
+  setBusy(true);
+  document.body.classList.add("glow-benchmark");
+  const bubble = addCmdBubble(button.textContent.trim());
+  let ok = false;
+  try {
+    // Step 1: find the technologies.
+    cmdBubble = bubble;
+    addProgressLine("info", "▶ Finding technologies…");
+    const findResp = await fetch("/api/benchmark/technologies", { method: "POST" });
+    const findData = await findResp.json();
+    cmdBubble = null;
+    if (!findResp.ok) {
+      addProgressLine("error", findData.error ?? "Could not find technologies.");
+      return;
+    }
+    const techs = findData.technologies ?? [];
+    if (techs.length < BENCH_PICK) {
+      addProgressLine("warn", `Need at least ${BENCH_PICK} technologies to benchmark, found ${techs.length}.`);
+      return;
+    }
+
+    // Step 2: let the user pick exactly BENCH_PICK.
+    const selected = await pickBenchmarkTechnologies(techs);
+    if (!selected) {
+      addProgressLine("info", "Benchmark cancelled.");
+      return;
+    }
+    appendCmdStep(bubble, "info", `Selected: ${selected.join(", ")}`);
+
+    // Step 3: run all models on the selection.
+    cmdBubble = bubble;
+    addProgressLine("info", `▶ Running benchmark on ${selected.length} technologies…`);
+    const runResp = await fetch("/api/benchmark/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ technologies: selected }),
+    });
+    const runData = await runResp.json();
+    cmdBubble = null;
+    if (!runResp.ok) {
+      addProgressLine("error", runData.error ?? "Benchmark failed.");
+      return;
+    }
+    addProgressLine("success", runData.output ? `✓ benchmark done → ${runData.output}` : "✓ benchmark done");
+    ok = true;
+    // Preview the generated classification (.csv) / overview in the chat.
+    if (runData.output && /\.(md|csv)$/i.test(runData.output))
+      await appendOutputPreview(bubble, runData.output);
+  } catch (err) {
+    addProgressLine("error", `benchmark: ${err.message}`);
+  } finally {
+    cmdBubble = null;
+    finishCmdBubble(bubble, ok);
+    document.body.classList.remove("glow-benchmark");
+    setBusy(false);
+  }
+}
+
+// Opens the technology picker modal and resolves to the chosen names (exactly BENCH_PICK of them),
+// or null if the user cancels. Caps selection at BENCH_PICK by disabling the rest once reached.
+function pickBenchmarkTechnologies(techs) {
+  return new Promise((resolve) => {
+    const overlay = $("bench-overlay");
+    const list = $("bench-list");
+    const runBtn = $("bench-run");
+    const countLabel = $("bench-count");
+    const selected = new Set();
+    const items = [];
+
+    const refresh = () => {
+      countLabel.textContent = `${selected.size} / ${BENCH_PICK} selected`;
+      runBtn.disabled = selected.size !== BENCH_PICK;
+      const full = selected.size >= BENCH_PICK;
+      // Once the cap is hit, grey out the unchecked rows so it's clear no more fit.
+      items.forEach(({ item, cb }) => {
+        const lock = full && !cb.checked;
+        cb.disabled = lock;
+        item.classList.toggle("disabled", lock);
+      });
+    };
+
+    list.replaceChildren();
+    techs.forEach((name) => {
+      const item = document.createElement("label");
+      item.className = "bench-item";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = name;
+      cb.addEventListener("change", () => {
+        if (cb.checked) selected.add(name);
+        else selected.delete(name);
+        item.classList.toggle("checked", cb.checked);
+        refresh();
+      });
+      item.append(cb, Object.assign(document.createElement("span"), { textContent: name }));
+      list.appendChild(item);
+      items.push({ item, cb });
+    });
+    refresh();
+    overlay.hidden = false;
+
+    const cleanup = () => {
+      overlay.hidden = true;
+      runBtn.removeEventListener("click", onRun);
+      $("bench-cancel").removeEventListener("click", onCancel);
+      overlay.removeEventListener("click", onBackdrop);
+    };
+    const onRun = () => { cleanup(); resolve([...selected]); };
+    const onCancel = () => { cleanup(); resolve(null); };
+    const onBackdrop = (e) => { if (e.target === overlay) { cleanup(); resolve(null); } };
+    runBtn.addEventListener("click", onRun);
+    $("bench-cancel").addEventListener("click", onCancel);
+    overlay.addEventListener("click", onBackdrop);
+  });
+}
+
 document.querySelectorAll(".cmd").forEach((button) => {
   button.addEventListener("click", async () => {
     const cmd = button.dataset.cmd;
+    // The benchmark isn't a single POST: it finds technologies, lets the user pick three, then runs.
+    if (cmd === "benchmark") {
+      await runBenchmarkFlow(button);
+      return;
+    }
     setBusy(true);
     document.body.classList.add(`glow-${cmd}`); // tints the corner glow per command
     cmdBubble = addCmdBubble(button.textContent.trim());

@@ -156,7 +156,7 @@ public static class CommandHandlers
         Console.WriteLine("  '/auto-summarize'       - Extract technology summaries to Markdown");
         Console.WriteLine("  '/auto-classify' (beta) - Classify technologies and export CSV");
         Console.WriteLine("  '/batch-analyze <q>'    - Analyze all PDFs with a question");
-        Console.WriteLine("  '/benchmark'            - Compare all models on the Allgoewer paper");
+        Console.WriteLine("  '/benchmark'            - Find technologies, pick 3, compare all models on them");
         Console.WriteLine("  '/condense-check'       - Check the quality of md condensed");
 
         Console.WriteLine();

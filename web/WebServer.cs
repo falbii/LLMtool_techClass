@@ -33,6 +33,7 @@ public static class WebServer
     private sealed record SessionRequest(string Model);
     private sealed record SelectRequest(string Name);
     private sealed record ChatRequest(string Text);
+    private sealed record BenchmarkRunRequest(List<string> Technologies);
 
     public static async Task RunAsync(
         IChatClient client, string pdfDir, string cacheDir, string mdDir, string csvDir,
@@ -302,8 +303,61 @@ public static class WebServer
         app.MapPost("/api/run/condense-check", () => RunGatedAsync(state, needsPdf: true,
             async (ws, pdf) => (await CommandHandlers.HandleCondenseCheckAsync(ws, pdf!), null)));
 
-        app.MapPost("/api/run/benchmark", () => RunGatedAsync(state, needsPdf: true,
-            async (ws, pdf) => (await Benchmark.RunAsync(ws, pdf!), null)));
+        // The benchmark is a two-step flow in the browser: find the technologies, let the user pick
+        // three, then run all models on them. Each step is its own gated endpoint.
+        app.MapPost("/api/benchmark/technologies", async () =>
+        {
+            if (state.Workspace is not { } ws)
+                return Results.BadRequest(new { error = "Start a session first (pick a model)." });
+            var pdf = state.SelectedPdf;
+            if (pdf is null || !File.Exists(pdf))
+                return Results.BadRequest(new { error = "No PDF selected. Use the PDF dropdown or upload one." });
+            if (!await state.Gate.WaitAsync(0))
+                return Results.Conflict(new { error = "Another operation is already running." });
+            try
+            {
+                var techs = await Benchmark.FindTechnologiesAsync(ws, pdf);
+                return techs is null
+                    ? Results.Json(new { error = "Could not find technologies — see the progress log." }, statusCode: 500)
+                    : Results.Json(new { technologies = techs });
+            }
+            catch (Exception ex)
+            {
+                return Results.Json(new { error = ex.Message }, statusCode: 500);
+            }
+            finally
+            {
+                state.Gate.Release();
+            }
+        });
+
+        app.MapPost("/api/benchmark/run", async (BenchmarkRunRequest req) =>
+        {
+            if (state.Workspace is not { } ws)
+                return Results.BadRequest(new { error = "Start a session first (pick a model)." });
+            var pdf = state.SelectedPdf;
+            if (pdf is null || !File.Exists(pdf))
+                return Results.BadRequest(new { error = "No PDF selected. Use the PDF dropdown or upload one." });
+            if (req.Technologies is null || req.Technologies.Count != Benchmark.SelectionCount)
+                return Results.BadRequest(new { error = $"Pick exactly {Benchmark.SelectionCount} technologies." });
+            if (!await state.Gate.WaitAsync(0))
+                return Results.Conflict(new { error = "Another operation is already running." });
+            try
+            {
+                var output = await Benchmark.RunOnSelectionAsync(ws, pdf, req.Technologies);
+                return output is null
+                    ? Results.Json(new { error = "Benchmark failed — see the progress log for details." }, statusCode: 500)
+                    : Results.Json(new { output });
+            }
+            catch (Exception ex)
+            {
+                return Results.Json(new { error = ex.Message }, statusCode: 500);
+            }
+            finally
+            {
+                state.Gate.Release();
+            }
+        });
 
         // Returns the text of a generated output file so the UI can preview it (e.g. the
         // summary .md after auto-summarize). Read-only and locked to the output folders:
