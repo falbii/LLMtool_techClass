@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -44,7 +45,9 @@ public sealed class OllamaChatClient : IChatClient
                 $"Could not reach Ollama at {BaseUrl}. Is it running? Start it with 'ollama serve'. ({ex.Message})");
         }
 
-        ConsoleEx.Dim($"   Ollama context window: num_ctx={OllamaChatSession.NumCtx} (override with OLLAMA_NUM_CTX)");
+        ConsoleEx.Dim($"   Ollama sampling: num_ctx={OllamaChatSession.NumCtx}, " +
+            $"temperature={OllamaChatSession.Temperature.ToString(CultureInfo.InvariantCulture)}, seed={OllamaChatSession.Seed} " +
+            "(override with OLLAMA_NUM_CTX / OLLAMA_TEMPERATURE / OLLAMA_SEED)");
         return new OllamaChatClient(http);
     }
 
@@ -91,6 +94,22 @@ internal sealed class OllamaChatSession(HttpClient http, string model) : IChatSe
             ? n
             : 32768;
 
+    // Determinism levers. The pipeline is an extraction task (one right answer per cell), so
+    // greedy decoding (temperature 0) is the correct default, not a creativity penalty. A fixed
+    // seed pins the remaining run-to-run jitter for reproducible tables — note this buys
+    // repeatability, NOT accuracy: a pinned seed reproduces a wrong cell as faithfully as a right
+    // one. Both are overridable (OLLAMA_TEMPERATURE / OLLAMA_SEED) for stability probing.
+    internal static readonly double Temperature =
+        double.TryParse(Environment.GetEnvironmentVariable("OLLAMA_TEMPERATURE"),
+            NumberStyles.Float, CultureInfo.InvariantCulture, out var t) && t >= 0
+            ? t
+            : 0.0;
+
+    internal static readonly int Seed =
+        int.TryParse(Environment.GetEnvironmentVariable("OLLAMA_SEED"), out var s)
+            ? s
+            : 0;
+
     public string SessionId { get; } = Guid.NewGuid().ToString("N");
 
     private readonly List<Message> _history = [];
@@ -106,7 +125,7 @@ internal sealed class OllamaChatSession(HttpClient http, string model) : IChatSe
         using var httpReq = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
         {
             Content = JsonContent.Create(
-                new ChatRequest(model, _history, Stream: true, new ChatOptions(NumCtx))),
+                new ChatRequest(model, _history, Stream: true, new ChatOptions(NumCtx, Temperature, Seed))),
         };
 
         using var resp = await http.SendAsync(
@@ -164,7 +183,9 @@ internal sealed class OllamaChatSession(HttpClient http, string model) : IChatSe
         [property: JsonPropertyName("options")] ChatOptions Options);
 
     private sealed record ChatOptions(
-        [property: JsonPropertyName("num_ctx")] int NumCtx);
+        [property: JsonPropertyName("num_ctx")] int NumCtx,
+        [property: JsonPropertyName("temperature")] double Temperature,
+        [property: JsonPropertyName("seed")] int Seed);
 
     private sealed record Message(
         [property: JsonPropertyName("role")] string Role,

@@ -131,19 +131,32 @@ public static class TechnologySummarizer
 
             ConsoleEx.Warn("   1. Finding technologies...");
 
-            string namesResponse;
-            await using (var stage1Session = await Sessions.NewAsync(ws.Client, ws.Model))
+            // Reuse a frozen technology list when one exists, so the row set is reproducible
+            // across runs (the find pass returns a slightly different list each time otherwise).
+            var technologyNames = await PdfCondenser.TryReadTechListAsync(pdfFile, ws.CacheDir);
+            if (technologyNames is { Count: > 0 })
             {
-                var findNamesPrompt = BuildFindTechnologiesPrompt(chunks);
-                namesResponse = await Program.RunWithSpinnerAsync("   Scanning PDF",
-                    () => Program.SendMessageAndCollectResponseSilentAsync(stage1Session, findNamesPrompt));
+                var listName = Path.GetFileName(PdfCondenser.GetTechListPath(pdfFile, ws.CacheDir));
+                ConsoleEx.Dim($"   ♻️  Using cached technology list ({technologyNames.Count}) — delete {listName} to re-scan.");
             }
-
-            var technologyNames = ParseTechnologyNames(namesResponse);
-            if (technologyNames.Count == 0)
+            else
             {
-                ConsoleEx.Warn("⚠️  No technologies found in PDF.");
-                return null;
+                string namesResponse;
+                await using (var stage1Session = await Sessions.NewAsync(ws.Client, ws.Model))
+                {
+                    var findNamesPrompt = BuildFindTechnologiesPrompt(chunks);
+                    namesResponse = await Program.RunWithSpinnerAsync("   Scanning PDF",
+                        () => Program.SendMessageAndCollectResponseSilentAsync(stage1Session, findNamesPrompt));
+                }
+
+                technologyNames = ParseTechnologyNames(namesResponse);
+                if (technologyNames.Count == 0)
+                {
+                    ConsoleEx.Warn("⚠️  No technologies found in PDF.");
+                    return null;
+                }
+
+                await PdfCondenser.WriteTechListAsync(pdfFile, ws.CacheDir, technologyNames);
             }
 
             ConsoleEx.Success($"   Found {technologyNames.Count} technologies:");

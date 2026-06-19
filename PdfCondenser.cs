@@ -10,9 +10,50 @@ namespace TechClassificationApp;
 public static class PdfCondenser
 {
     private const string CacheSuffix = "_condensed.md";
+    private const string TechListSuffix = "_technologies.md";
 
     public static string GetCachePath(string pdfFile, string cacheDirectory)
         => Path.Combine(cacheDirectory, $"{Path.GetFileNameWithoutExtension(pdfFile)}{CacheSuffix}");
+
+    public static string GetTechListPath(string pdfFile, string cacheDirectory)
+        => Path.Combine(cacheDirectory, $"{Path.GetFileNameWithoutExtension(pdfFile)}{TechListSuffix}");
+
+    // The discovered technology list is cached next to the condensed PDF so re-runs reuse the
+    // SAME enumeration instead of re-asking the model — which returns a slightly different list
+    // each time, making the downstream row set non-deterministic. The file is plain text, one
+    // name per line, and human-editable: edit it to control exactly which rows are produced.
+    // Returns null (caller re-scans) when absent, empty, or older than the condensed text it
+    // was derived from.
+    public static async Task<List<string>?> TryReadTechListAsync(string pdfFile, string cacheDir)
+    {
+        var listPath = GetTechListPath(pdfFile, cacheDir);
+        var condensedPath = GetCachePath(pdfFile, cacheDir);
+        if (!File.Exists(listPath) || !File.Exists(condensedPath))
+            return null;
+
+        // Stale if the condensed text changed after the list was written.
+        if (File.GetLastWriteTimeUtc(condensedPath) > File.GetLastWriteTimeUtc(listPath))
+            return null;
+
+        var lines = await File.ReadAllLinesAsync(listPath, Encoding.UTF8);
+        var names = lines
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0 && !l.StartsWith("<!--", StringComparison.Ordinal) && !l.StartsWith('#'))
+            .ToList();
+        return names.Count > 0 ? names : null;
+    }
+
+    public static async Task WriteTechListAsync(string pdfFile, string cacheDir, IReadOnlyList<string> names)
+    {
+        var listPath = GetTechListPath(pdfFile, cacheDir);
+        var sb = new StringBuilder();
+        sb.AppendLine($"<!-- technologies found in {Path.GetFileName(pdfFile)} on {DateTime.Now:yyyy-MM-dd HH:mm:ss} -->");
+        sb.AppendLine("<!-- one technology per line; edit to control the rows produced downstream, then re-run -->");
+        sb.AppendLine();
+        foreach (var name in names)
+            sb.AppendLine(name);
+        await File.WriteAllTextAsync(listPath, sb.ToString(), Encoding.UTF8);
+    }
 
     // Returns the condensed text for a PDF, generating and caching it on first use.
     // Reuses the cache unless the source PDF is newer than the cached file.

@@ -30,6 +30,11 @@ public sealed class CopilotChatClient : IChatClient
 
     public async Task<IChatSession> CreateSessionAsync(string model)
     {
+        // Note: GitHub.Copilot.SDK 0.3.0 exposes no temperature/seed/top_p on SessionConfig or
+        // MessageOptions, so the Copilot backend cannot be pinned for bit-reproducible output.
+        // For deterministic runs use --local (Ollama), where temperature/seed are set
+        // (see OllamaChatSession.Temperature/Seed). Freezing the technology list (PdfCondenser
+        // TryReadTechListAsync) still keeps the row SET stable here even though cell values vary.
         var session = await _client.CreateSessionAsync(new SessionConfig
         {
             Model = model,

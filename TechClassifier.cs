@@ -32,7 +32,7 @@ public static class TechnologyClassifier
             MainCategory         = GetValue(lookup, "main_category"),
             CategorySpec         = GetValue(lookup, "category_spec"),
             TechType             = GetValue(lookup, "tech_type"),
-            ReferenceUnitSize    = ParseDouble(GetValue(lookup, "reference_unit_size"), "reference_unit_size", errors),
+            ReferenceUnitSize    = ParseDouble(GetValue(lookup, "reference_unit_size"), "reference_unit_size", errors, magnitude: true),
             ReferenceUnitSizeUnit= GetValue(lookup, "reference_unit_size_unit", "Reference Unit Size Unit"),
             // Old header names accepted as aliases so pre-rename CSVs still merge correctly.
             Year                 = ParseInt(GetValue(lookup, "year", "base_year"), "year", errors),
@@ -51,11 +51,11 @@ public static class TechnologyClassifier
             MainOut              = GetValue(lookup, "main_out"),
             RatiosOut            = ParseDoubleList(GetValue(lookup, "ratios_out"), "ratios_out", errors),
             UnitsOut             = ParseStringList(GetValue(lookup, "units_out")),
-            Lifetime             = ParseDouble(GetValue(lookup, "lifetime", "lifetime_yr"), "lifetime", errors),
+            Lifetime             = ParseDouble(GetValue(lookup, "lifetime", "lifetime_yr"), "lifetime", errors, magnitude: true),
             LifetimeUnit         = GetValue(lookup, "lifetime_unit"),
-            Capex                = ParseDecimal(GetValue(lookup, "capex"), "capex", errors),
+            Capex                = ParseDecimal(GetValue(lookup, "capex"), "capex", errors, magnitude: true),
             CapexUnit            = GetValue(lookup, "capex_unit"),
-            Opex                 = ParseDecimal(GetValue(lookup, "opex", "opex_fix"), "opex", errors),
+            Opex                 = ParseDecimal(GetValue(lookup, "opex", "opex_fix"), "opex", errors, magnitude: true),
             OpexUnit             = GetValue(lookup, "opex_unit", "opex_fix_unit"),
         };
 
@@ -648,7 +648,9 @@ public static class TechnologyClassifier
         for (int i = 0; i < rows.Count; i++)
         {
             var record = ParseRecord(rows[i], out var rowErrors);
-            foreach (var error in rowErrors)
+            // Deterministic normalization (efficiency scale) + range/alignment checks.
+            var notes = TechnologyValidator.NormalizeAndValidate(record);
+            foreach (var error in rowErrors.Concat(notes))
                 errors.Add($"Row {rowOffset + i + 1}: {error}");
             records.Add(record);
         }

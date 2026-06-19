@@ -137,6 +137,12 @@ CopilotSDK_techClass/
 - **Scanned PDFs** have limited support (text-layer only; use OCR pre-processing for image PDFs).
 - **Timeout** is 15 minutes per AI call.
 - The summary MD file is human-readable and editable — fix errors there before classifying.
+- **Reproducible output:** the discovered technology list is frozen to
+  `2_md_condensed_pdf/<name>_technologies.md` (one name per line, editable) so re-runs keep the
+  same rows; delete it to re-scan. Bit-identical *cell values* require the local Ollama backend
+  (`dotnet run -- --local`), which runs at `temperature=0` with a fixed `seed` (override via
+  `OLLAMA_TEMPERATURE` / `OLLAMA_SEED`). The hosted Copilot backend exposes no sampling controls,
+  so its values still vary slightly run-to-run — determinism here means *repeatable*, not *correct*.
 
 ---
 

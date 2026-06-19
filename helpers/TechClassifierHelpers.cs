@@ -42,7 +42,10 @@ internal static class TechClassifierHelpers
             .ToList();
     }
 
-    internal static List<double> ParseDoubleList(string? value, string fieldName, List<string> errors)
+    // `magnitude` biases the thousands-vs-decimal call for an ambiguous separator (see
+    // NumberNormalizer): true for large quantities (lists of ratios are normally small, so the
+    // default of false — decimal bias — is correct for ratios_in/out).
+    internal static List<double> ParseDoubleList(string? value, string fieldName, List<string> errors, bool magnitude = false)
     {
         var results = new List<double>();
         if (string.IsNullOrWhiteSpace(value))
@@ -50,7 +53,9 @@ internal static class TechClassifierHelpers
 
         foreach (var part in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            if (double.TryParse(part, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+            var normalized = NumberNormalizer.ToInvariant(part, magnitude);
+            if (normalized != null &&
+                double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
                 results.Add(parsed);
             else
                 errors.Add($"{fieldName}: invalid number '{part}'");
@@ -58,10 +63,12 @@ internal static class TechClassifierHelpers
         return results;
     }
 
-    internal static double? ParseDouble(string? value, string fieldName, List<string> errors)
+    internal static double? ParseDouble(string? value, string fieldName, List<string> errors, bool magnitude = false)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
-        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)) return parsed;
+        var normalized = NumberNormalizer.ToInvariant(value, magnitude);
+        if (normalized != null &&
+            double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)) return parsed;
         errors.Add($"{fieldName}: invalid number '{value}'");
         return null;
     }
@@ -69,15 +76,21 @@ internal static class TechClassifierHelpers
     internal static int? ParseInt(string? value, string fieldName, List<string> errors)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
-        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)) return parsed;
+        // Integers (year, trl, ref_year) never carry a real decimal here, so strip grouping
+        // separators (magnitude bias) then require a whole number.
+        var normalized = NumberNormalizer.ToInvariant(value, magnitude: true);
+        if (normalized != null &&
+            int.TryParse(normalized, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)) return parsed;
         errors.Add($"{fieldName}: invalid integer '{value}'");
         return null;
     }
 
-    internal static decimal? ParseDecimal(string? value, string fieldName, List<string> errors)
+    internal static decimal? ParseDecimal(string? value, string fieldName, List<string> errors, bool magnitude = false)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
-        if (decimal.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)) return parsed;
+        var normalized = NumberNormalizer.ToInvariant(value, magnitude);
+        if (normalized != null &&
+            decimal.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)) return parsed;
         errors.Add($"{fieldName}: invalid decimal '{value}'");
         return null;
     }
