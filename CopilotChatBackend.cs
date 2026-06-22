@@ -1,12 +1,10 @@
 using System.Text;
 using GitHub.Copilot;
-using Refractored.GitHub.Copilot.SDK.Helpers;
 
 namespace TechClassificationApp;
 
 // IChatClient/IChatSession implementation backed by the GitHub Copilot SDK.
-// Every Copilot-specific type the app touches at runtime lives in this file
-// (plus the CliChecker prerequisite check in Program.cs).
+// Every Copilot-specific type the app touches at runtime lives in this file.
 public sealed class CopilotChatClient : IChatClient
 {
     private readonly CopilotClient _client;
