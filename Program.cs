@@ -17,7 +17,12 @@ Console.WriteLine();
 bool useLocal = args.Contains("--local", StringComparer.OrdinalIgnoreCase)
     || args.Contains("--ollama", StringComparer.OrdinalIgnoreCase);
 
-if (!useLocal)
+// CliChecker probes the SDK's bundled copilot.exe, not the CLI that COPILOT_CLI_PATH
+// points at, so the check is meaningless (and falsely fails) once an explicit CLI is set.
+// In that case trust the override and let connection surface any real problem.
+bool hasExplicitCli = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("COPILOT_CLI_PATH"));
+
+if (!useLocal && !hasExplicitCli)
 {
     Console.WriteLine("🔍 Checking prerequisites...\n");
     var status = await CliChecker.CheckCopilotStatusAsync();

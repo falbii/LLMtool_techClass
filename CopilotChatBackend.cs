@@ -15,7 +15,16 @@ public sealed class CopilotChatClient : IChatClient
 
     public static async Task<CopilotChatClient> ConnectAsync()
     {
-        var client = new CopilotClient(new CopilotClientOptions());
+        // The SDK otherwise launches its own bundled copilot.exe from the build output
+        // (runtimes/win-x64/native). Setting COPILOT_CLI_PATH points it at an existing
+        // system install instead - useful when the bundled CLI is missing (e.g. the
+        // project was copied without a full restore/build) or cannot start on this machine.
+        var options = new CopilotClientOptions();
+        var cliPath = Environment.GetEnvironmentVariable("COPILOT_CLI_PATH");
+        if (!string.IsNullOrWhiteSpace(cliPath))
+            options.CliPath = cliPath;
+
+        var client = new CopilotClient(options);
         await client.StartAsync();
         return new CopilotChatClient(client);
     }
