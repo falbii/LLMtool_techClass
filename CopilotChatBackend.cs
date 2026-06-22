@@ -1,5 +1,5 @@
 using System.Text;
-using GitHub.Copilot.SDK;
+using GitHub.Copilot;
 using Refractored.GitHub.Copilot.SDK.Helpers;
 
 namespace TechClassificationApp;
@@ -19,10 +19,12 @@ public sealed class CopilotChatClient : IChatClient
         // (runtimes/win-x64/native). Setting COPILOT_CLI_PATH points it at an existing
         // system install instead - useful when the bundled CLI is missing (e.g. the
         // project was copied without a full restore/build) or cannot start on this machine.
+        // SDK 1.0+ replaced CopilotClientOptions.CliPath with a RuntimeConnection; a custom
+        // executable is supplied by pointing the stdio connection at its path.
         var options = new CopilotClientOptions();
         var cliPath = Environment.GetEnvironmentVariable("COPILOT_CLI_PATH");
         if (!string.IsNullOrWhiteSpace(cliPath))
-            options.CliPath = cliPath;
+            options.Connection = RuntimeConnection.ForStdio(cliPath);
 
         var client = new CopilotClient(options);
         await client.StartAsync();
@@ -39,7 +41,7 @@ public sealed class CopilotChatClient : IChatClient
 
     public async Task<IChatSession> CreateSessionAsync(string model)
     {
-        // Note: GitHub.Copilot.SDK 0.3.0 exposes no temperature/seed/top_p on SessionConfig or
+        // Note: GitHub.Copilot.SDK 1.0.3 exposes no temperature/seed/top_p on SessionConfig or
         // MessageOptions, so the Copilot backend cannot be pinned for bit-reproducible output.
         // For deterministic runs use --local (Ollama), where temperature/seed are set
         // (see OllamaChatSession.Temperature/Seed). Freezing the technology list (PdfCondenser
@@ -70,7 +72,7 @@ internal sealed class CopilotChatSession(CopilotSession session) : IChatSession
         var response = new StringBuilder();
         var hasDelta = false;
 
-        var subscription = session.On(evt =>
+        var subscription = session.On<SessionEvent>(evt =>
         {
             switch (evt)
             {
