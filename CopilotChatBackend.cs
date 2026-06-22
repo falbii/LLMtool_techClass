@@ -28,7 +28,51 @@ public sealed class CopilotChatClient : IChatClient
 
         var client = new CopilotClient(options);
         await client.StartAsync();
+        await PrintPrerequisitesAsync(client);
         return new CopilotChatClient(client);
+    }
+
+    // Startup status display, queried from the SDK itself (the old Helpers CliChecker is
+    // incompatible with SDK 1.0+). Failures here are non-fatal: StartAsync already
+    // succeeded, so a status hiccup shouldn't block the session.
+    private static async Task PrintPrerequisitesAsync(CopilotClient client)
+    {
+        Console.WriteLine("🔍 Checking prerequisites...\n");
+
+        try
+        {
+            var status = await client.GetStatusAsync();
+            Console.Write("   Copilot CLI...     ");
+            ConsoleEx.Success($"✅ connected (v{status.Version})");
+        }
+        catch (Exception ex)
+        {
+            Console.Write("   Copilot CLI...     ");
+            ConsoleEx.Warn($"⚠️  {ex.Message}");
+        }
+
+        try
+        {
+            var auth = await client.GetAuthStatusAsync();
+            Console.Write("   Authentication...  ");
+            if (auth.IsAuthenticated)
+            {
+                var who = string.IsNullOrWhiteSpace(auth.Host) ? auth.Login : $"{auth.Login} @ {auth.Host}";
+                ConsoleEx.Success($"✅ {who}");
+            }
+            else
+            {
+                var detail = string.IsNullOrWhiteSpace(auth.StatusMessage) ? "" : $" — {auth.StatusMessage}";
+                ConsoleEx.Warn($"⚠️  not authenticated{detail}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Write("   Authentication...  ");
+            ConsoleEx.Warn($"⚠️  {ex.Message}");
+        }
+
+        Console.WriteLine();
     }
 
     public async Task<IReadOnlyList<ChatModelInfo>> ListModelsAsync()

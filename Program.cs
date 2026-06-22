@@ -1,4 +1,3 @@
-using Refractored.GitHub.Copilot.SDK.Helpers;
 using TechClassificationApp;
 
 // iText7 relies on legacy code-page encodings for some PDFs; must register before any extraction.
@@ -13,27 +12,14 @@ Console.WriteLine();
 
 // --local (or --ollama) runs against a local Ollama server instead of GitHub
 // Copilot. The rest of the app is provider-neutral, so only the client creation
-// and this prerequisite check differ between the two modes.
+// differs between the two modes.
 bool useLocal = args.Contains("--local", StringComparer.OrdinalIgnoreCase)
     || args.Contains("--ollama", StringComparer.OrdinalIgnoreCase);
 
-// CliChecker probes the SDK's bundled copilot.exe, not the CLI that COPILOT_CLI_PATH
-// points at, so the check is meaningless (and falsely fails) once an explicit CLI is set.
-// In that case trust the override and let connection surface any real problem.
-bool hasExplicitCli = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("COPILOT_CLI_PATH"));
-
-if (!useLocal && !hasExplicitCli)
-{
-    Console.WriteLine("🔍 Checking prerequisites...\n");
-    var status = await CliChecker.CheckCopilotStatusAsync();
-
-    if (!CliChecker.IsReady(status))
-    {
-        ConsoleEx.Warn("Press any key to exit...");
-        Console.ReadKey(true);
-        return;
-    }
-}
+// No standalone CLI prerequisite probe: the Refractored Helpers CliChecker is built
+// against the old GitHub.Copilot.SDK namespace and throws TypeLoadException under
+// SDK 1.0+ (it looks up GitHub.Copilot.SDK.GetAuthStatusResponse, since moved to
+// GitHub.Copilot). CopilotChatClient.ConnectAsync surfaces any real CLI/auth problem.
 
 // Directory layout shared by console and web mode.
 string baseDir = Directory.GetCurrentDirectory();
