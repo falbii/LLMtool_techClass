@@ -91,7 +91,7 @@ Years:
   current/baseline data -> the present-day year the source uses), not the publication year.
 
 Rules:
-- One object per technology; multiple years -> separate objects
+- One object per technology; multiple years and/or different verison of a technology -> separate objects
 - Use null where {{SOURCE_LABEL}} has no data — NEVER guess or invent a value
 
 TECHNOLOGY SUMMARIES:
