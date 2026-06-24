@@ -6,8 +6,9 @@ CRITICAL RULES:
 - Do NOT create separate entries for different years, timeframes, or scenarios
 - Do NOT create separate entries for different regions or locations
 - Do NOT add qualifiers like '(near future)', '(long-term)', '(2035)' to names
-- Do NOT duplicate a technology under both a generic and a specific name
-  e.g. list 'Fischer-Tropsch synthesis' OR 'Fischer-Tropsch fuels', not both
+- Duplicate a technology ONLY under specific topology
+  e.g. list 'PV rooftop' AND 'PV field', both
+  e.g. list 'Fischer-Tropsch synthesis' OR 'Fischer-Tropsch fuels production', NOT both
 - One technology per line, plain name only
 
 OUTPUT FORMAT (plain list, one per line):

@@ -9,6 +9,8 @@ obj/
 *.csv
 *.txt
 *.xlsx
+3_benchmark/
+4_condensed_check/
 
 # Keep the Allgoewer benchmark example (PDF + its generated TXT/CSV outputs)
 !**/Allgoewer*
