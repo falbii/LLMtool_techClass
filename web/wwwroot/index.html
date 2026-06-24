@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LLM Tool for Extraction of Technical Data</title>
   <!-- ?v=N defeats stale browser caches: bump it when these files change -->
-  <link rel="stylesheet" href="style.css?v=22">
+  <link rel="stylesheet" href="style.css?v=23">
 </head>
 <body>
 
@@ -40,7 +40,8 @@
 
     <div id="composer">
       <div id="chips">
-        <button class="cmd" data-cmd="summarize">✨ Auto-summarize</button>
+        <button class="cmd" data-cmd="condense">🗜️ Condense</button>
+        <button class="cmd" data-cmd="summarize">✨ Summarize</button>
         <button class="cmd" data-cmd="classify">
           <svg class="cmd-ico" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -49,7 +50,7 @@
             <line x1="3" y1="15" x2="21" y2="15"/>
             <line x1="9" y1="4" x2="9" y2="20"/>
           </svg>
-          Auto-classify
+          Classify
         </button>
         <span class="chip-divider" aria-hidden="true"></span>
         <button class="cmd" data-cmd="condense-check">🔎 Condense-check</button>

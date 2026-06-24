@@ -48,8 +48,9 @@ On launch, the tool checks Copilot is available, lists models (with reasoning su
 | `/list` | List PDFs in `./1_pdf_to_analyze/` and select one |
 | `/upload <path>` | Copy a PDF into `./1_pdf_to_analyze/` and load it |
 | `/current` | Show the currently loaded PDF |
-| `/auto-summarize` | Extract technology summaries to a Markdown file |
-| `/auto-classify` | Convert the summary MD into a structured CSV |
+| `/condense` | Condense the PDF to its cached Markdown (first step of the pipeline) |
+| `/summarize` | Extract technology summaries to a Markdown file |
+| `/classify` | Convert the summary MD into a structured CSV |
 | `/batch-analyze <q>` | Ask one question across all PDFs |
 | `/benchmark` | Run all models on the same PDF and compare results |
 | `/commands` / `/help` | Show all commands |
@@ -63,22 +64,25 @@ Commands also work without the leading `/`, but an unknown `/command` reports an
 
 ```
 1. /list or /upload     → select a PDF
-2. /auto-summarize      → 3_output/1_md_summary/document_summary.md   (review/edit freely)
-3. /auto-classify       → 3_output/2_csv_classification/document_classification.csv
+2. /condense            → 2_md_condensed_pdf/document_condensed.md   (optional; runs automatically otherwise)
+3. /summarize           → 3_output/1_md_summary/document_summary.md   (review/edit freely)
+4. /classify            → 3_output/2_csv_classification/document_classification.csv
 ```
 
-**auto-summarize** runs in two stages:
+**condense** compresses the PDF once into a cached `.md` (see below). It runs automatically the first time any step needs the PDF, so this command is only needed to do it up front.
+
+**summarize** runs in two stages:
 1. Scans the PDF to find all unique technology names
 2. Extracts detailed data per technology, organized by year
 
 
-**auto-classify** reads the summary MD (not the raw PDF) and converts each technology into one or more CSV rows — one row per year/time horizon. Legacy `.txt` summaries are still read as a fallback.
+**classify** reads the summary MD (not the raw PDF) and converts each technology into one or more CSV rows — one row per year/time horizon. Legacy `.txt` summaries are still read as a fallback.
 
 #### Token-saving condensation cache
 
 The first time any operation needs a PDF, the tool condenses it once into a compact
 `2_md_condensed_pdf/<name>_condensed.md` — preserving every number, unit, table, and technology name
-but stripping prose. All later operations (auto-summarize, batch-analyze, Q&A, benchmark)
+but stripping prose. All later operations (summarize, batch-analyze, Q&A, benchmark)
 read this cached `.md` instead of re-sending the full PDF, cutting token usage substantially.
 
 The cache is reused automatically and regenerated only when the source PDF changes.
@@ -109,8 +113,8 @@ CopilotSDK_techClass/
 ├── CommandHandlers.cs      CLI command dispatch and benchmark
 ├── PdfExtractor.cs         text extraction and chunking
 ├── PdfCondenser.cs         one-time PDF→condensed-MD caching for token savings
-├── TechSummarizer.cs       auto-summarize logic
-├── TechClassifier.cs       auto-classify pipeline (batch → JSON → validate → merge)
+├── TechSummarizer.cs       summarize logic
+├── TechClassifier.cs       classify pipeline (batch → JSON → validate → merge)
 ├── TechnologyRecord.cs     the record data to classify
 ├── TechnologyCsv.cs        cassification CSV read/write
 ├── TechnologyMd.cs         summary Markdown read/write
@@ -122,8 +126,8 @@ CopilotSDK_techClass/
 ├── 1_pdf_to_analyze/       input PDFs (auto-created)
 ├── 2_md_condensed_pdf/     condensed .md cache (auto-created, regenerable)
 └── 3_output/
-    ├── 1_md_summary/         auto-summarize Markdown output
-    ├── 2_csv_classification/ auto-classify CSV output
+    ├── 1_md_summary/         summarize Markdown output
+    ├── 2_csv_classification/ classify CSV output
     ├── 3_benchmark/          benchmark CSV/TXT + per-model classification CSV
     └── 4_condensed_check/    condense-check + numeric verification reports
 ```
@@ -133,7 +137,7 @@ CopilotSDK_techClass/
 ## Notes
 
 - **Large PDFs** are automatically split into 30 KB chunks to stay within token limits.
-- **auto-classify requires auto-summarize first** — the summary MD file is the source of truth.
+- **classify requires summarize first** — the summary MD file is the source of truth.
 - **Scanned PDFs** have limited support (text-layer only; use OCR pre-processing for image PDFs).
 - **Timeout** is 15 minutes per AI call.
 - The summary MD file is human-readable and editable — fix errors there before classifying.

@@ -88,6 +88,17 @@ public static class Benchmark
             return null;
         }
 
+        // Reuse the SAME frozen technology list the summarize pipeline caches (<name>_technologies.md),
+        // so the benchmark runs on exactly the rows summarize would produce and re-runs are reproducible.
+        // Falls back to scanning the paper — and caches the result the same way — when no list exists yet.
+        var cached = await PdfCondenser.TryReadTechListAsync(pdfPath, ws.CacheDir);
+        if (cached is { Count: > 0 })
+        {
+            var listName = Path.GetFileName(PdfCondenser.GetTechListPath(pdfPath, ws.CacheDir));
+            ConsoleEx.Success($"   ♻️  Using cached technology list ({cached.Count}) — delete {listName} to re-scan.");
+            return cached;
+        }
+
         ConsoleEx.Warn($"   1. Finding technologies (model: {ws.Model})...");
         try
         {
@@ -96,6 +107,8 @@ public static class Benchmark
             var namesResponse = await Program.RunWithSpinnerAsync("   Scanning PDF",
                 () => Program.SendMessageAndCollectResponseSilentAsync(session, findPrompt));
             var allTechs = TechnologySummarizer.ParseTechnologyNames(namesResponse);
+            if (allTechs.Count > 0)
+                await PdfCondenser.WriteTechListAsync(pdfPath, ws.CacheDir, allTechs);
             ConsoleEx.Success($"   Found {allTechs.Count} technologies.");
             return allTechs;
         }

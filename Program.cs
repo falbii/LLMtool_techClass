@@ -105,7 +105,7 @@ try
         if (string.IsNullOrEmpty(input))
             continue;
 
-        // '/' marks an explicit command ('/list', '/auto-summarize', ...). Bare names still work;
+        // '/' marks an explicit command ('/list', '/summarize', ...). Bare names still work;
         // the difference is that an unknown '/xxx' fails fast below instead of being sent to the
         // model as a chat question, where a mistyped command would silently cost tokens.
         var isCommand = input.StartsWith('/');
@@ -173,7 +173,19 @@ try
             continue;
         }
 
-        if (command.Equals("auto-summarize", StringComparison.OrdinalIgnoreCase))
+        if (command.Equals("condense", StringComparison.OrdinalIgnoreCase))
+        {
+            if (selectedPdfPath == null)
+            {
+                ConsoleEx.Warn("❌ No PDF loaded. Use 'upload' or 'list' to select one.");
+                continue;
+            }
+
+            await CommandHandlers.HandleCondenseAsync(workspace, selectedPdfPath);
+            continue;
+        }
+
+        if (command.Equals("summarize", StringComparison.OrdinalIgnoreCase))
         {
             if (selectedPdfPath == null)
             {
@@ -185,7 +197,7 @@ try
             continue;
         }
 
-        if (command.Equals("auto-classify", StringComparison.OrdinalIgnoreCase))
+        if (command.Equals("classify", StringComparison.OrdinalIgnoreCase))
         {
             if (selectedPdfPath == null)
             {

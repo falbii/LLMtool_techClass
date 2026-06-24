@@ -374,7 +374,7 @@ public static class TechnologyClassifier
 
         if (!File.Exists(mdPath))
         {
-            ConsoleEx.Warn($"⚠️  Please run 'auto-summarize' first to extract technology summaries.");
+            ConsoleEx.Warn($"⚠️  Please run '/summarize' first to extract technology summaries.");
             ConsoleEx.Warn($"    No summary file found at: {mdPath}");
             return null;
         }
@@ -491,7 +491,7 @@ public static class TechnologyClassifier
         }
         catch (Exception ex)
         {
-            ConsoleEx.Error($"❌ Auto-classify failed: {ex.Message}");
+            ConsoleEx.Error($"❌ Classify failed: {ex.Message}");
             return null;
         }
     }

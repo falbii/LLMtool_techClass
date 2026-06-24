@@ -222,7 +222,7 @@ public static class TechnologySummarizer
         }
         catch (Exception ex)
         {
-            ConsoleEx.Error($"❌ Auto-summarize failed: {ex.Message}");
+            ConsoleEx.Error($"❌ Summarize failed: {ex.Message}");
             return null;
         }
     }

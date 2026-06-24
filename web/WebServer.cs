@@ -286,6 +286,13 @@ public static class WebServer
 
         // The pipelines report failures through ConsoleEx (mirrored to the progress
         // panel) and signal them via their return value: a null output path or false.
+        app.MapPost("/api/run/condense", () => RunGatedAsync(state, needsPdf: true,
+            async (ws, pdf) =>
+            {
+                var output = await CommandHandlers.HandleCondenseAsync(ws, pdf!);
+                return (output != null, output);
+            }));
+
         app.MapPost("/api/run/summarize", () => RunGatedAsync(state, needsPdf: true,
             async (ws, pdf) =>
             {
@@ -368,7 +375,7 @@ public static class WebServer
             try { full = Path.GetFullPath(path); }
             catch { return Results.BadRequest(new { error = "Invalid path." }); }
 
-            var roots = new[] { mdDir, csvDir, checkDir, benchmarkDir }.Select(Path.GetFullPath);
+            var roots = new[] { mdDir, csvDir, checkDir, benchmarkDir, cacheDir }.Select(Path.GetFullPath);
             if (!roots.Any(r => full.StartsWith(r + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
                 return Results.BadRequest(new { error = "Path not allowed." });
 

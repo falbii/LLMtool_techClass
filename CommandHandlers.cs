@@ -8,7 +8,7 @@ public static class CommandHandlers
     // Diagnostic for issue #2 (LLM condensation is lossy). Measures, with NO LLM call, how many
     // numbers in the raw PDF survive into the cached condensed text. Raw extraction is deterministic
     // iText; the condensed side is read from the existing cache only — never generated here, so the
-    // audit can never trigger a model call. Run 'auto-summarize' first to produce the cache.
+    // audit can never trigger a model call. Run '/condense' first to produce the cache.
     // Returns false when the audit could not run (missing PDF/cache or an unexpected error),
     // so non-console callers (the web API) can report failure instead of silent success.
     public static async Task<bool> HandleCondenseCheckAsync(Workspace ws, string pdfFile)
@@ -22,7 +22,7 @@ public static class CommandHandlers
         var cachePath = PdfCondenser.GetCachePath(pdfFile, ws.CacheDir);
         if (!File.Exists(cachePath))
         {
-            ConsoleEx.Warn("⚠️  No cached condensed file found — run 'auto-summarize' first.");
+            ConsoleEx.Warn("⚠️  No cached condensed file found — run '/condense' first.");
             ConsoleEx.Warn($"    Expected at: {cachePath}");
             ConsoleEx.Dim("    (The audit reads the existing cache only; it never calls the model.)");
             return false;
@@ -93,6 +93,35 @@ public static class CommandHandlers
         }
     }
 
+    // Runs the condense step on its own: generates and caches the condensed Markdown for the
+    // selected PDF. Condensation otherwise happens lazily on the first question/summary about a
+    // PDF; this forces it up front so that step is already done (and cached) before summarizing or
+    // asking questions. Returns the cache path on success (so the web UI can preview it), null on
+    // failure. Reuses the existing cache when the PDF hasn't changed — exactly like the lazy path.
+    public static async Task<string?> HandleCondenseAsync(Workspace ws, string pdfFile)
+    {
+        if (string.IsNullOrWhiteSpace(pdfFile) || !File.Exists(pdfFile))
+        {
+            ConsoleEx.Error("❌ PDF not found or invalid path.");
+            return null;
+        }
+
+        ConsoleEx.Info("🗜️  Condensing PDF...\n");
+
+        try
+        {
+            await PdfCondenser.GetCondensedTextAsync(ws, pdfFile);
+            Console.WriteLine();
+            ConsoleEx.Success("✅ Condense complete!");
+            return PdfCondenser.GetCachePath(pdfFile, ws.CacheDir);
+        }
+        catch (Exception ex)
+        {
+            ConsoleEx.Error($"❌ Condense failed: {ex.Message}");
+            return null;
+        }
+    }
+
     public static async Task<string?> HandleListPdfsAsync(string pdfInputDirectory)
     {
         if (!Directory.Exists(pdfInputDirectory))
@@ -153,8 +182,9 @@ public static class CommandHandlers
         Console.WriteLine("  '/upload <path>'        - Upload a PDF to analyze (or drop PDFs in ./1_pdf_to_analyze/)");
         Console.WriteLine("  '/list'                 - List available PDFs and choose one to analyze");
         Console.WriteLine("  '/current'              - Show current PDF");
-        Console.WriteLine("  '/auto-summarize'       - Extract technology summaries to Markdown");
-        Console.WriteLine("  '/auto-classify' (beta) - Classify technologies and export CSV");
+        Console.WriteLine("  '/condense'             - Condense the PDF to cached Markdown (runs first in the pipeline)");
+        Console.WriteLine("  '/summarize'            - Extract technology summaries to Markdown");
+        Console.WriteLine("  '/classify' (beta)      - Classify technologies and export CSV");
         Console.WriteLine("  '/batch-analyze <q>'    - Analyze all PDFs with a question");
         Console.WriteLine("  '/benchmark'            - Find technologies, pick 3, compare all models on them");
         Console.WriteLine("  '/condense-check'       - Check the quality of md condensed");

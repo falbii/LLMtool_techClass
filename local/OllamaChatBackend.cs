@@ -92,7 +92,7 @@ internal sealed class OllamaChatSession(HttpClient http, string model) : IChatSe
     internal static readonly int NumCtx =
         int.TryParse(Environment.GetEnvironmentVariable("OLLAMA_NUM_CTX"), out var n) && n > 0
             ? n
-            : 32768;
+            : 65536;
 
     // Determinism levers. The pipeline is an extraction task (one right answer per cell), so
     // greedy decoding (temperature 0) is the correct default, not a creativity penalty. A fixed

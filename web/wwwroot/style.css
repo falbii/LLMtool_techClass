@@ -30,6 +30,7 @@ body::before {
      colours; each running pipeline rotates the base blue (~210°) to its colour. */
   transition: filter 0.7s ease;
 }
+body.glow-condense::before      { filter: hue-rotate(-40deg)  saturate(1.4); }  /* teal   */
 body.glow-summarize::before     { filter: hue-rotate(-160deg) saturate(1.4); }  /* yellow */
 body.glow-classify::before      { filter: hue-rotate(70deg)   saturate(1.4); }  /* purple */
 body.glow-condense-check::before { filter: hue-rotate(-80deg)  saturate(1.4); }  /* green  */
@@ -431,6 +432,7 @@ main {
   filter: blur(1px);
 }
 /* tint the droplet to match each command's glow (hue-rotated from the base blue) */
+body.glow-condense       .pipeline-blob { filter: hue-rotate(-40deg)  saturate(1.4); }
 body.glow-summarize      .pipeline-blob { filter: hue-rotate(-160deg) saturate(1.4); }
 body.glow-classify       .pipeline-blob { filter: hue-rotate(70deg)   saturate(1.4); }
 body.glow-condense-check .pipeline-blob { filter: hue-rotate(-80deg)  saturate(1.4); }
