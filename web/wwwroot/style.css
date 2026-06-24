@@ -42,7 +42,7 @@ body.glow-benchmark::before     { filter: hue-rotate(120deg)  saturate(1.5); }  
    Stays at scale >= 1 so it never uncovers the page edges. */
 body[class*="glow-"]::before {
   transform-origin: 100% 0%;
-  animation: glow-breathe 10s ease-in-out infinite;
+  animation: glow-breathe 12s ease-in-out infinite;
 }
 @keyframes glow-breathe {
   0%   { transform: scale(1);    opacity: 0.85; }

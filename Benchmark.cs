@@ -191,7 +191,7 @@ public static class Benchmark
 
                 var words = sections.Sum(s => s.Content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length);
                 summaries.Add((m.Id, sections, words, sw.ElapsedMilliseconds, "OK"));
-                ConsoleEx.Success($"   ✓ {m.Id,-35}  {words,5} words  {sw.ElapsedMilliseconds,6} ms");
+                ConsoleEx.Success($"   ✓  {words} words  {sw.ElapsedMilliseconds} ms");
             }
             catch (Exception ex)
             {
@@ -219,7 +219,7 @@ public static class Benchmark
                 sw.Stop();
 
                 classified[s.Model] = (rows, sw.ElapsedMilliseconds, rows.Count > 0 ? "OK" : "No valid data");
-                ConsoleEx.Success($"   ✓ {s.Model,-35}  {rows.Count,3} rows  {sw.ElapsedMilliseconds,6} ms");
+                ConsoleEx.Success($"   ✓  {rows.Count} rows  {sw.ElapsedMilliseconds} ms");
             }
             catch (Exception ex)
             {
