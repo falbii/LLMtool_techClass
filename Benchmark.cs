@@ -200,7 +200,7 @@ public static class Benchmark
             }
         }
 
-        var summaryPath = Path.Combine(ws.BenchmarkDir, $"benchmark_summary_{baseName}_{date}.md");
+        var summaryPath = Path.Combine(ws.BenchmarkDir, $"{date}_benchmark_summary_{baseName}.md");
         await WriteSummaryMarkdownAsync(summaryPath, pdfName, selected, summaries);
 
         // --- Stage 3: classify each model's summary ---
@@ -231,12 +231,12 @@ public static class Benchmark
         string? classificationPath = null;
         if (classified.Values.Any(c => c.Rows.Count > 0))
         {
-            classificationPath = Path.Combine(ws.BenchmarkDir, $"benchmark_classification_{baseName}_{date}.csv");
+            classificationPath = Path.Combine(ws.BenchmarkDir, $"{date}_benchmark_classification_{baseName}.csv");
             await WriteClassificationCsvAsync(classificationPath, summaries, classified);
         }
 
         // --- Overview: per-model comparison ---
-        var overviewPath = Path.Combine(ws.BenchmarkDir, $"benchmark_overview_{baseName}_{date}.csv");
+        var overviewPath = Path.Combine(ws.BenchmarkDir, $"{date}_benchmark_overview_{baseName}.csv");
         var overview = new StringBuilder();
         overview.AppendLine("Model,SummaryWords,SummaryMs,SummaryStatus,ClassifiedRows,ClassifyMs,ClassifyStatus");
         foreach (var s in summaries)

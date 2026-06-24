@@ -9,6 +9,8 @@ obj/
 *.csv
 *.txt
 *.xlsx
+1_md_summary/
+2_csv_classification/
 3_benchmark/
 4_condensed_check/
 
