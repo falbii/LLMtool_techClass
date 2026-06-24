@@ -29,12 +29,22 @@ function addProgressLine(level, text) {
   if (cmdBubble) appendCmdStep(cmdBubble, level, text);
 }
 
+let isBusy = false;
 function setBusy(busy) {
-  document.querySelectorAll(".cmd").forEach((b) => (b.disabled = busy));
+  isBusy = busy;
+  refreshCmdButtons();
   $("chat-send").disabled = busy || !hasSession;
   $("chat-input").disabled = busy || !hasSession;
   $("pdf-attach").disabled = busy; // attaching works before a session, but not mid-operation
   $("pdf-clear").disabled = busy;  // don't let the PDF be detached mid-operation
+}
+
+// The pipeline command chips each operate on a PDF, so they stay disabled until a
+// session is live AND a PDF is selected — and are locked while any operation runs.
+// Centralised so session/PDF/busy changes all converge on the same rule.
+function refreshCmdButtons() {
+  const disabled = isBusy || chatAbort != null || !hasSession || !selectedPdfName;
+  document.querySelectorAll(".cmd").forEach((b) => (b.disabled = disabled));
 }
 
 let hasSession = false;
@@ -141,6 +151,7 @@ function showSelectedPdf(name) {
   $("pdf-clear").hidden = !name;
   document.querySelectorAll(".pdf-item").forEach(
     (i) => i.classList.toggle("selected", i.textContent === name));
+  refreshCmdButtons(); // selecting/clearing a PDF flips the command chips on/off
 }
 
 // Detaches the current PDF (clears it server-side too, so a reload stays clear).
@@ -339,7 +350,7 @@ function removeThinkingIndicator() {
 // Toggles the page into/out of "answer streaming" mode. Unlike setBusy, this
 // keeps the send button enabled — as a Stop button — so the user can abort.
 function setChatGenerating(generating) {
-  document.querySelectorAll(".cmd").forEach((b) => (b.disabled = generating));
+  refreshCmdButtons(); // commands stay gated on session+PDF, plus locked while generating
   $("pdf-attach").disabled = generating;
   $("pdf-clear").disabled = generating; // can't detach while the model is answering
   $("chat-input").disabled = generating || !hasSession;

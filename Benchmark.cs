@@ -94,8 +94,7 @@ public static class Benchmark
         var cached = await PdfCondenser.TryReadTechListAsync(pdfPath, ws.CacheDir);
         if (cached is { Count: > 0 })
         {
-            var listName = Path.GetFileName(PdfCondenser.GetTechListPath(pdfPath, ws.CacheDir));
-            ConsoleEx.Success($"   ♻️  Using cached technology list ({cached.Count}) — delete {listName} to re-scan.");
+            ConsoleEx.Dim($"   ♻️  Using cached technology list ({cached.Count})");
             return cached;
         }
 

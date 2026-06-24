@@ -136,8 +136,7 @@ public static class TechnologySummarizer
             var technologyNames = await PdfCondenser.TryReadTechListAsync(pdfFile, ws.CacheDir);
             if (technologyNames is { Count: > 0 })
             {
-                var listName = Path.GetFileName(PdfCondenser.GetTechListPath(pdfFile, ws.CacheDir));
-                ConsoleEx.Dim($"   ♻️  Using cached technology list ({technologyNames.Count}) — delete {listName} to re-scan.");
+                ConsoleEx.Dim($"   ♻️  Using cached technology list ({technologyNames.Count})");
             }
             else
             {

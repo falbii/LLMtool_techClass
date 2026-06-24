@@ -30,11 +30,25 @@ body::before {
      colours; each running pipeline rotates the base blue (~210°) to its colour. */
   transition: filter 0.7s ease;
 }
-body.glow-condense::before      { filter: hue-rotate(-40deg)  saturate(1.4); }  /* teal   */
+body.glow-condense::before      { filter: grayscale(1) brightness(1.05); }       /* gray   */
 body.glow-summarize::before     { filter: hue-rotate(-160deg) saturate(1.4); }  /* yellow */
 body.glow-classify::before      { filter: hue-rotate(70deg)   saturate(1.4); }  /* purple */
 body.glow-condense-check::before { filter: hue-rotate(-80deg)  saturate(1.4); }  /* green  */
 body.glow-benchmark::before     { filter: hue-rotate(120deg)  saturate(1.5); }  /* pink   */
+
+/* While a pipeline runs (any glow-* class present), gently pulse the corner light
+   in and out — a slow "breathing" that signals work is happening. Scaling from the
+   top-right origin makes the glow swell toward that corner and retract again.
+   Stays at scale >= 1 so it never uncovers the page edges. */
+body[class*="glow-"]::before {
+  transform-origin: 100% 0%;
+  animation: glow-breathe 10s ease-in-out infinite;
+}
+@keyframes glow-breathe {
+  0%   { transform: scale(1);    opacity: 0.85; }
+  50%  { transform: scale(2.6);  opacity: 1;    }
+  100% { transform: scale(1);    opacity: 0.85; }
+}
 
 /* --- top bar ----------------------------------------------------------- */
 
@@ -432,7 +446,7 @@ main {
   filter: blur(1px);
 }
 /* tint the droplet to match each command's glow (hue-rotated from the base blue) */
-body.glow-condense       .pipeline-blob { filter: hue-rotate(-40deg)  saturate(1.4); }
+body.glow-condense       .pipeline-blob { filter: grayscale(1) brightness(1.05); }
 body.glow-summarize      .pipeline-blob { filter: hue-rotate(-160deg) saturate(1.4); }
 body.glow-classify       .pipeline-blob { filter: hue-rotate(70deg)   saturate(1.4); }
 body.glow-condense-check .pipeline-blob { filter: hue-rotate(-80deg)  saturate(1.4); }
@@ -445,8 +459,8 @@ body.glow-benchmark      .pipeline-blob { filter: hue-rotate(120deg)  saturate(1
   display: flex;
   flex-direction: column;
   gap: 0.18rem;
-  font-family: Consolas, monospace;
-  font-size: 0.8rem;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 0.9rem;
 }
 .pipeline-step { white-space: pre-wrap; word-break: break-word; }
 .pipeline-step.info    { color: #4a5b70; }
@@ -555,13 +569,6 @@ body.glow-benchmark      .pipeline-blob { filter: hue-rotate(120deg)  saturate(1
 }
 .cmd:hover:not(:disabled) { background: #eaf2ff; }
 .cmd:disabled { background: rgba(255, 255, 255, 0.5); color: #aab8ca; border-color: #e2eaf4; }
-
-/* inline icon (e.g. the table glyph on Auto-classify): inherits the chip's
-   currentColor, so it dims along with the text when disabled */
-.cmd-ico { vertical-align: -2px; margin-right: 0.3rem; }
-
-/* the Auto-classify glyph picks up its pipeline's purple (stroke inherits color) */
-.cmd[data-cmd="classify"] .cmd-ico { color: #7c3aed; }
 
 /* vertical line separating the auto-pipelines from the diagnostic commands */
 .chip-divider {
@@ -694,7 +701,9 @@ body.glow-benchmark      .pipeline-blob { filter: hue-rotate(120deg)  saturate(1
 }
 
 #pdf-upload-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   width: 100%;
   text-align: left;
   background: transparent;
@@ -811,7 +820,7 @@ body.glow-benchmark      .pipeline-blob { filter: hue-rotate(120deg)  saturate(1
   flex: 1;
   overflow-y: auto;
   padding: 0.6rem 0.9rem;
-  font-family: Consolas, monospace;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   font-size: 0.76rem;
 }
 .log          { white-space: pre-wrap; word-break: break-word; }
