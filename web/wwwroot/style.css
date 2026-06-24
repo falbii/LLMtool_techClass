@@ -570,13 +570,6 @@ body.glow-benchmark      .pipeline-blob { filter: hue-rotate(120deg)  saturate(1
 .cmd:hover:not(:disabled) { background: #eaf2ff; }
 .cmd:disabled { background: rgba(255, 255, 255, 0.5); color: #aab8ca; border-color: #e2eaf4; }
 
-/* inline icon (e.g. the tag glyph on Classify): inherits the chip's
-   currentColor, so it dims along with the text when disabled */
-.cmd-ico { vertical-align: -2px; margin-right: 0.3rem; }
-
-/* the Classify glyph picks up its pipeline's purple (stroke inherits color) */
-.cmd[data-cmd="classify"] .cmd-ico { color: #7c3aed; }
-
 /* vertical line separating the auto-pipelines from the diagnostic commands */
 .chip-divider {
   width: 1px;
