@@ -326,9 +326,9 @@ public static class Benchmark
         foreach (var row in rows)
         {
             var record = TechnologyClassifier.ParseRecord(row, out _);
-            // Apply the same deterministic efficiency normalization the main pipeline uses, so
-            // benchmark CSVs report efficiency on the same 0-1 scale (notes discarded here).
-            _ = TechnologyValidator.NormalizeAndValidate(record);
+            // No NormalizeAndValidate call here: it only emits warning notes (no mutation), and the
+            // benchmark has nowhere to surface them — efficiency is left exactly as the model emitted it,
+            // matching the main pipeline.
             if (string.IsNullOrWhiteSpace(record.DatapaperTechId))
                 record.DatapaperTechId = TechnologyClassifier.GenerateTechId(record, usedIds);
             usedIds.Add(record.DatapaperTechId);

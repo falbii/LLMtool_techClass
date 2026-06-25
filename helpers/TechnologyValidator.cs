@@ -2,34 +2,26 @@ using System.Globalization;
 
 namespace TechClassificationApp;
 
-// Deterministic post-parse normalization + validation, run after ParseRecord and before the
-// merge. Only efficiency is *normalized* (a safe, unambiguous transform: a 65 / "65%" that the
-// model emitted instead of the requested 0-1 fraction). Everything else is a non-destructive
-// warning surfaced through the existing parsing-notes channel, keeping the tool's
-// "flag, never silently edit" stance. No LLM, no randomness — same input, same notes.
+// Deterministic post-parse validation, run after ParseRecord and before the merge. Every check is
+// a non-destructive warning surfaced through the existing parsing-notes channel — the record is
+// never mutated, keeping the tool's "flag, never silently edit" stance for ALL fields (efficiency
+// included). No LLM, no randomness — same input, same notes.
 internal static class TechnologyValidator
 {
     private const int MinYear = 1900;
     private const int MaxYear = 2100;
 
-    // Mutates `tech` only for the efficiency normalization; returns human-readable notes.
+    // Does not mutate `tech`; returns human-readable notes for any values that look off.
     public static List<string> NormalizeAndValidate(TechnologyRecord tech)
     {
         var notes = new List<string>();
 
-        // C2 — efficiency scale. Prompt asks for a 0-1 decimal; models often emit 65 or "65%"
-        // (the latter already failed to parse and is null here). A value > 1 is read as percent.
-        if (tech.OverallEfficiency is { } eff)
-        {
-            if (eff > 1)
-            {
-                tech.OverallEfficiency = eff / 100.0;
-                notes.Add($"efficiency: normalized {Fmt(eff)} → {Fmt(tech.OverallEfficiency.Value)} (assumed percent)");
-            }
-            var normalized = tech.OverallEfficiency.Value;
-            if (normalized <= 0 || normalized > 1)
-                notes.Add($"efficiency: {Fmt(normalized)} is outside the expected 0-1 range");
-        }
+        // C2 — efficiency scale. The prompt asks for a 0-1 decimal. Flag anything outside that
+        // range so it's visible, but DON'T rewrite the model's value: a number > 1 is not always
+        // a percent the model forgot to divide — it can be a real coefficient (e.g. a heat-pump
+        // COP of 3.5), and silently dividing those by 100 produces nonsense like 0.035.
+        if (tech.OverallEfficiency is { } eff && (eff <= 0 || eff > 1))
+            notes.Add($"efficiency: {Fmt(eff)} is outside the expected 0-1 range (left as-is)");
 
         // C5 — deterministic range / schema gates (warnings only).
         if (tech.Trl is { } trl && (trl < 1 || trl > 9))
