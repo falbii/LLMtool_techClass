@@ -106,8 +106,9 @@ public static class CommandHandlers
             return null;
         }
 
-        ConsoleEx.Info("🗜️  Condensing PDF...\n");
-
+        // No generic "Condensing PDF..." line here: GetCondensedTextAsync already logs the
+        // informative variant ("(one-time, N part(s))" when condensing, or "♻️ Using cached"
+        // when reused), so emitting our own would just duplicate it.
         try
         {
             await PdfCondenser.GetCondensedTextAsync(ws, pdfFile);

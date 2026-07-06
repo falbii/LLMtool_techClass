@@ -578,7 +578,7 @@ public static class TechnologyClassifier
         var rows = await TryClassifyAsync(ws, batchSections, maxAttempts: 2, stream: true);
         if (rows != null)
         {
-            ConsoleEx.Success($"   ✓ ({rows.Count} rows)");
+            ConsoleEx.Success($"   ✓ {rows.Count} rows");
             return rows;
         }
 

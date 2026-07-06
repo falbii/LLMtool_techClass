@@ -213,6 +213,18 @@ public static class WebServer
 
             try
             {
+                // The chat session resends its whole history each turn, so a previously-attached
+                // PDF would linger after switching. If the session already holds a different PDF
+                // (or the PDF was cleared), start a fresh session so the old document is fully
+                // forgotten. Pipeline commands use their own throwaway sessions and are unaffected.
+                if (state.PdfInjectedIntoSession != null &&
+                    !string.Equals(state.PdfInjectedIntoSession, state.SelectedPdf, StringComparison.OrdinalIgnoreCase))
+                {
+                    await state.Session.DisposeAsync();
+                    state.Session = await Sessions.NewAsync(state.Client, state.Workspace.Model);
+                    state.PdfInjectedIntoSession = null;
+                }
+
                 // First question about a PDF injects its (condensed) text, exactly
                 // like the console loop; afterwards the session already holds it.
                 var finalMessage = req.Text;

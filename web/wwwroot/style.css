@@ -765,14 +765,18 @@ body.glow-benchmark      .pipeline-blob { filter: hue-rotate(120deg)  saturate(1
   width: 46px;
   height: 46px;
   padding: 0;
-  font-size: 1.2rem;
+  /* terminal prompt glyph (">_") in monospace on a dark console button */
+  font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+  font-size: 1.05rem;
+  font-weight: 700;
   display: grid;
   place-items: center;
-  background: white;
-  border: 1px solid #d8e3f0;
-  box-shadow: 0 4px 16px rgba(30, 64, 175, 0.15);
+  background: #0c0c0c;
+  color: #16c60c;
+  border: 1px solid #2b2b2b;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
-#progress-toggle:hover { background: #eaf2ff; }
+#progress-toggle:hover { background: #1a1a1a; }
 
 #progress-panel {
   position: fixed;
@@ -782,11 +786,10 @@ body.glow-benchmark      .pipeline-blob { filter: hue-rotate(120deg)  saturate(1
   height: 320px;
   display: none;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(10px);
-  border: 1px solid #d8e3f0;
+  background: #0c0c0c;
+  border: 1px solid #2b2b2b;
   border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(30, 64, 175, 0.18);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   overflow: hidden;
 }
 #progress-panel.open { display: flex; }
@@ -796,14 +799,15 @@ body.glow-benchmark      .pipeline-blob { filter: hue-rotate(120deg)  saturate(1
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 0.9rem;
+  font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #2563eb;
-  border-bottom: 1px solid #e6eef7;
-  background: rgba(234, 242, 255, 0.6);
+  color: #cccccc;
+  border-bottom: 1px solid #2b2b2b;
+  background: #1a1a1a;
 }
 
-/* small blue × that collapses the progress panel */
+/* small × that collapses the progress panel */
 #progress-close {
   width: 22px;
   height: 22px;
@@ -811,24 +815,35 @@ body.glow-benchmark      .pipeline-blob { filter: hue-rotate(120deg)  saturate(1
   display: grid;
   place-items: center;
   background: transparent;
-  color: #2563eb;
+  color: #cccccc;
   box-shadow: none;
 }
-#progress-close:hover:not(:disabled) { background: rgba(37, 99, 235, 0.12); }
+#progress-close:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
 
 #progress {
   flex: 1;
   overflow-y: auto;
   padding: 0.6rem 0.9rem;
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  font-size: 0.76rem;
+  /* terminal look: monospace on a near-black console background */
+  font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+  font-size: 0.78rem;
+  background: #0c0c0c;
+  color: #cccccc;
 }
+/* Colours mirror ConsoleEx's ConsoleColor mapping, using the Windows Terminal
+   "Campbell" palette (the Win11 default) so the panel matches the real terminal:
+   info=Cyan, success=Green, warn=Yellow, error=Red, dim=DarkGray, plain=default. */
 .log          { white-space: pre-wrap; word-break: break-word; }
-.log.info     { color: #2563eb; }
-.log.success  { color: #15803d; }
-.log.warn     { color: #b45309; }
-.log.error    { color: #b91c1c; }
-.log.dim      { color: #94a3b8; }
+.log.plain    { color: #cccccc; }
+.log.info     { color: #61d6d6; }
+.log.success  { color: #16c60c; }
+.log.warn     { color: #f9f1a5; }
+.log.error    { color: #e74856; }
+.log.dim      { color: #767676; }
+
+/* dark scrollbar so it blends into the console panel */
+#progress::-webkit-scrollbar-thumb { background: #3a3a3a; }
+#progress::-webkit-scrollbar-thumb:hover { background: #4a4a4a; }
 
 /* slim, unobtrusive scrollbars */
 ::-webkit-scrollbar { width: 9px; }

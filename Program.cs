@@ -239,6 +239,18 @@ try
             continue;
         }
 
+        // The session resends its whole history each turn, so a previously-selected PDF would
+        // linger after switching. If the session already holds a different PDF (or none is now
+        // selected), start a fresh session so the old document is fully forgotten. The auto-*
+        // pipeline commands use their own throwaway sessions and are unaffected.
+        if (pdfInjectedIntoSession != null &&
+            !string.Equals(pdfInjectedIntoSession, selectedPdfPath, StringComparison.OrdinalIgnoreCase))
+        {
+            await session.DisposeAsync();
+            session = await Sessions.NewAsync(client, model);
+            pdfInjectedIntoSession = null;
+        }
+
         string finalMessage = input;
         if (selectedPdfPath != null && File.Exists(selectedPdfPath) &&
             !selectedPdfPath.Equals(pdfInjectedIntoSession, StringComparison.OrdinalIgnoreCase))
@@ -326,6 +338,9 @@ public partial class Program
 
         Console.CursorVisible = false;
         Console.Write($"  {message}...");
+        // Mirror the spinner's label to the web progress panel (the spinner animation is
+        // console-only, so without this the web UI shows nothing during these steps).
+        ConsoleEx.Emit("plain", message.Trim());
 
         var spinnerTask = Task.Run(async () =>
         {
