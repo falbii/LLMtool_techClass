@@ -110,18 +110,30 @@ Runs every available Copilot model on the same standard PDF (`Allgoewer_2024.pdf
 CopilotSDK_techClass/
 ├── Program.cs              entry point, model selection, session management
 ├── Workspace.cs            app-wide context (client, model, directory layout)
-├── CommandHandlers.cs      CLI command dispatch and benchmark
-├── PdfExtractor.cs         text extraction and chunking
-├── PdfCondenser.cs         one-time PDF→condensed-MD caching for token savings
-├── TechSummarizer.cs       summarize logic
-├── TechClassifier.cs       classify pipeline (batch → JSON → validate → merge)
-├── TechnologyRecord.cs     the record data to classify
-├── TechnologyCsv.cs        cassification CSV read/write
-├── TechnologyMd.cs         summary Markdown read/write
-├── CondensedVerifier.cs    deterministic numeric verification check
-├── helpers/
-│   ├── AppHelpers.cs       session factory + console output helpers
-│   └── TechClassifierHelpers.cs  shared parsing/formatting utilities
+├── core/                   the main pipeline
+│   ├── PdfExtractor.cs     text extraction and chunking
+│   ├── PdfCondenser.cs     one-time PDF→condensed-MD caching for token savings
+│   ├── TechSummarizer.cs   summarize logic
+│   └── TechClassifier.cs   classify pipeline (batch → JSON → validate → merge)
+├── format_output/          data model + its output formats
+│   ├── TechnologyRecord.cs the record data to classify
+│   ├── TechnologyCsv.cs    classification CSV read/write
+│   └── TechnologyMd.cs     summary Markdown read/write
+├── chat/                   provider-neutral LLM backends (see chat/README.md)
+│   ├── ChatBackend.cs      IChatClient / IChatSession contracts
+│   ├── CopilotChatBackend.cs  GitHub Copilot backend (default)
+│   ├── OllamaChatBackend.cs   local Ollama backend (--local)
+│   └── Sessions.cs         session factory
+├── console/                console-mode UI
+│   ├── CommandHandlers.cs  CLI command dispatch
+│   └── ConsoleEx.cs        color-coded console output helpers
+├── helpers/                utilities + supporting features
+│   ├── Benchmark.cs        multi-model benchmark
+│   ├── CondensedVerifier.cs   deterministic numeric verification check
+│   ├── TechClassifierHelpers.cs  shared parsing/formatting utilities
+│   ├── TechnologyValidator.cs    post-parse record validation
+│   └── NumberNormalizer.cs       numeric normalization
+├── web/                    web UI (WebServer.cs + wwwroot/)
 ├── prompt/                 prompt template markdown files
 ├── 1_pdf_to_analyze/       input PDFs (auto-created)
 ├── 2_md_condensed_pdf/     condensed .md cache (auto-created, regenerable)
