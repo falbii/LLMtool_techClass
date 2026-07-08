@@ -23,18 +23,22 @@ bool useLocal = args.Contains("--local", StringComparer.OrdinalIgnoreCase)
 
 // Directory layout shared by console and web mode.
 string baseDir = Directory.GetCurrentDirectory();
-string pdfInputDirectory = Path.Combine(baseDir, "1_pdf_to_analyze");
-string cacheDirectory = Path.Combine(baseDir, "2_md_condensed_pdf");
-string mdDirectory = Path.Combine(baseDir, "3_output", "1_md_summary");
-string csvDirectory = Path.Combine(baseDir, "3_output", "2_csv_classification");
-string benchmarkDirectory = Path.Combine(baseDir, "3_output", "3_benchmark");
-string checkDirectory = Path.Combine(baseDir, "3_output", "4_condensed_check");
+string pdfInputDirectory = Path.Combine(baseDir, "01_input", "11_pdf_to_analyze");
+string cacheDirectory = Path.Combine(baseDir, "01_input", "12_condensed_md");
+string techListDirectory = Path.Combine(baseDir, "01_input", "13_technology_list_md");
+string mdDirectory = Path.Combine(baseDir, "02_output", "21_tech_summary_md");
+string csvDirectory = Path.Combine(baseDir, "02_output", "22_tech_classification_csv");
+string benchmarkDirectory = Path.Combine(baseDir, "02_output", "23_validation", "benchmark");
+string checkDirectory = Path.Combine(baseDir, "02_output", "23_validation", "condensed_md_check");
+string classifyCheckDirectory = Path.Combine(baseDir, "02_output", "23_validation", "classification_csv_check");
 Directory.CreateDirectory(pdfInputDirectory);
 Directory.CreateDirectory(cacheDirectory);
+Directory.CreateDirectory(techListDirectory);
 Directory.CreateDirectory(mdDirectory);
 Directory.CreateDirectory(csvDirectory);
 Directory.CreateDirectory(benchmarkDirectory);
 Directory.CreateDirectory(checkDirectory);
+Directory.CreateDirectory(classifyCheckDirectory);
 
 IChatClient? client = null;
 IChatSession? session = null;
@@ -55,7 +59,7 @@ try
     {
         // Web mode: the browser page replaces the console loop; model selection
         // and session creation happen through the page.
-        await WebServer.RunAsync(client, pdfInputDirectory, cacheDirectory, mdDirectory, csvDirectory, benchmarkDirectory, checkDirectory);
+        await WebServer.RunAsync(client, pdfInputDirectory, cacheDirectory, techListDirectory, mdDirectory, csvDirectory, benchmarkDirectory, checkDirectory, classifyCheckDirectory);
         return;
     }
 
@@ -84,7 +88,7 @@ try
 
     ConsoleEx.Dim($"   Session ID: {session.SessionId}\n");
 
-    var workspace = new Workspace(client, model, pdfInputDirectory, cacheDirectory, mdDirectory, csvDirectory, benchmarkDirectory, checkDirectory);
+    var workspace = new Workspace(client, model, pdfInputDirectory, cacheDirectory, techListDirectory, mdDirectory, csvDirectory, benchmarkDirectory, checkDirectory, classifyCheckDirectory);
 
     string? selectedPdfPath = null;
     // Path of the PDF whose text has already been sent into the chat session. Free-form questions

@@ -3,6 +3,8 @@ using System.Text;
 
 namespace TechClassificationApp;
 
+// Implements the interactive console commands (/list, /upload, /condense-check, /batch-analyze, ...).
+// The pure logic pieces are shared with the web API; only the keyboard prompts are console-specific.
 public static class CommandHandlers
 {
     // Diagnostic for issue #2 (LLM condensation is lossy). Measures, with NO LLM call, how many
@@ -77,7 +79,7 @@ public static class CommandHandlers
             report.AppendLine("Data-like numbers present in raw PDF but absent from condensed text:");
             foreach (var v in sigMissing.OrderBy(x => x))
                 report.AppendLine($"  • {v.ToString("0.########", CultureInfo.InvariantCulture)}");
-            var reportPath = Path.Combine(ws.CheckDir, $"{Path.GetFileNameWithoutExtension(pdfFile)}_check_pdf_condensed.txt");
+            var reportPath = Path.Combine(ws.CheckDir, $"{Path.GetFileNameWithoutExtension(pdfFile)}_check_condensed_with_pdf.txt");
             await File.WriteAllTextAsync(reportPath, report.ToString(), Encoding.UTF8);
 
             Console.WriteLine();
@@ -137,7 +139,7 @@ public static class CommandHandlers
 
         if (pdfs.Length == 0)
         {
-            Console.WriteLine("📁 No PDFs found in 1_pdf_to_analyze folder.");
+            Console.WriteLine("📁 No PDFs found in 01_input/11_pdf_to_analyze folder.");
             return null;
         }
 
@@ -180,7 +182,7 @@ public static class CommandHandlers
         Console.ResetColor();
         Console.WriteLine("  '/commands' or '/help'  - Display all available commands");
         Console.WriteLine("  '/exit' or '/quit'      - Exit the program");
-        Console.WriteLine("  '/upload <path>'        - Upload a PDF to analyze (or drop PDFs in ./1_pdf_to_analyze/)");
+        Console.WriteLine("  '/upload <path>'        - Upload a PDF to analyze (or drop PDFs in ./01_input/11_pdf_to_analyze/)");
         Console.WriteLine("  '/list'                 - List available PDFs and choose one to analyze");
         Console.WriteLine("  '/current'              - Show current PDF");
         Console.WriteLine("  '/condense'             - Condense the PDF to cached Markdown (runs first in the pipeline)");
@@ -196,8 +198,8 @@ public static class CommandHandlers
         Console.ResetColor();
         Console.WriteLine("  • Or just ask a question normally for AI analysis");
         Console.WriteLine("  • Commands also work without the leading '/'");
-        if (Directory.Exists("./1_pdf_to_analyze"))
-            Console.WriteLine("  • Drop PDFs in the ./1_pdf_to_analyze/ folder for quick access");
+        if (Directory.Exists("./01_input/11_pdf_to_analyze"))
+            Console.WriteLine("  • Drop PDFs in the ./01_input/11_pdf_to_analyze/ folder for quick access");
         Console.WriteLine();
     }
 
@@ -242,7 +244,7 @@ public static class CommandHandlers
 
         if (pdfFiles.Length == 0)
         {
-            ConsoleEx.Error("❌ No PDFs found in 1_pdf_to_analyze folder.");
+            ConsoleEx.Error("❌ No PDFs found in 01_input/11_pdf_to_analyze folder.");
             return null;
         }
 
@@ -303,7 +305,7 @@ public static class CommandHandlers
         var pdfFiles = Directory.GetFiles(ws.PdfDir, "*.pdf");
         if (pdfFiles.Length == 0)
         {
-            ConsoleEx.Warn("❌ No PDF files found in 1_pdf_to_analyze folder.");
+            ConsoleEx.Warn("❌ No PDF files found in 01_input/11_pdf_to_analyze folder.");
             return;
         }
 

@@ -34,10 +34,12 @@ copilot            # launch once, then run /login to sign in to GitHub
 
 ```bash
 dotnet restore     # pulls GitHub.Copilot.SDK, itext7, and the Copilot CLI binary
-dotnet run
+dotnet run                     # console mode (GitHub Copilot)
+dotnet run -- --web            # browser UI at http://localhost:5179
+dotnet run -- --local          # local Ollama models instead of Copilot (see chat/README.md)
 ```
 
-On launch, the tool checks Copilot is available, lists models (with reasoning support), and asks you to pick one.
+On launch, the tool connects to the chat backend, lists models (with reasoning support), and asks you to pick one.
 
 ---
 
@@ -45,8 +47,8 @@ On launch, the tool checks Copilot is available, lists models (with reasoning su
 
 | Command | Description |
 |---------|-------------|
-| `/list` | List PDFs in `./1_pdf_to_analyze/` and select one |
-| `/upload <path>` | Copy a PDF into `./1_pdf_to_analyze/` and load it |
+| `/list` | List PDFs in `./01_input/11_pdf_to_analyze/` and select one |
+| `/upload <path>` | Copy a PDF into `./01_input/11_pdf_to_analyze/` and load it |
 | `/current` | Show the currently loaded PDF |
 | `/condense` | Condense the PDF to its cached Markdown (first step of the pipeline) |
 | `/summarize` | Extract technology summaries to a Markdown file |
@@ -64,9 +66,9 @@ Commands also work without the leading `/`, but an unknown `/command` reports an
 
 ```
 1. /list or /upload     → select a PDF
-2. /condense            → 2_md_condensed_pdf/document_condensed.md   (optional; runs automatically otherwise)
-3. /summarize           → 3_output/1_md_summary/document_summary.md   (review/edit freely)
-4. /classify            → 3_output/2_csv_classification/document_classification.csv
+2. /condense            → 01_input/12_condensed_md/document_condensed.md   (optional; runs automatically otherwise)
+3. /summarize           → 02_output/21_tech_summary_md/document_summary.md   (review/edit freely)
+4. /classify            → 02_output/22_tech_classification_csv/document_classification.csv
 ```
 
 **condense** compresses the PDF once into a cached `.md` (see below). It runs automatically the first time any step needs the PDF, so this command is only needed to do it up front.
@@ -81,7 +83,7 @@ Commands also work without the leading `/`, but an unknown `/command` reports an
 #### Token-saving condensation cache
 
 The first time any operation needs a PDF, the tool condenses it once into a compact
-`2_md_condensed_pdf/<name>_condensed.md` — preserving every number, unit, table, and technology name
+`01_input/12_condensed_md/<name>_condensed.md` — preserving every number, unit, table, and technology name
 but stripping prose. All later operations (summarize, batch-analyze, Q&A, benchmark)
 read this cached `.md` instead of re-sending the full PDF, cutting token usage substantially.
 
@@ -96,11 +98,13 @@ Because extraction is lossy compression, review the `.md` if a number looks off 
 You: /benchmark
 ```
 
-Runs every available Copilot model on the same standard PDF (`Allgoewer_2024.pdf`, must be in `./1_pdf_to_analyze/`), then auto-classifies each response. Saves to `./3_output/` (`.txt` responses under `1_md_summary/`, `.csv` files under `2_csv_classification/`):
+Runs every available Copilot model on the same standard PDF (`Allgoewer_2024.pdf`, must be in `./01_input/11_pdf_to_analyze/`), then auto-classifies each response. Saves to `./02_output/23_validation/benchmark/`:
 
-- `benchmark_<timestamp>.csv` — latency, word count, classified rows per model
-- `benchmark_<timestamp>.txt` — full raw responses
-- `benchmark_<timestamp>_classification.csv` — combined classified rows with a `Model` column
+- `<pdfname>_<provider>_benchmark_summary_<yyyy-MM-dd>.md` — each model's per-technology summary
+- `<pdfname>_<provider>_benchmark_classification_<yyyy-MM-dd>.csv` — combined classified rows with a `Model` column
+- `<pdfname>_<provider>_benchmark_overview_<yyyy-MM-dd>.csv` — latency, word count, classified rows per model
+
+where `<provider>` is `copilot` or `ollama`, matching the backend the run used.
 
 ---
 
@@ -135,13 +139,17 @@ CopilotSDK_techClass/
 │   └── NumberNormalizer.cs       numeric normalization
 ├── web/                    web UI (WebServer.cs + wwwroot/)
 ├── prompt/                 prompt template markdown files
-├── 1_pdf_to_analyze/       input PDFs (auto-created)
-├── 2_md_condensed_pdf/     condensed .md cache (auto-created, regenerable)
-└── 3_output/
-    ├── 1_md_summary/         summarize Markdown output
-    ├── 2_csv_classification/ classify CSV output
-    ├── 3_benchmark/          benchmark CSV/TXT + per-model classification CSV
-    └── 4_condensed_check/    condense-check + numeric verification reports
+├── 01_input/
+│   ├── 11_pdf_to_analyze/    input PDFs (auto-created)
+│   ├── 12_condensed_md/      condensed .md cache (auto-created, regenerable)
+│   └── 13_technology_list_md/ frozen per-PDF technology lists (editable)
+└── 02_output/
+    ├── 21_tech_summary_md/          summarize Markdown output
+    ├── 22_tech_classification_csv/  classify CSV output
+    └── 23_validation/
+        ├── benchmark/                 benchmark summary/overview + per-model classification CSV
+        ├── condensed_md_check/        condense-check fidelity reports (<name>_check_condensed_with_pdf.txt)
+        └── classification_csv_check/  classify numeric verification reports (<name>_check_classification_with_pdf.txt)
 ```
 
 ---
@@ -154,7 +162,7 @@ CopilotSDK_techClass/
 - **Timeout** is 15 minutes per AI call.
 - The summary MD file is human-readable and editable — fix errors there before classifying.
 - **Reproducible output:** the discovered technology list is frozen to
-  `2_md_condensed_pdf/<name>_technologies.md` (one name per line, editable) so re-runs keep the
+  `01_input/13_technology_list_md/<name>_technology_list.md` (one name per line, editable) so re-runs keep the
   same rows; delete it to re-scan. Bit-identical *cell values* require the local Ollama backend
   (`dotnet run -- --local`), which runs at `temperature=0` with a fixed `seed` (override via
   `OLLAMA_TEMPERATURE` / `OLLAMA_SEED`). The hosted Copilot backend exposes no sampling controls,
@@ -170,6 +178,8 @@ CopilotSDK_techClass/
 
 ## Version History
 
+- **v1.0** — Data folders restructured into `01_input/` (`11_pdf_to_analyze`, `12_condensed_md`, `13_technology_list_md`) and `02_output/` (`21_tech_summary_md`, `22_tech_classification_csv`, `23_validation/{benchmark, condensed_md_check, classification_csv_check}`); classify verification reports get their own folder; benchmark files named `<pdf>_<provider>_benchmark_*_<yyyy-MM-dd>` (copilot/ollama); technology lists renamed `<name>_technology_list.md`; comments and docs refreshed
+- **v0.6** — Source reorganized by role: `core/` (extract, condense, summarize, classify), `format_output/` (record + CSV/MD formats), `chat/` (provider backends), `console/`, `helpers/`; project renamed `TestApp` → `TechClass`
 - **v0.5** — Output folders reorganized: benchmark files now go to `3_output/3_benchmark/`, and condense-check + grounding-verifier reports to `3_output/4_condensed_check/`
 - **v0.4** — Token-saving condensation PDFs; new folders structure (`1_pdf_to_analyze`, `2_md_condensed_pdf`, `3_output/{1_txt_summary,2_csv_classification}`); helpers files moved to `helpers/`;
 - **v0.3** — Code refactored into dedicated modules; prompt templates externalized to `prompt/`; bug fixes, dead code removed

@@ -36,8 +36,8 @@ public static class WebServer
     private sealed record BenchmarkRunRequest(List<string> Technologies);
 
     public static async Task RunAsync(
-        IChatClient client, string pdfDir, string cacheDir, string mdDir, string csvDir,
-        string benchmarkDir, string checkDir)
+        IChatClient client, string pdfDir, string cacheDir, string techListDir, string mdDir, string csvDir,
+        string benchmarkDir, string checkDir, string classifyCheckDir)
     {
         var state = new WebAppState(client);
 
@@ -108,7 +108,7 @@ public static class WebServer
                 if (state.Session != null)
                     await state.Session.DisposeAsync();
                 state.Session = await Sessions.NewAsync(state.Client, req.Model);
-                state.Workspace = new Workspace(state.Client, req.Model, pdfDir, cacheDir, mdDir, csvDir, benchmarkDir, checkDir);
+                state.Workspace = new Workspace(state.Client, req.Model, pdfDir, cacheDir, techListDir, mdDir, csvDir, benchmarkDir, checkDir, classifyCheckDir);
                 state.PdfInjectedIntoSession = null;
                 ConsoleEx.Info($"🌐 Web session started with {req.Model} (id: {state.Session.SessionId})");
                 return Results.Json(new { model = req.Model, sessionId = state.Session.SessionId });
@@ -387,7 +387,7 @@ public static class WebServer
             try { full = Path.GetFullPath(path); }
             catch { return Results.BadRequest(new { error = "Invalid path." }); }
 
-            var roots = new[] { mdDir, csvDir, checkDir, benchmarkDir, cacheDir }.Select(Path.GetFullPath);
+            var roots = new[] { mdDir, csvDir, checkDir, classifyCheckDir, benchmarkDir, cacheDir, techListDir }.Select(Path.GetFullPath);
             if (!roots.Any(r => full.StartsWith(r + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
                 return Results.BadRequest(new { error = "Path not allowed." });
 

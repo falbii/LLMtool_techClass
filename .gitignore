@@ -9,10 +9,9 @@ obj/
 *.csv
 *.txt
 *.xlsx
-1_md_summary/
-2_csv_classification/
-3_benchmark/
-4_condensed_check/
+21_tech_summary_md/
+22_tech_classification_csv/
+23_validation/
 
 # Keep the Allgoewer benchmark example (PDF + its generated TXT/CSV outputs)
 !**/Allgoewer*

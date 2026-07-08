@@ -4,30 +4,31 @@ using static TechClassificationApp.TechClassifierHelpers;
 
 namespace TechClassificationApp;
 
-// Produces a condensed Markdown version of a PDF and caches it under cache/<name>_condensed.md.
+// Produces a condensed Markdown version of a PDF and caches it as
+// 01_input/12_condensed_md/<name>_condensed.md (ws.CacheDir).
 // The condensed file preserves all numbers/units/tables but strips prose, cutting the token cost
 // of every downstream operation that would otherwise re-send the full PDF text.
 public static class PdfCondenser
 {
     private const string CacheSuffix = "_condensed.md";
-    private const string TechListSuffix = "_technologies.md";
+    private const string TechListSuffix = "_technology_list.md";
 
     public static string GetCachePath(string pdfFile, string cacheDirectory)
         => Path.Combine(cacheDirectory, $"{Path.GetFileNameWithoutExtension(pdfFile)}{CacheSuffix}");
 
-    public static string GetTechListPath(string pdfFile, string cacheDirectory)
-        => Path.Combine(cacheDirectory, $"{Path.GetFileNameWithoutExtension(pdfFile)}{TechListSuffix}");
+    public static string GetTechListPath(string pdfFile, string techListDirectory)
+        => Path.Combine(techListDirectory, $"{Path.GetFileNameWithoutExtension(pdfFile)}{TechListSuffix}");
 
-    // The discovered technology list is cached next to the condensed PDF so re-runs reuse the
+    // The discovered technology list is cached (in ws.TechListDir) so re-runs reuse the
     // SAME enumeration instead of re-asking the model — which returns a slightly different list
     // each time, making the downstream row set non-deterministic. The file is plain text, one
     // name per line, and human-editable: edit it to control exactly which rows are produced.
     // Returns null (caller re-scans) when absent, empty, or older than the condensed text it
     // was derived from.
-    public static async Task<List<string>?> TryReadTechListAsync(string pdfFile, string cacheDir)
+    public static async Task<List<string>?> TryReadTechListAsync(Workspace ws, string pdfFile)
     {
-        var listPath = GetTechListPath(pdfFile, cacheDir);
-        var condensedPath = GetCachePath(pdfFile, cacheDir);
+        var listPath = GetTechListPath(pdfFile, ws.TechListDir);
+        var condensedPath = GetCachePath(pdfFile, ws.CacheDir);
         if (!File.Exists(listPath) || !File.Exists(condensedPath))
             return null;
 
@@ -43,9 +44,9 @@ public static class PdfCondenser
         return names.Count > 0 ? names : null;
     }
 
-    public static async Task WriteTechListAsync(string pdfFile, string cacheDir, IReadOnlyList<string> names)
+    public static async Task WriteTechListAsync(Workspace ws, string pdfFile, IReadOnlyList<string> names)
     {
-        var listPath = GetTechListPath(pdfFile, cacheDir);
+        var listPath = GetTechListPath(pdfFile, ws.TechListDir);
         var sb = new StringBuilder();
         sb.AppendLine($"<!-- technologies found in {Path.GetFileName(pdfFile)} on {DateTime.Now:yyyy-MM-dd HH:mm:ss} -->");
         sb.AppendLine("<!-- one technology per line; edit to control the rows produced downstream, then re-run -->");

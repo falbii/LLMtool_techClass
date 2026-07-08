@@ -9,6 +9,10 @@ public sealed record ChatModelInfo(string Id, bool SupportsReasoning);
 // implementations without touching the rest of the app.
 public interface IChatClient : IAsyncDisposable
 {
+    // Short lowercase provider tag ("copilot", "ollama") used in output file names
+    // so results from different backends don't overwrite each other.
+    string ProviderName { get; }
+
     Task<IReadOnlyList<ChatModelInfo>> ListModelsAsync();
     Task<IChatSession> CreateSessionAsync(string model);
 }

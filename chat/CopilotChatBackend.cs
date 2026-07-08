@@ -7,6 +7,8 @@ namespace TechClassificationApp;
 // Every Copilot-specific type the app touches at runtime lives in this file.
 public sealed class CopilotChatClient : IChatClient
 {
+    public string ProviderName => "copilot";
+
     private readonly CopilotClient _client;
 
     private CopilotChatClient(CopilotClient client) => _client = client;

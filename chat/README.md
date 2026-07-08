@@ -55,8 +55,10 @@ dotnet run -- --local          # console mode, local models
 dotnet run -- --local --web    # web UI, local models
 ```
 
-In `--local` mode the Copilot prerequisite check is skipped, the model picker
+In `--local` mode no Copilot CLI or sign-in is involved at all; the model picker
 lists your locally installed Ollama models, and chat runs against them.
+Output files that carry a provider tag (the benchmark results) are marked
+`ollama` instead of `copilot`.
 
 ### Configuration
 

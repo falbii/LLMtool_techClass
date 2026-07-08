@@ -6,6 +6,11 @@ using static TechClassificationApp.TechClassifierHelpers;
 
 namespace TechClassificationApp;
 
+// The /classify pipeline stage: reads the summary MD sections, asks the model to convert them to
+// structured JSON rows in batches (with retry + per-technology fallback), validates/merges the
+// records, and writes 02_output/22_tech_classification_csv/<name>_classification.csv. A final
+// deterministic verification pass flags numbers that can't be found in the source
+// (report: 02_output/23_validation/classification_csv_check/).
 public static class TechnologyClassifier
 {
     private static readonly StringComparer KeyComparer = StringComparer.OrdinalIgnoreCase;
@@ -532,8 +537,8 @@ public static class TechnologyClassifier
                 ConsoleEx.Dim($"     ...and {report.UnverifiedCount - 15} more");
 
             var reportPath = Path.Combine(
-                ws.CheckDir,
-                $"{Path.GetFileNameWithoutExtension(pdfFile)}_check_condensed_csv.txt");
+                ws.ClassifyCheckDir,
+                $"{Path.GetFileNameWithoutExtension(pdfFile)}_check_classification_with_pdf.txt");
             await File.WriteAllTextAsync(
                 reportPath, CondensedVerifier.FormatReport(Path.GetFileName(pdfFile), report), Encoding.UTF8);
             ConsoleEx.Dim($"     📁 Full report: {reportPath}");

@@ -5,6 +5,9 @@ using System.Text.RegularExpressions;
 
 namespace TechClassificationApp;
 
+// Deterministic (non-LLM) PDF text extraction via iText7: page-by-page text with [PAGE N] markers,
+// heuristic [TABLE REGION]/[TECHNOLOGY LIST TABLE] hints for the model, chunk splitting for token
+// limits, and prompt assembly for single- and multi-document questions.
 public static class PdfExtractor
 {
     private static readonly string[] LineSeparators = ["\n", "\r\n"];

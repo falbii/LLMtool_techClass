@@ -5,6 +5,10 @@ using static TechClassificationApp.TechClassifierHelpers;
 
 namespace TechClassificationApp;
 
+// The /summarize pipeline stage: finds every technology in the (condensed) PDF, then extracts a
+// detailed per-technology summary in batches, writing 02_output/21_tech_summary_md/<name>_summary.md
+// incrementally so progress survives a mid-run failure. The discovered technology list is frozen to
+// 01_input/13_technology_list_md/<name>_technology_list.md for reproducible re-runs.
 public static class TechnologySummarizer
 {
     // --- Pure prompt-building helpers ---
@@ -133,7 +137,7 @@ public static class TechnologySummarizer
 
             // Reuse a frozen technology list when one exists, so the row set is reproducible
             // across runs (the find pass returns a slightly different list each time otherwise).
-            var technologyNames = await PdfCondenser.TryReadTechListAsync(pdfFile, ws.CacheDir);
+            var technologyNames = await PdfCondenser.TryReadTechListAsync(ws, pdfFile);
             if (technologyNames is { Count: > 0 })
             {
                 ConsoleEx.Dim($"   ♻️  Using cached technology list ({technologyNames.Count})");
@@ -155,7 +159,7 @@ public static class TechnologySummarizer
                     return null;
                 }
 
-                await PdfCondenser.WriteTechListAsync(pdfFile, ws.CacheDir, technologyNames);
+                await PdfCondenser.WriteTechListAsync(ws, pdfFile, technologyNames);
             }
 
             ConsoleEx.Success($"   Found {technologyNames.Count} technologies:");

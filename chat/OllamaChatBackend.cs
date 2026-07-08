@@ -13,6 +13,8 @@ namespace TechClassificationApp;
 // IChatClient interface, exactly like CopilotChatClient.
 public sealed class OllamaChatClient : IChatClient
 {
+    public string ProviderName => "ollama";
+
     // Default Ollama endpoint, overridable via OLLAMA_HOST (the same variable the
     // official Ollama CLI and client libraries honor).
     private static readonly string BaseUrl =

@@ -10,10 +10,11 @@ namespace TechClassificationApp;
 //   3. every available model then summarizes + classifies those same three technologies,
 // so the models' outputs are directly comparable on an identical, focused task.
 //
-// Results land in ws.BenchmarkDir (3_output/3_benchmark):
-//   • benchmark_summary_<pdf>_<date>.md         — each model's per-technology summary
-//   • benchmark_classification_<pdf>_<date>.csv — each model's structured rows (Model column prefixed)
-//   • benchmark_overview_<pdf>_<date>.csv       — per-model timing / counts / status comparison
+// Results land in ws.BenchmarkDir (02_output/23_validation/benchmark), where <provider> is
+// "copilot" or "ollama" depending on the backend in use:
+//   • <pdf>_<provider>_benchmark_summary_<yyyy-MM-dd>.md         — each model's per-technology summary
+//   • <pdf>_<provider>_benchmark_classification_<yyyy-MM-dd>.csv — each model's structured rows (Model column prefixed)
+//   • <pdf>_<provider>_benchmark_overview_<yyyy-MM-dd>.csv       — per-model timing / counts / status comparison
 //
 // Selecting the three technologies is interactive. The console drives that at the keyboard via
 // RunAsync; the web UI calls the two public steps (FindTechnologiesAsync, then RunOnSelectionAsync)
@@ -88,10 +89,10 @@ public static class Benchmark
             return null;
         }
 
-        // Reuse the SAME frozen technology list the summarize pipeline caches (<name>_technologies.md),
+        // Reuse the SAME frozen technology list the summarize pipeline caches (<name>_technology_list.md),
         // so the benchmark runs on exactly the rows summarize would produce and re-runs are reproducible.
         // Falls back to scanning the paper — and caches the result the same way — when no list exists yet.
-        var cached = await PdfCondenser.TryReadTechListAsync(pdfPath, ws.CacheDir);
+        var cached = await PdfCondenser.TryReadTechListAsync(ws, pdfPath);
         if (cached is { Count: > 0 })
         {
             ConsoleEx.Dim($"   ♻️  Using cached technology list ({cached.Count})");
@@ -107,7 +108,7 @@ public static class Benchmark
                 () => Program.SendMessageAndCollectResponseSilentAsync(session, findPrompt));
             var allTechs = TechnologySummarizer.ParseTechnologyNames(namesResponse);
             if (allTechs.Count > 0)
-                await PdfCondenser.WriteTechListAsync(pdfPath, ws.CacheDir, allTechs);
+                await PdfCondenser.WriteTechListAsync(ws, pdfPath, allTechs);
             ConsoleEx.Success($"   Found {allTechs.Count} technologies.");
             return allTechs;
         }
@@ -137,7 +138,10 @@ public static class Benchmark
 
         var pdfName = Path.GetFileName(pdfPath);
         var baseName = Path.GetFileNameWithoutExtension(pdfPath);
-        var date = DateTime.Now.ToString("dd-MM-yyyy");
+        // yyyy-MM-dd so files sort chronologically; provider tag keeps Copilot and
+        // Ollama runs of the same paper side by side instead of overwriting each other.
+        var date = DateTime.Now.ToString("yyyy-MM-dd");
+        var filePrefix = $"{baseName}_{ws.Client.ProviderName}_benchmark";
 
         // Re-condense (cheap — the cache is already warm from the find step) and split into chunks,
         // exactly as the normal summarize pipeline does.
@@ -200,7 +204,7 @@ public static class Benchmark
             }
         }
 
-        var summaryPath = Path.Combine(ws.BenchmarkDir, $"{date}_benchmark_summary_{baseName}.md");
+        var summaryPath = Path.Combine(ws.BenchmarkDir, $"{filePrefix}_summary_{date}.md");
         await WriteSummaryMarkdownAsync(summaryPath, pdfName, selected, summaries);
 
         // --- Stage 3: classify each model's summary ---
@@ -231,12 +235,12 @@ public static class Benchmark
         string? classificationPath = null;
         if (classified.Values.Any(c => c.Rows.Count > 0))
         {
-            classificationPath = Path.Combine(ws.BenchmarkDir, $"{date}_benchmark_classification_{baseName}.csv");
+            classificationPath = Path.Combine(ws.BenchmarkDir, $"{filePrefix}_classification_{date}.csv");
             await WriteClassificationCsvAsync(classificationPath, summaries, classified);
         }
 
         // --- Overview: per-model comparison ---
-        var overviewPath = Path.Combine(ws.BenchmarkDir, $"{date}_benchmark_overview_{baseName}.csv");
+        var overviewPath = Path.Combine(ws.BenchmarkDir, $"{filePrefix}_overview_{date}.csv");
         var overview = new StringBuilder();
         overview.AppendLine("Model,SummaryWords,SummaryMs,SummaryStatus,ClassifiedRows,ClassifyMs,ClassifyStatus");
         foreach (var s in summaries)
