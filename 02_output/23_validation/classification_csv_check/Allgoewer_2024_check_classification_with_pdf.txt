@@ -1,0 +1,183 @@
+﻿Numeric verification report — Allgoewer_2024.pdf
+Generated: 2026-07-08 15:01:01
+Checked 289 numeric values; 289 found in source (100%).
+
+All numeric values were found in the source text.
+
+Parsing notes (176 items):
+  • Row 1: ratios_in: invalid number 'not specified'
+  • Row 1: ratios_out: invalid number 'not specified'
+  • Row 1: ratios_in (1) and carriers_in (2) length mismatch
+  • Row 1: units_in (2) and ratios_in (1) length mismatch
+  • Row 1: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 1: units_out (2) and ratios_out (1) length mismatch
+  • Row 2: ratios_in: invalid number 'not specified'
+  • Row 2: ratios_out: invalid number 'not specified'
+  • Row 2: ratios_in (1) and carriers_in (2) length mismatch
+  • Row 2: units_in (2) and ratios_in (1) length mismatch
+  • Row 2: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 2: units_out (2) and ratios_out (1) length mismatch
+  • Row 3: ratios_in: invalid number 'not specified'
+  • Row 3: ratios_out: invalid number 'not specified'
+  • Row 3: ratios_in (1) and carriers_in (2) length mismatch
+  • Row 3: units_in (2) and ratios_in (1) length mismatch
+  • Row 3: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 3: units_out (2) and ratios_out (1) length mismatch
+  • Row 4: ratios_in: invalid number 'not specified'
+  • Row 4: ratios_out: invalid number 'not specified'
+  • Row 4: ratios_in (1) and carriers_in (2) length mismatch
+  • Row 4: units_in (2) and ratios_in (1) length mismatch
+  • Row 4: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 4: units_out (2) and ratios_out (1) length mismatch
+  • Row 5: ratios_in: invalid number 'from natural gas; quantity included as thermal energy'
+  • Row 5: ratios_in: invalid number 'not specified'
+  • Row 5: ratios_out: invalid number 'not specified'
+  • Row 5: ratios_in (2) and carriers_in (4) length mismatch
+  • Row 5: units_in (4) and ratios_in (2) length mismatch
+  • Row 5: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 5: units_out (2) and ratios_out (1) length mismatch
+  • Row 6: ratios_in: invalid number 'from natural gas'
+  • Row 6: ratios_in: invalid number 'not specified'
+  • Row 6: ratios_out: invalid number 'not specified'
+  • Row 6: ratios_in (2) and carriers_in (4) length mismatch
+  • Row 6: units_in (4) and ratios_in (2) length mismatch
+  • Row 6: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 6: units_out (2) and ratios_out (1) length mismatch
+  • Row 9: ratios_in: invalid number 'not specified'
+  • Row 9: ratios_in: invalid number 'not specified'
+  • Row 9: ratios_in (2) and carriers_in (4) length mismatch
+  • Row 9: units_in (4) and ratios_in (2) length mismatch
+  • Row 10: ratios_in: invalid number 'not specified'
+  • Row 10: ratios_in: invalid number 'not specified'
+  • Row 10: ratios_in (1) and carriers_in (3) length mismatch
+  • Row 10: units_in (3) and ratios_in (1) length mismatch
+  • Row 11: ratios_in: invalid number 'not specified'
+  • Row 11: ratios_in: invalid number 'not specified'
+  • Row 11: ratios_in: invalid number 'not specified'
+  • Row 12: ratios_in: invalid number 'not specified'
+  • Row 12: ratios_in: invalid number 'not specified'
+  • Row 12: ratios_in: invalid number 'not specified'
+  • Row 13: ratios_in: invalid number 'not specified'
+  • Row 13: ratios_in: invalid number 'not specified'
+  • Row 13: ratios_out: invalid number 'not specified'
+  • Row 13: ratios_in (1) and carriers_in (3) length mismatch
+  • Row 13: units_in (3) and ratios_in (1) length mismatch
+  • Row 13: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 13: units_out (2) and ratios_out (1) length mismatch
+  • Row 14: ratios_in: invalid number 'not specified'
+  • Row 14: ratios_in: invalid number 'not specified'
+  • Row 14: ratios_out: invalid number 'not specified'
+  • Row 14: ratios_in (1) and carriers_in (3) length mismatch
+  • Row 14: units_in (3) and ratios_in (1) length mismatch
+  • Row 14: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 14: units_out (2) and ratios_out (1) length mismatch
+  • Row 15: ratios_in: invalid number 'not specified'
+  • Row 15: ratios_in: invalid number 'not specified'
+  • Row 15: ratios_out: invalid number 'not specified'
+  • Row 15: ratios_in (1) and carriers_in (3) length mismatch
+  • Row 15: units_in (3) and ratios_in (1) length mismatch
+  • Row 15: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 15: units_out (2) and ratios_out (1) length mismatch
+  • Row 16: ratios_in: invalid number 'not specified'
+  • Row 16: ratios_in: invalid number 'not specified'
+  • Row 16: ratios_out: invalid number 'not specified'
+  • Row 16: ratios_in (1) and carriers_in (3) length mismatch
+  • Row 16: units_in (3) and ratios_in (1) length mismatch
+  • Row 16: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 16: units_out (2) and ratios_out (1) length mismatch
+  • Row 17: ratios_in: invalid number 'not specified'
+  • Row 17: ratios_in: invalid number 'not specified'
+  • Row 17: ratios_out: invalid number 'not specified'
+  • Row 17: ratios_in (1) and carriers_in (3) length mismatch
+  • Row 17: units_in (3) and ratios_in (1) length mismatch
+  • Row 17: ratios_out (2) and carriers_out (3) length mismatch
+  • Row 17: units_out (3) and ratios_out (2) length mismatch
+  • Row 18: ratios_in: invalid number 'not specified'
+  • Row 18: ratios_in: invalid number 'not specified'
+  • Row 18: ratios_out: invalid number 'not specified'
+  • Row 18: ratios_in (1) and carriers_in (3) length mismatch
+  • Row 18: units_in (3) and ratios_in (1) length mismatch
+  • Row 18: ratios_out (2) and carriers_out (3) length mismatch
+  • Row 18: units_out (3) and ratios_out (2) length mismatch
+  • Row 19: ratios_in: invalid number 'not specified'
+  • Row 19: ratios_in: invalid number 'not specified'
+  • Row 19: ratios_out: invalid number 'not specified'
+  • Row 19: ratios_in (1) and carriers_in (3) length mismatch
+  • Row 19: units_in (3) and ratios_in (1) length mismatch
+  • Row 19: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 19: units_out (2) and ratios_out (1) length mismatch
+  • Row 20: ratios_in: invalid number 'not specified'
+  • Row 20: ratios_in: invalid number 'not specified'
+  • Row 20: ratios_out: invalid number 'not specified'
+  • Row 20: ratios_in (1) and carriers_in (3) length mismatch
+  • Row 20: units_in (3) and ratios_in (1) length mismatch
+  • Row 20: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 20: units_out (2) and ratios_out (1) length mismatch
+  • Row 21: ratios_in: invalid number 'not specified'
+  • Row 21: ratios_in (4) and carriers_in (5) length mismatch
+  • Row 21: units_in (5) and ratios_in (4) length mismatch
+  • Row 22: ratios_in: invalid number 'not specified'
+  • Row 22: ratios_in (4) and carriers_in (5) length mismatch
+  • Row 22: units_in (5) and ratios_in (4) length mismatch
+  • Row 23: ratios_in: invalid number 'not specified'
+  • Row 23: ratios_in (4) and carriers_in (5) length mismatch
+  • Row 23: units_in (5) and ratios_in (4) length mismatch
+  • Row 24: ratios_in: invalid number 'not specified'
+  • Row 24: ratios_in (4) and carriers_in (5) length mismatch
+  • Row 24: units_in (5) and ratios_in (4) length mismatch
+  • Row 25: ratios_in: invalid number 'not specified'
+  • Row 25: ratios_in: invalid number 'not specified'
+  • Row 25: ratios_in: invalid number 'not specified'
+  • Row 25: ratios_in (4) and carriers_in (7) length mismatch
+  • Row 25: units_in (7) and ratios_in (4) length mismatch
+  • Row 26: ratios_in: invalid number 'not specified'
+  • Row 26: ratios_in: invalid number 'not specified'
+  • Row 26: ratios_in (4) and carriers_in (6) length mismatch
+  • Row 26: units_in (6) and ratios_in (4) length mismatch
+  • Row 27: ratios_in: invalid number 'not specified'
+  • Row 27: ratios_in: invalid number 'not specified'
+  • Row 27: ratios_in (4) and carriers_in (6) length mismatch
+  • Row 27: units_in (6) and ratios_in (4) length mismatch
+  • Row 28: ratios_in: invalid number 'not specified'
+  • Row 28: ratios_in (4) and carriers_in (5) length mismatch
+  • Row 28: units_in (5) and ratios_in (4) length mismatch
+  • Row 29: ratios_in: invalid number 'not specified'
+  • Row 29: ratios_in: invalid number 'not specified'
+  • Row 29: ratios_in (3) and carriers_in (5) length mismatch
+  • Row 29: units_in (5) and ratios_in (3) length mismatch
+  • Row 30: ratios_in: invalid number 'not specified'
+  • Row 30: ratios_in: invalid number 'not specified'
+  • Row 30: ratios_in (4) and carriers_in (6) length mismatch
+  • Row 30: units_in (6) and ratios_in (4) length mismatch
+  • Row 31: ratios_in: invalid number 'not specified'
+  • Row 31: ratios_in: invalid number 'not specified'
+  • Row 31: ratios_in (3) and carriers_in (5) length mismatch
+  • Row 31: units_in (5) and ratios_in (3) length mismatch
+  • Row 32: ratios_in: invalid number 'not specified'
+  • Row 32: ratios_in: invalid number 'not specified'
+  • Row 32: ratios_in (4) and carriers_in (6) length mismatch
+  • Row 32: units_in (6) and ratios_in (4) length mismatch
+  • Row 33: ratios_in: invalid number 'not specified'
+  • Row 33: ratios_out: invalid number 'not specified'
+  • Row 33: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 33: units_out (2) and ratios_out (1) length mismatch
+  • Row 34: ratios_in: invalid number 'not specified'
+  • Row 34: ratios_out: invalid number 'not specified'
+  • Row 34: ratios_out: invalid number 'not specified'
+  • Row 35: ratios_in: invalid number 'not specified'
+  • Row 35: ratios_out: invalid number 'not specified'
+  • Row 36: ratios_in: invalid number 'not specified'
+  • Row 36: ratios_out: invalid number 'not specified'
+  • Row 37: ratios_in: invalid number 'not specified'
+  • Row 37: ratios_out: invalid number 'not specified'
+  • Row 38: ratios_in: invalid number 'not specified'
+  • Row 38: ratios_out: invalid number 'not specified'
+  • Row 39: ratios_in: invalid number 'not specified'
+  • Row 39: ratios_in: invalid number 'not specified'
+  • Row 39: ratios_out: invalid number 'not specified'
+  • Row 40: ratios_in: invalid number 'not specified'
+  • Row 40: ratios_in: invalid number 'not specified'
+  • Row 40: ratios_out: invalid number 'not specified'
+  • Row 43: ratios_out: invalid number 'null'
+  • Row 43: ratios_out (1) and carriers_out (2) length mismatch
+  • Row 43: units_out (2) and ratios_out (1) length mismatch
