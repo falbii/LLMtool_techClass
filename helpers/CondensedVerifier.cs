@@ -58,7 +58,8 @@ public static class CondensedVerifier
         };
     }
 
-    public static string FormatReport(string pdfName, VerificationReport report)
+    public static string FormatReport(
+        string pdfName, VerificationReport report, IReadOnlyList<string>? parsingNotes = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"Numeric verification report — {pdfName}");
@@ -69,13 +70,23 @@ public static class CondensedVerifier
         if (report.UnverifiedCount == 0)
         {
             sb.AppendLine("All numeric values were found in the source text.");
-            return sb.ToString();
+        }
+        else
+        {
+            sb.AppendLine($"{report.UnverifiedCount} value(s) NOT found verbatim in the source — review for LLM drift:");
+            sb.AppendLine();
+            foreach (var f in report.Unverified)
+                sb.AppendLine($"  • [{f.TechId}] {f.Field} = {f.Value}");
         }
 
-        sb.AppendLine($"{report.UnverifiedCount} value(s) NOT found verbatim in the source — review for LLM drift:");
-        sb.AppendLine();
-        foreach (var f in report.Unverified)
-            sb.AppendLine($"  • [{f.TechId}] {f.Field} = {f.Value}");
+        if (parsingNotes is { Count: > 0 })
+        {
+            sb.AppendLine();
+            sb.AppendLine($"Parsing notes ({parsingNotes.Count} items):");
+            foreach (var note in parsingNotes)
+                sb.AppendLine($"  • {note}");
+        }
+
         return sb.ToString();
     }
 

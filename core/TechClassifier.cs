@@ -490,7 +490,7 @@ public static class TechnologyClassifier
                     ConsoleEx.Plain($"   ...and {rowErrors.Count - 10} more");
             }
 
-            await VerifyAgainstSourceAsync(ws, pdfFile, outputPath);
+            await VerifyAgainstSourceAsync(ws, pdfFile, outputPath, rowErrors);
 
             return outputPath;
         }
@@ -508,7 +508,8 @@ public static class TechnologyClassifier
     //
     // Verifies against the condensed .md (the source the extraction chain actually reads), falling
     // back to the raw PDF text if the cache is missing. Switch to raw to also catch condensation drift.
-    private static async Task VerifyAgainstSourceAsync(Workspace ws, string pdfFile, string csvPath)
+    private static async Task VerifyAgainstSourceAsync(
+        Workspace ws, string pdfFile, string csvPath, IReadOnlyList<string> parsingNotes)
     {
         try
         {
@@ -527,20 +528,25 @@ public static class TechnologyClassifier
             if (report.UnverifiedCount == 0)
             {
                 ConsoleEx.Success($"   🔎 Verification: all {report.TotalValues} numeric values verified against the source.");
-                return;
+            }
+            else
+            {
+                ConsoleEx.Warn($"   🔎 Verification: {report.UnverifiedCount}/{report.TotalValues} numeric value(s) not found in the source (possible LLM drift):");
+                foreach (var f in report.Unverified.Take(15))
+                    ConsoleEx.Dim($"     • [{f.TechId}] {f.Field} = {f.Value}");
+                if (report.UnverifiedCount > 15)
+                    ConsoleEx.Dim($"     ...and {report.UnverifiedCount - 15} more");
             }
 
-            ConsoleEx.Warn($"   🔎 Verification: {report.UnverifiedCount}/{report.TotalValues} numeric value(s) not found in the source (possible LLM drift):");
-            foreach (var f in report.Unverified.Take(15))
-                ConsoleEx.Dim($"     • [{f.TechId}] {f.Field} = {f.Value}");
-            if (report.UnverifiedCount > 15)
-                ConsoleEx.Dim($"     ...and {report.UnverifiedCount - 15} more");
-
+            // Always written (not only on drift): the report also carries the full parsing
+            // notes, which the console truncates to 10 items.
             var reportPath = Path.Combine(
                 ws.ClassifyCheckDir,
                 $"{Path.GetFileNameWithoutExtension(pdfFile)}_check_classification_with_pdf.txt");
             await File.WriteAllTextAsync(
-                reportPath, CondensedVerifier.FormatReport(Path.GetFileName(pdfFile), report), Encoding.UTF8);
+                reportPath,
+                CondensedVerifier.FormatReport(Path.GetFileName(pdfFile), report, parsingNotes),
+                Encoding.UTF8);
             ConsoleEx.Dim($"     📁 Full report: {reportPath}");
         }
         catch (Exception ex)

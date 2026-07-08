@@ -9,9 +9,16 @@ obj/
 *.csv
 *.txt
 *.xlsx
-21_tech_summary_md/
-22_tech_classification_csv/
-23_validation/
+
+# Generated output folders: ignore their contents but re-include the directories
+# themselves — git never descends into a fully ignored directory (e.g. "23_validation/"),
+# which would make the Allgoewer exception below dead.
+21_tech_summary_md/**
+22_tech_classification_csv/**
+23_validation/**
+!21_tech_summary_md/**/
+!22_tech_classification_csv/**/
+!23_validation/**/
 
 # Keep the Allgoewer benchmark example (PDF + its generated TXT/CSV outputs)
 !**/Allgoewer*
