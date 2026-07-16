@@ -80,40 +80,87 @@ public static class TechnologyClassifier
             .Replace("{{TECHNOLOGY_SECTIONS}}", BuildTechnologySectionsContent(technologySections));
     }
 
-    // Cheap shape check that the extracted text looks like a JSON array, before attempting to parse.
-    public static bool IsValidJsonArray(string? json) =>
-        !string.IsNullOrWhiteSpace(json) && json.TrimStart().StartsWith('[') && json.TrimEnd().EndsWith(']');
+    // Confirm that a candidate is a syntactically valid JSON array, rather than only checking
+    // its first and final characters. Models sometimes restart an interrupted JSON response.
+    public static bool IsValidJsonArray(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return false;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.ValueKind == JsonValueKind.Array;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
 
     public static string ExtractJson(string response)
     {
         if (string.IsNullOrWhiteSpace(response))
             return string.Empty;
 
-        var fenceMatch = Regex.Match(response,
-            @"```(?:\w*)\s*\r?\n?(?<json>[\s\S]*?)\r?\n?\s*```",
-            RegexOptions.IgnoreCase);
-        if (fenceMatch.Success)
+        // Do not stop at the first fenced block. A model can emit an incomplete array,
+        // restart with ```json, and then provide a complete array in the same response.
+        // Test every array start and return the first balanced, syntactically valid one.
+        for (var start = response.IndexOf('[');
+             start >= 0;
+             start = response.IndexOf('[', start + 1))
         {
-            var inner = fenceMatch.Groups["json"].Value.Trim();
-            if (inner.Length > 0) return inner;
-        }
-
-        var cleaned = response.Trim();
-        while (cleaned.StartsWith('`')) cleaned = cleaned.TrimStart('`');
-        cleaned = Regex.Replace(cleaned, @"^json\s*", "", RegexOptions.IgnoreCase).TrimStart();
-        while (cleaned.EndsWith('`')) cleaned = cleaned.TrimEnd('`');
-        cleaned = cleaned.Trim();
-
-        var start = cleaned.IndexOf('[');
-        var end = cleaned.LastIndexOf(']');
-        if (start >= 0 && end > start)
-        {
-            var extracted = cleaned.Substring(start, end - start + 1).Trim();
-            if (extracted.StartsWith('[') && extracted.EndsWith(']'))
-                return extracted;
+            if (TryExtractJsonArray(response, start, out var json))
+                return json;
         }
 
         return string.Empty;
+    }
+
+    private static bool TryExtractJsonArray(string text, int start, out string json)
+    {
+        json = string.Empty;
+        var arrayDepth = 0;
+        var inString = false;
+        var escaped = false;
+
+        for (var index = start; index < text.Length; index++)
+        {
+            var ch = text[index];
+
+            if (inString)
+            {
+                if (escaped)
+                    escaped = false;
+                else if (ch == '\\')
+                    escaped = true;
+                else if (ch == '"')
+                    inString = false;
+                continue;
+            }
+
+            if (ch == '"')
+                inString = true;
+            else if (ch == '[')
+                arrayDepth++;
+            else if (ch == ']')
+            {
+                arrayDepth--;
+                if (arrayDepth == 0)
+                {
+                    var candidate = text[start..(index + 1)].Trim();
+                    if (IsValidJsonArray(candidate))
+                    {
+                        json = candidate;
+                        return true;
+                    }
+
+                    return false;
+                }
+            }
+        }
+
+        return false;
     }
 
     public static List<Dictionary<string, string>> ParseRowsFromJson(string json)
