@@ -1,5 +1,7 @@
 bin/
 obj/
+.vs/
+.vscode/
 *.user
 *.exe
 *.dll
@@ -9,6 +11,7 @@ obj/
 *.csv
 *.txt
 *.xlsx
+3_output/
 
 # Generated output folders: ignore their contents but re-include the directories
 # themselves — git never descends into a fully ignored directory (e.g. "23_validation/"),

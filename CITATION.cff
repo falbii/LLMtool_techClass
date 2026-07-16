@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the repository and associated JOSS paper."
+title: "Open-source LLM Tool for Technical Data Extraction and Classification"
+type: software
+authors:
+  - family-names: "Allgoewer"
+    given-names: "Felix"
+repository-code: "https://github.com/falbii/CopilotSDK_techClass"
+abstract: "A .NET application that extracts structured technical data from PDF documents using GitHub Copilot or local Ollama models, with validation reports and benchmarking outputs for research workflows."
+keywords:
+  - pdf
+  - llm
+  - information extraction
+  - classification
+  - research software
+license: "NOASSERTION"
