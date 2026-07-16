@@ -169,7 +169,7 @@ try
             ConsoleEx.Dim($"   Checking: {filePath}");
 
             if (File.Exists(filePath))
-                selectedPdfPath = await CommandHandlers.HandleUploadPdfAsync(filePath, pdfInputDirectory);
+                selectedPdfPath = await CommandHandlers.HandleUploadPdfAsync(filePath, workspace);
             else
             {
                 ConsoleEx.Error("❌ File not found.");
@@ -186,6 +186,18 @@ try
             }
 
             await CommandHandlers.HandleCondenseAsync(workspace, selectedPdfPath);
+            continue;
+        }
+
+        if (command.Equals("extraction", StringComparison.OrdinalIgnoreCase))
+        {
+            if (selectedPdfPath == null)
+            {
+                ConsoleEx.Warn("❌ No PDF loaded. Use 'upload' or 'list' to select one.");
+                continue;
+            }
+
+            await CommandHandlers.HandleExtractionAsync(workspace, selectedPdfPath);
             continue;
         }
 

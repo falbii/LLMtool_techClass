@@ -633,10 +633,17 @@ public static class TechnologyClassifier
 
                 var json = ExtractJson(response);
                 if (IsValidJsonArray(json))
-                    return ParseRowsFromJson(json);
+                {
+                    var rows = ParseRowsFromJson(json);
+                    // A bracketed non-JSON response (or an array containing no objects) passes
+                    // the cheap shape check but cannot classify any requested technology. Treat
+                    // it as a failed attempt so the retry/fallback path preserves the batch.
+                    if (rows.Count > 0)
+                        return rows;
+                }
 
                 if (attempt < maxAttempts)
-                    ConsoleEx.Warn("   ⚠️ No valid JSON returned — retrying");
+                    ConsoleEx.Warn("   ⚠️ No usable JSON rows returned — retrying");
             }
             catch (Exception ex)
             {

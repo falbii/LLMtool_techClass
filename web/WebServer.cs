@@ -161,6 +161,10 @@ public static class WebServer
                 await using (var stream = File.Create(target))
                     await file.CopyToAsync(stream);
 
+                // An upload with the same name replaces the document. Its cache may otherwise
+                // look current when the uploaded file carries an older modification timestamp.
+                PdfCondenser.InvalidateCachedArtifacts(target, cacheDir, techListDir);
+
                 state.SelectedPdf = target;
                 // Re-uploading a file with the same name changes its content, so the
                 // text already injected into the session no longer matches it.
@@ -298,6 +302,13 @@ public static class WebServer
 
         // The pipelines report failures through ConsoleEx (mirrored to the progress
         // panel) and signal them via their return value: a null output path or false.
+        app.MapPost("/api/run/extraction", () => RunGatedAsync(state, needsPdf: true,
+            async (ws, pdf) =>
+            {
+                var output = await CommandHandlers.HandleExtractionAsync(ws, pdf!);
+                return (output != null, output);
+            }));
+
         app.MapPost("/api/run/condense", () => RunGatedAsync(state, needsPdf: true,
             async (ws, pdf) =>
             {

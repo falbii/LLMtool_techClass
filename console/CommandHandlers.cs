@@ -125,6 +125,26 @@ public static class CommandHandlers
         }
     }
 
+    // Runs the entire extraction workflow in dependency order. Each stage returns null on
+    // failure, so later stages never consume missing or stale intermediate output.
+    public static async Task<string?> HandleExtractionAsync(Workspace ws, string pdfFile)
+    {
+        if (string.IsNullOrWhiteSpace(pdfFile) || !File.Exists(pdfFile))
+        {
+            ConsoleEx.Error("❌ PDF not found or invalid path.");
+            return null;
+        }
+
+        ConsoleEx.Info("⚡ Running full extraction: condense → summarize → classify...\n");
+
+        if (await HandleCondenseAsync(ws, pdfFile) is null)
+            return null;
+        if (await TechnologySummarizer.RunAsync(ws, pdfFile) is null)
+            return null;
+
+        return await TechnologyClassifier.RunAsync(ws, pdfFile);
+    }
+
     public static async Task<string?> HandleListPdfsAsync(string pdfInputDirectory)
     {
         if (!Directory.Exists(pdfInputDirectory))
@@ -185,6 +205,7 @@ public static class CommandHandlers
         Console.WriteLine("  '/upload <path>'        - Upload a PDF to analyze (or drop PDFs in ./01_input/11_pdf_to_analyze/)");
         Console.WriteLine("  '/list'                 - List available PDFs and choose one to analyze");
         Console.WriteLine("  '/current'              - Show current PDF");
+        Console.WriteLine("  '/extraction'           - Run condense, summarize, then classify");
         Console.WriteLine("  '/condense'             - Condense the PDF to cached Markdown (runs first in the pipeline)");
         Console.WriteLine("  '/summarize'            - Extract technology summaries to Markdown");
         Console.WriteLine("  '/classify' (beta)      - Classify technologies and export CSV");
@@ -203,7 +224,7 @@ public static class CommandHandlers
         Console.WriteLine();
     }
 
-    public static async Task<string?> HandleUploadPdfAsync(string sourceFile, string pdfInputDirectory)
+    public static async Task<string?> HandleUploadPdfAsync(string sourceFile, Workspace ws)
     {
         if (!File.Exists(sourceFile))
         {
@@ -213,12 +234,21 @@ public static class CommandHandlers
 
         try
         {
-            var destFile = Path.Combine(pdfInputDirectory, Path.GetFileName(sourceFile));
+            var destFile = Path.Combine(ws.PdfDir, Path.GetFileName(sourceFile));
+
+            // Selecting a file already in the workspace should not try to copy it onto itself.
+            if (Path.GetFullPath(sourceFile).Equals(Path.GetFullPath(destFile), StringComparison.OrdinalIgnoreCase))
+            {
+                ConsoleEx.Success($"Loaded: {Path.GetFileName(destFile)}");
+                return destFile;
+            }
 
             await Program.RunWithSpinnerAsync($" Uploading {Path.GetFileName(sourceFile)}", async () =>
             {
                 await Task.Run(() => File.Copy(sourceFile, destFile, true));
             });
+
+            PdfCondenser.InvalidateCachedArtifacts(destFile, ws.CacheDir, ws.TechListDir);
 
             ConsoleEx.Success($"Loaded: {Path.GetFileName(sourceFile)}");
             return destFile;

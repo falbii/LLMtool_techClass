@@ -19,6 +19,15 @@ public static class PdfCondenser
     public static string GetTechListPath(string pdfFile, string techListDirectory)
         => Path.Combine(techListDirectory, $"{Path.GetFileNameWithoutExtension(pdfFile)}{TechListSuffix}");
 
+    // A replacement upload can preserve an older source timestamp, so timestamp-based cache
+    // validation alone cannot reliably detect that the file's contents changed. Remove both
+    // artifacts derived from that filename before the replacement is used.
+    public static void InvalidateCachedArtifacts(string pdfFile, string cacheDirectory, string techListDirectory)
+    {
+        File.Delete(GetCachePath(pdfFile, cacheDirectory));
+        File.Delete(GetTechListPath(pdfFile, techListDirectory));
+    }
+
     // The discovered technology list is cached (in ws.TechListDir) so re-runs reuse the
     // SAME enumeration instead of re-asking the model — which returns a slightly different list
     // each time, making the downstream row set non-deterministic. The file is plain text, one
