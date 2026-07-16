@@ -554,28 +554,31 @@ body.glow-benchmark      .pipeline-blob { filter: hue-rotate(120deg)  saturate(1
 
 #chips {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
   justify-content: center;
+  overflow: visible;
   margin-bottom: 0.7rem;
 }
 
 .cmd {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.7rem;
   background: rgba(255, 255, 255, 0.8);
   color: #2563eb;
   border: 1px solid #cfdef2;
   box-shadow: 0 1px 4px rgba(30, 64, 175, 0.05);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
 }
 .cmd:hover:not(:disabled) { background: #eaf2ff; }
 .cmd:disabled { background: rgba(255, 255, 255, 0.5); color: #aab8ca; border-color: #e2eaf4; }
 
-/* vertical line separating the auto-pipelines from the diagnostic commands */
-.chip-divider {
-  width: 1px;
-  align-self: stretch;
-  margin: 0.15rem 0.25rem;
-  background: #c6d6ea;
+/* Visible separators between related command groups. */
+.chip-separator {
+  flex: 0 0 auto;
+  align-self: center;
+  color: #8da2bd;
+  font-weight: 600;
 }
 
 #chat-form {
