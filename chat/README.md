@@ -66,7 +66,7 @@ The server endpoint defaults to `http://localhost:11434`. Override it with the
 `OLLAMA_HOST` environment variable (a bare `host:port` or a full URL both work):
 
 ```
-$env:OLLAMA_HOST = "http://192.168.1.10:11434"
+$env:OLLAMA_HOST = "http://<YOUR_PRIVATE_IP>:11434"
 ```
 
 ### How it fits
