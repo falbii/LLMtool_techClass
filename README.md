@@ -35,9 +35,7 @@ This `joss-prep` branch is being prepared for Journal of Open Source Software
 - contribution and citation metadata
 - a JOSS paper scaffold
 - a GitHub Actions build workflow
-
-One important item is still missing before submission: an OSI-approved
-`LICENSE` file chosen by the maintainers.
+- an OSI-approved MIT license
 
 ## Installation
 

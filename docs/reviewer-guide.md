@@ -57,6 +57,5 @@ the workflow and generated outputs.
 
 ## Known Review Gaps
 
-- An OSI-approved `LICENSE` file still needs to be added before JOSS submission.
 - Automated tests are not yet present in this branch; manual verification is the
   current objective check path.
