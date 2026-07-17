@@ -18,6 +18,19 @@ Thanks for your interest in improving this project.
    - local Ollama with at least one model pulled
 4. Run the application with `dotnet run`.
 
+## Tests
+
+Run the deterministic, backend-independent test suite before submitting a pull
+request:
+
+```bash
+dotnet test TechClass.sln
+```
+
+Tests must not require a Copilot subscription, a running Ollama server, or
+network access. Add or update tests when changing parsing, normalization,
+validation, merging, or output behavior.
+
 ## Pull Requests
 
 - keep pull requests focused and small when possible

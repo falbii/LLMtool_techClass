@@ -1,7 +1,9 @@
 # Examples
 
 This repository keeps one reviewer-friendly example dataset and its generated
-artifacts.
+artifacts. The `Allgoewer_2024` name identifies the source article; its authors
+are not authors of this software. The article is cited in `paper.bib` as
+`allgoewer2024` (https://doi.org/10.1021/acs.iecr.4c01287).
 
 ## Included Example
 

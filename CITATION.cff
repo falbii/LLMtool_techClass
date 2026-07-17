@@ -3,9 +3,10 @@ message: "If you use this software, please cite the repository and associated JO
 title: "Open-source LLM Tool for Technical Data Extraction and Classification"
 type: software
 authors:
-  - family-names: "Allgoewer"
-    given-names: "Felix"
-repository-code: "https://github.com/falbii/CopilotSDK_techClass"
+  - family-names: "Albisetti"
+    given-names: "Francesco"
+    affiliation: "Empa, Swiss Federal Laboratories for Materials Science and Technology, UES Laboratory, MES Team, Dübendorf, Switzerland"
+repository-code: "https://github.com/falbii/LLMtool_techClass"
 abstract: "A .NET application that extracts structured technical data from PDF documents using GitHub Copilot or local Ollama models, with validation reports and benchmarking outputs for research workflows."
 keywords:
   - pdf

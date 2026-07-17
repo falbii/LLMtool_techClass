@@ -6,13 +6,12 @@ tags:
   - information extraction
   - technology classification
 authors:
-  - name: Felix Allgoewer
-    orcid: 0000-0000-0000-0000
+  - name: Francesco Albisetti
     affiliation: 1
 affiliations:
-  - name: Add institutional affiliation
+  - name: Empa, Swiss Federal Laboratories for Materials Science and Technology, UES Laboratory, MES Team, Dübendorf, Switzerland
     index: 1
-date: 2026-07-16
+date: 17 July 2026
 bibliography: paper.bib
 ---
 
@@ -40,32 +39,41 @@ This software addresses that gap by providing a reproducible pipeline from PDF
 to condensed Markdown, technology summaries, classification CSVs, and explicit
 validation reports. It is designed for researchers who need not only generated
 results, but also intermediate artifacts that can be reviewed, corrected, and
-reused across repeated analyses.
+reused across repeated analyses. The intended users are energy-system analysts,
+technology assessors, and research-data practitioners who compare quantitative
+technology claims across reports. The command-line and local web interfaces
+expose the same workflow, allowing exploratory use without replacing the file-
+based artifacts required for review and downstream analysis.
 
 # State of the field
 
-The broader ecosystem offers multiple ways to work with PDF documents and large
-language models, including general-purpose chat interfaces, custom extraction
-scripts, and workflow-specific data processing notebooks. However, many of these
-approaches are either manual, opaque, or tightly bound to one model provider.
+The broader ecosystem offers document-conversion tools such as Docling
+[@docling], general LLM application frameworks such as LangChain [@langchain]
+and LlamaIndex [@llamaindex], and custom extraction notebooks. These projects
+provide broad components for parsing documents, retrieval, and model
+orchestration, but adopting one would still require a domain workflow for
+technology discovery, technology-level summaries, a fixed classification
+schema, numeric-fidelity checks, and comparable benchmark artifacts.
 
 The contribution of this project is not a generic PDF reader or a thin wrapper
 around a single API. Instead, it combines provider-agnostic LLM interaction,
 inspectable intermediate files, numeric validation, and benchmark reporting in a
 workflow shaped around research extraction tasks. This design makes it better
 suited to repeated technical-document analysis than ad hoc prompting alone.
-
-This section should be expanded before submission with explicit comparisons to
-the most relevant tools in the target research domain and a clear build-versus-
-contribute justification.
+The project is therefore maintained as a focused application rather than a
+contribution to a general orchestration framework: its scholarly contribution
+is the end-to-end, human-reviewable workflow and its research-specific output
+contract, while PDF parsing and model execution remain delegated to existing
+libraries and services.
 
 # Software design
 
 The software is organized around a pipeline that separates provider access,
 workflow orchestration, and output formatting. A provider-neutral chat interface
 allows the same extraction stages to run with GitHub Copilot or local Ollama
-models. This reduces coupling to a specific vendor and supports both connected
-and local workflows.
+models [@copilot_sdk; @ollama]. This reduces coupling to a specific vendor and
+supports both connected and local workflows. The application targets .NET
+[@dotnet] and uses iText for PDF text extraction [@itext].
 
 Intermediate files are stored intentionally. Condensed Markdown reduces repeated
 token usage while preserving a reviewable representation of the source text.
@@ -74,29 +82,49 @@ classification, which supports the practical reality that LLM-assisted
 extraction is not fully automatic. Validation reports provide an audit layer for
 checking whether key numeric content survived condensation and classification.
 
+This design trades a single opaque model call for several explicit stages. The
+staged approach requires more files and orchestration, but failures can be
+localized and corrected without rerunning the entire analysis. Caching the
+condensed representation reduces repeated model context, while invalidating it
+when the source PDF changes avoids silently reusing stale text. A stable CSV
+schema separates probabilistic extraction from deterministic downstream data
+processing. Provider abstraction also permits local execution for sensitive
+documents, although users remain responsible for evaluating the privacy and
+licensing conditions of their selected model. Automated tests cover the
+deterministic parsing, merging, identifier generation, and numeric-verification
+components; model-dependent stages are complemented by documented functional
+checks and tracked example artifacts.
+
 # Research impact statement
 
-The software is intended for research workflows that transform semi-structured
-technical documents into structured comparison datasets. In its current form,
-the repository already demonstrates a complete end-to-end workflow on a public
-example document and provides benchmark and validation artifacts that support
-reproducible review.
+The software has been developed and used to extract and classify technologies
+from semi-structured technical literature. The repository demonstrates this
+research workflow on the openly licensed article by Allgoewer et al.
+[@allgoewer2024]. It includes the source document, intermediate Markdown,
+technology list, structured classification output, numeric validation reports,
+and multi-model benchmark artifacts. These materials make the demonstrated use
+reproducible and allow reviewers to inspect where information changes between
+pipeline stages. The same schema and staged workflow can be reused for other
+technical documents without changing the core application.
 
-Before JOSS submission, this section should be strengthened with concrete
-evidence of research use, such as publications, internal research workflows,
-adoption by collaborators, or documented comparative analyses produced with the
-software.
+The software, documentation, tests, and reproducible example are publicly
+available in the project repository [@techclass].
 
 # AI usage disclosure
 
-Generative AI tools were used during the development and preparation of this
-software repository, including assistance with refactoring, documentation
-drafting, and JOSS-preparation scaffolding. Human authors reviewed, edited, and
-validated the resulting materials and remained responsible for architectural
-decisions, repository structure, and the correctness of the submitted content.
+GitHub Copilot and Anthropic Claude were used for code generation and
+refactoring; GitHub Copilot also assisted with documentation and paper drafting.
+The specific model versions used across earlier development sessions were not
+recorded. The author reviewed, edited, and validated all AI-assisted outputs and
+remained responsible for problem framing, architectural decisions, repository
+structure, and the correctness of the submitted content.
 
 # Acknowledgements
 
-Add funding, institutional, and collaborator acknowledgements here.
+No acknowledgements or dedicated funding are reported at this time.
+
+# Conflict of interest
+
+The author declares no conflicts of interest.
 
 # References

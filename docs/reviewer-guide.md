@@ -28,6 +28,19 @@ The application converts a technical PDF into a sequence of reviewable artifacts
 dotnet restore
 ```
 
+## Automated Tests
+
+Run the backend-independent tests without Copilot credentials or an Ollama
+server:
+
+```bash
+dotnet test TechClass.sln --configuration Release
+```
+
+The tests exercise deterministic JSON parsing, record conversion, identifier
+generation, record merging, and numeric verification. GitHub Actions runs the
+same suite on every pull request and on pushes to `main` and `joss-prep`.
+
 ## Minimal Functional Check
 
 1. Start the program with `dotnet run`
@@ -55,7 +68,5 @@ dotnet restore
 The repository includes the `Allgoewer_2024` example to support manual review of
 the workflow and generated outputs.
 
-## Known Review Gaps
-
-- Automated tests are not yet present in this branch; manual verification is the
-  current objective check path.
+The functional check complements the automated tests because the LLM-backed
+pipeline itself depends on the selected external model and runtime backend.
