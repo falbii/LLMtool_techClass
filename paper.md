@@ -121,7 +121,13 @@ structure, and the correctness of the submitted content.
 
 # Acknowledgements
 
-No acknowledgements or dedicated funding are reported at this time.
+The design of this pipeline was inspired by the openly shared work of James
+Montemagno ([github.com/jamesmontemagno](https://github.com/jamesmontemagno)),
+particularly the
+[podcast-metadata-generator](https://github.com/jamesmontemagno/podcast-metadata-generator) project. 
+
+EMPA, UES lab ....... TO DO
+
 
 # Conflict of interest
 
