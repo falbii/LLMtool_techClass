@@ -1,8 +1,24 @@
-# Open-source LLM tool for Data Extraction and Classification
+# Open-source LLM Tool for Technical Data Extraction and Classification
 
-Extract structured technical data from PDFs with either **GitHub Copilot** or **local Ollama models**. The tool condenses a PDF, identifies and summarizes technologies, then writes validated CSV classifications. It also provides interactive document Q&A, deterministic verification reports, and multi-model benchmarks.
+Extract structured technical data from PDFs with either **GitHub Copilot** or
+**local Ollama models**. The tool condenses a PDF, identifies and summarizes
+technologies, then writes validated CSV classifications. It also provides
+interactive document Q&A, deterministic verification reports, and multi-model
+benchmarks.
 
----
+## Statement of Need
+
+Researchers and analysts often need to turn semi-structured technical reports
+into structured datasets that can be compared across technologies, years, and
+sources. Manual extraction is labor-intensive, difficult to reproduce, and slow
+to audit. General-purpose LLM interfaces can assist with individual questions,
+but they do not preserve a complete, inspectable extraction pipeline.
+
+This software provides a reproducible workflow from PDF input to condensed
+Markdown, technology-level summaries, structured classification CSVs, and
+validation reports. Intermediate artifacts remain human-readable and editable,
+which allows generated content to be reviewed before it becomes structured
+research data.
 
 ## Quick Start
 
@@ -27,11 +43,13 @@ dotnet restore
 
 ### 3. Choose an LLM backend and run
 
-Both backends use the same model picker, commands, PDF workflow, output formats, and web interface.
+Both backends use the same model picker, commands, PDF workflow, output formats,
+and web interface.
 
 #### GitHub Copilot (default)
 
-Requires Node.js 22+, the GitHub Copilot CLI, and an authenticated GitHub account with an active Copilot subscription.
+Requires Node.js 22+, the GitHub Copilot CLI, and an authenticated GitHub account
+with an active Copilot subscription.
 
 ```bash
 npm install -g @github/copilot
@@ -43,7 +61,8 @@ dotnet run -- --web            # web UI at http://localhost:5179
 
 #### Local Ollama models
 
-Install [Ollama](https://ollama.com), start its server, and pull at least one model:
+Install [Ollama](https://ollama.com), start its server, and pull at least one
+model:
 
 ```bash
 ollama serve
@@ -53,13 +72,25 @@ dotnet run -- --local          # console mode with Ollama
 dotnet run -- --local --web    # web UI with Ollama
 ```
 
-`--ollama` is an alias for `--local`. Ollama mode does not require the Copilot CLI or a GitHub sign-in. See [chat/README.md](chat/README.md) for local-backend settings such as `OLLAMA_HOST`, `OLLAMA_NUM_CTX`, `OLLAMA_TEMPERATURE`, and `OLLAMA_SEED`.
+`--ollama` is an alias for `--local`. Ollama mode does not require the Copilot
+CLI or a GitHub sign-in. See [chat/README.md](chat/README.md) for local-backend
+settings such as `OLLAMA_HOST`, `OLLAMA_NUM_CTX`, `OLLAMA_TEMPERATURE`, and
+`OLLAMA_SEED`.
 
----
+### Run automated tests
+
+The deterministic test suite does not require an LLM backend or network access:
+
+```bash
+dotnet test TechClass.sln
+```
 
 ## Use the Tool
 
-At startup, select a model and then select or upload a PDF. Use console commands in console mode, or the corresponding buttons in web mode. The web UI supports the main pipeline, its checks, benchmarks, file selection/upload, and document Q&A.
+At startup, select a model and then select or upload a PDF. Use console commands
+in console mode, or the corresponding buttons in web mode. The web UI supports
+the main pipeline, its checks, benchmarks, file selection/upload, and document
+Q&A.
 
 ### Commands
 
@@ -78,9 +109,10 @@ At startup, select a model and then select or upload a PDF. Use console commands
 | `/commands` / `/help` | Show all commands |
 | `/exit` / `/quit` | Exit the console application |
 
-Commands also work without the leading `/`. An unknown `/command` is reported as an error instead of being sent to the model. Other input is treated as a question for the selected backend. For a selected PDF, condensed text is added on the first question; follow-up questions reuse the session context.
-
----
+Commands also work without the leading `/`. An unknown `/command` is reported as
+an error instead of being sent to the model. Other input is treated as a
+question for the selected backend. For a selected PDF, condensed text is added
+on the first question; follow-up questions reuse the session context.
 
 ## Extraction Workflow: PDF → Markdown → CSV
 
@@ -102,7 +134,8 @@ The final result is saved to:
 02_output/22_tech_classification_csv/<pdf-name>_classification.csv
 ```
 
-Run individual stages when you want to inspect or edit the intermediate summary before classification:
+Run individual stages when you want to inspect or edit the intermediate summary
+before classification:
 
 ```text
 1. /condense   → 01_input/12_condensed_md/<pdf-name>_condensed.md
@@ -110,21 +143,42 @@ Run individual stages when you want to inspect or edit the intermediate summary 
 3. /classify   → 02_output/22_tech_classification_csv/<pdf-name>_classification.csv
 ```
 
-**Condense** creates a compact cached Markdown version of the PDF. **Summarize** finds technology names and produces detailed per-technology summaries. **Classify** converts the summary Markdown into one or more rows per technology, including separate rows for distinct years or time horizons.
+**Condense** creates a compact cached Markdown version of the PDF. **Summarize**
+finds technology names and produces detailed per-technology summaries.
+**Classify** converts the summary Markdown into one or more rows per technology,
+including separate rows for distinct years or time horizons.
 
 ### Token-saving cache and review points
 
-The condensed cache at `01_input/12_condensed_md/<name>_condensed.md` is reused while its source PDF is unchanged. Replacing an uploaded PDF invalidates the condensed cache and its derived technology list, so the next workflow uses the replacement document.
+The condensed cache at `01_input/12_condensed_md/<name>_condensed.md` is reused
+while its source PDF is unchanged. Replacing an uploaded PDF invalidates the
+condensed cache and its derived technology list, so the next workflow uses the
+replacement document.
 
-The technology list is frozen at `01_input/13_technology_list_md/<name>_technology_list.md`. Edit it to control the technologies processed on later runs, or delete it to scan the PDF again. The summary Markdown is also human-readable and editable; correct it before running `/classify` when needed.
+The technology list is frozen at
+`01_input/13_technology_list_md/<name>_technology_list.md`. Edit it to control
+the technologies processed on later runs, or delete it to scan the PDF again.
+The summary Markdown is also human-readable and editable; correct it before
+running `/classify` when needed.
 
-Because condensation is lossy, use `/condense-check` to compare numeric values in the raw PDF and condensed Markdown. Classification also writes a numeric verification report to `02_output/23_validation/classification_csv_check/`.
+Because condensation is lossy, use `/condense-check` to compare numeric values
+in the raw PDF and condensed Markdown. Classification also writes a numeric
+verification report to
+`02_output/23_validation/classification_csv_check/`.
 
----
+## Included Example
+
+The tracked `Allgoewer_2024` files provide one end-to-end example, from the
+source PDF through generated outputs and validation artifacts. The name refers
+to the example article by Leo Allgoewer and co-authors; those article authors
+are not authors of this software. See [examples/README.md](examples/README.md)
+for the file list and source citation.
 
 ## Benchmark
 
-Run `/benchmark`, select a PDF, then choose exactly three technologies. The tool summarizes and classifies those same technologies with every model available from the selected backend.
+Run `/benchmark`, select a PDF, then choose exactly three technologies. The tool
+summarizes and classifies those same technologies with every model available
+from the selected backend.
 
 Results are written to `02_output/23_validation/benchmark/`:
 
@@ -134,12 +188,10 @@ Results are written to `02_output/23_validation/benchmark/`:
 
 `<provider>` is `copilot` or `ollama`, matching the active backend.
 
----
-
 ## File Structure
 
 ```text
-CopilotSDK_techClass/
+LLMtool_techClass/
 ├── Program.cs                    entry point, backend selection, model selection
 ├── Workspace.cs                  app-wide client, model, and directory context
 ├── core/                         PDF extraction, condensation, summary, classification
@@ -149,6 +201,9 @@ CopilotSDK_techClass/
 ├── helpers/                      validation, parsing, benchmark, and verification utilities
 ├── web/                          local web UI and its server
 ├── prompt/                       LLM prompt templates
+├── docs/                         architecture notes and reviewer guide
+├── examples/                     example dataset documentation
+├── tests/                        backend-independent automated tests
 ├── 01_input/
 │   ├── 11_pdf_to_analyze/        input PDFs
 │   ├── 12_condensed_md/          regenerable condensed Markdown cache
@@ -162,7 +217,13 @@ CopilotSDK_techClass/
         └── classification_csv_check/ classification numeric verification reports
 ```
 
----
+## Documentation and Community
+
+- [Reviewer guide](docs/reviewer-guide.md)
+- [Architecture notes](docs/architecture.md)
+- [Example materials](examples/README.md)
+- [Ollama backend notes](chat/README.md)
+- [Contribution and support guidelines](CONTRIBUTING.md)
 
 ## Notes and Limitations
 
@@ -173,17 +234,22 @@ CopilotSDK_techClass/
 - Local Ollama runs default to `temperature=0` and a fixed seed for more reproducible results. Copilot does not expose equivalent sampling controls, so values can vary between runs.
 - Reproducibility means repeatable output under the same conditions; it does not guarantee that extracted values are correct. Review generated summaries and validation reports.
 
----
-
 ## CSV Output Records
 
-The CSV includes identifiers, descriptions, classification hierarchy, year and location, reference-unit data, maturity and efficiency, input/output carriers and ratios, cost and lifetime values, source publication year, summary, and the model that produced the row when applicable.
+The CSV includes identifiers, descriptions, classification hierarchy, year and
+location, reference-unit data, maturity and efficiency, input/output carriers
+and ratios, cost and lifetime values, source publication year, summary, and the
+model that produced the row when applicable.
 
----
+## Citation and License
+
+If you use this software in research, cite it using [CITATION.cff](CITATION.cff)
+and, once published, the associated JOSS paper. The software is distributed
+under the [MIT License](LICENSE).
 
 ## Version History
 
-- **v1.1** — Renamed the project to **Open-source LLM tool for Data Extraction and Classification**; documented GitHub Copilot and local Ollama backends; added the `/extraction` full workflow and its web UI action.
+- **v1.1** — Renamed the project to **Open-source LLM Tool for Technical Data Extraction and Classification**; documented GitHub Copilot and local Ollama backends; added the `/extraction` full workflow and its web UI action.
 - **v1.0** — Data folders restructured into `01_input/` (`11_pdf_to_analyze`, `12_condensed_md`, `13_technology_list_md`) and `02_output/` (`21_tech_summary_md`, `22_tech_classification_csv`, `23_validation/{benchmark, condensed_md_check, classification_csv_check}`); classify verification reports get their own folder; benchmark files named `<pdf>_<provider>_benchmark_*_<yyyy-MM-dd>`; technology lists renamed `<name>_technology_list.md`.
 - **v0.6** — Source reorganized by role: `core/`, `format_output/`, `chat/`, `console/`, and `helpers/`; project renamed `TestApp` → `TechClass`.
 - **v0.5 and earlier** — Prototype and workflow iterations, including PDF condensation, summary/classification stages, prompt templates, and benchmark support.
