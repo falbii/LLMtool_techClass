@@ -22,23 +22,26 @@ research data.
 
 ## Quick Start
 
-### 1. Install the .NET 10 SDK
+### 1. Install Python 3.11 or newer
 
 ```powershell
 # Windows (winget)
-winget install Microsoft.DotNet.SDK.10
+winget install Python.Python.3.13
 ```
 
 ```bash
 # macOS (Homebrew)
-brew install dotnet-sdk
-# Linux: https://learn.microsoft.com/dotnet/core/install/linux
+brew install python
 ```
 
-### 2. Restore project dependencies
+### 2. Create an environment and install dependencies
 
 ```bash
-dotnet restore
+python -m venv .venv
+# Windows
+.venv\Scripts\python -m pip install -e ".[dev,web]"
+# macOS/Linux
+.venv/bin/python -m pip install -e ".[dev,web]"
 ```
 
 ### 3. Choose an LLM backend and run
@@ -48,15 +51,14 @@ and web interface.
 
 #### GitHub Copilot (default)
 
-Requires Node.js 22+, the GitHub Copilot CLI, and an authenticated GitHub account
-with an active Copilot subscription.
+Requires an authenticated GitHub account with an active Copilot subscription.
+The Python Copilot SDK includes its compatible CLI runtime. Existing CLI
+installations can be selected with `COPILOT_CLI_PATH`.
 
 ```bash
-npm install -g @github/copilot
-copilot            # launch once, then run /login to sign in
-
-dotnet run                     # console mode
-dotnet run -- --web            # web UI at http://localhost:5179
+python -m copilot download-runtime  # optional; first run can download it automatically
+techclass                         # console mode
+techclass --web                   # web UI at http://127.0.0.1:5050
 ```
 
 #### Local Ollama models
@@ -68,8 +70,8 @@ model:
 ollama serve
 ollama pull llama3.2
 
-dotnet run -- --local          # console mode with Ollama
-dotnet run -- --local --web    # web UI with Ollama
+techclass --local          # console mode with Ollama
+techclass --local --web    # web UI with Ollama
 ```
 
 `--ollama` is an alias for `--local`. Ollama mode does not require the Copilot
@@ -82,7 +84,7 @@ settings such as `OLLAMA_HOST`, `OLLAMA_NUM_CTX`, `OLLAMA_TEMPERATURE`, and
 The deterministic test suite does not require an LLM backend or network access:
 
 ```bash
-dotnet test TechClass.sln
+python -m pytest
 ```
 
 ## Use the Tool
@@ -192,29 +194,20 @@ Results are written to `02_output/23_validation/benchmark/`:
 
 ```text
 LLMtool_techClass/
-├── Program.cs                    entry point, backend selection, model selection
-├── Workspace.cs                  app-wide client, model, and directory context
-├── core/                         PDF extraction, condensation, summary, classification
-├── format_output/                technology data model and CSV/Markdown formats
-├── chat/                         GitHub Copilot and local Ollama backends
-├── console/                      console commands and output helpers
-├── helpers/                      validation, parsing, benchmark, and verification utilities
-├── web/                          local web UI and its server
-├── prompt/                       LLM prompt templates
-├── docs/                         architecture notes and reviewer guide
-├── examples/                     example dataset documentation
-├── tests/                        backend-independent automated tests
-├── 01_input/
-│   ├── 11_pdf_to_analyze/        input PDFs
-│   ├── 12_condensed_md/          regenerable condensed Markdown cache
-│   └── 13_technology_list_md/    editable frozen technology lists
-└── 02_output/
-    ├── 21_tech_summary_md/       technology summary Markdown
-    ├── 22_tech_classification_csv/ classified CSV output
-    └── 23_validation/
-        ├── benchmark/            benchmark files
-        ├── condensed_md_check/   condensation fidelity reports
-        └── classification_csv_check/ classification numeric verification reports
+|-- pyproject.toml                 package metadata and dependencies
+|-- techclass/                     Python application, pipeline, backends, CLI, and web host
+|-- tests_python/                  backend-independent Python tests
+|-- web/wwwroot/                   framework-free browser interface
+|-- prompt/                        LLM prompt templates
+|-- docs/                          architecture notes and reviewer guide
+|-- 01_input/
+|   |-- 11_pdf_to_analyze/         input PDFs
+|   |-- 12_condensed_md/           regenerable condensed Markdown cache
+|   `-- 13_technology_list_md/     editable frozen technology lists
+`-- 02_output/
+    |-- 21_tech_summary_md/        technology summary Markdown
+    |-- 22_tech_classification_csv/ classified CSV output
+    `-- 23_validation/             benchmark and verification reports
 ```
 
 ## Documentation and Community
@@ -229,7 +222,7 @@ LLMtool_techClass/
 
 - Large PDFs are split into approximately 30 KB chunks before LLM processing.
 - Scanned PDFs require OCR preprocessing because extraction uses the PDF text layer.
-- Each LLM call has a 15-minute timeout.
+- Ollama requests have no client-side timeout; stopping the request cancels generation.
 - Classification requires a summary Markdown file. `/extraction` and `/summarize` create it automatically.
 - Local Ollama runs default to `temperature=0` and a fixed seed for more reproducible results. Copilot does not expose equivalent sampling controls, so values can vary between runs.
 - Reproducibility means repeatable output under the same conditions; it does not guarantee that extracted values are correct. Review generated summaries and validation reports.

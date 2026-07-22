@@ -1,29 +1,27 @@
 # Chat backends
 
-This folder holds the provider-neutral chat abstraction and its two
+The Python application holds the provider-neutral chat abstraction and its two
 implementations. The rest of the app talks only to the interfaces, so switching
 providers changes nothing downstream.
 
 ## The abstraction
 
-[ChatBackend.cs](ChatBackend.cs) defines the contracts:
+[techclass/chat.py](../techclass/chat.py) defines the contracts:
 
-- `IChatClient` — connects to a provider, lists available models
-  (`ListModelsAsync`), and opens sessions.
-- `IChatSession` — one conversation: `SendAsync` with optional reasoning/content
+- `ChatClient` — connects to a provider, lists available models, and opens sessions.
+- `ChatSession` — one conversation: `send` with optional reasoning/content
   delta callbacks for streaming.
 - `ChatModelInfo(Id, SupportsReasoning)` — a model as shown in the picker.
 
 ## Implementations
 
-- [CopilotChatBackend.cs](CopilotChatBackend.cs) — `CopilotChatClient`, the
-  default. Talks to GitHub Copilot via the `GitHub.Copilot.SDK`.
-- [OllamaChatBackend.cs](OllamaChatBackend.cs) — `OllamaChatClient`, selected with
+- `CopilotChatClient` is the default and uses `github-copilot-sdk`.
+- `OllamaChatClient` is selected with
   `--local` / `--ollama`. Talks to a local Ollama server, fully offline.
 
 ## Selection
 
-[Program.cs](../Program.cs) picks the backend at startup: `--local` (or
+[techclass/cli.py](../techclass/cli.py) picks the backend at startup: `--local` (or
 `--ollama`) constructs `OllamaChatClient`, otherwise `CopilotChatClient` is used.
 Everything after that — model picker, sessions, the pipeline commands — is
 identical for both.
@@ -51,8 +49,8 @@ Copilot — fully offline, no Copilot sign-in required.
 Pass `--local` (or `--ollama`) on startup:
 
 ```
-dotnet run -- --local          # console mode, local models
-dotnet run -- --local --web    # web UI, local models
+techclass --local          # console mode, local models
+techclass --local --web    # web UI, local models
 ```
 
 In `--local` mode no Copilot CLI or sign-in is involved at all; the model picker
@@ -71,7 +69,7 @@ $env:OLLAMA_HOST = "http://<YOUR_PRIVATE_IP>:11434"
 
 ### How it fits
 
-[OllamaChatBackend.cs](OllamaChatBackend.cs) implements the same provider-neutral
-`IChatClient` / `IChatSession` interfaces (see [ChatBackend.cs](ChatBackend.cs)) as
-the Copilot backend, so the rest of the app is unchanged. `/api/chat` is
+[techclass/chat.py](../techclass/chat.py) implements the same provider-neutral
+`ChatClient` / `ChatSession` interfaces for both providers, so the rest of the
+app is unchanged. `/api/chat` is
 stateless, so each session keeps its own message history and resends it every turn.

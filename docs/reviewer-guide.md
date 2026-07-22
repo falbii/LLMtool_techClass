@@ -17,7 +17,7 @@ The application converts a technical PDF into a sequence of reviewable artifacts
 
 ### Requirements
 
-- .NET 10 SDK
+- Python 3.11 or newer
 - One backend:
   - GitHub Copilot CLI with an authenticated account, or
   - Ollama running locally with at least one pulled model
@@ -25,7 +25,7 @@ The application converts a technical PDF into a sequence of reviewable artifacts
 ### Install and restore
 
 ```bash
-dotnet restore
+python -m pip install -e ".[dev,web]"
 ```
 
 ## Automated Tests
@@ -34,7 +34,7 @@ Run the backend-independent tests without Copilot credentials or an Ollama
 server:
 
 ```bash
-dotnet test TechClass.sln --configuration Release
+python -m pytest
 ```
 
 The tests exercise deterministic JSON parsing, record conversion, identifier
@@ -43,7 +43,7 @@ same suite on every pull request and on pushes to `main` and `joss-prep`.
 
 ## Minimal Functional Check
 
-1. Start the program with `dotnet run`
+1. Start the program with `techclass`
 2. Select a backend model
 3. Run `/list`
 4. Select `Allgoewer_2024.pdf`
