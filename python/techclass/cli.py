@@ -208,6 +208,20 @@ def main() -> None:
     except KeyboardInterrupt:
         print("\nStopped.")
     except Exception as exc:
+        if not args.local and "not authenticated" in str(exc).lower():
+            print("Error: GitHub Copilot is not authenticated.", file=sys.stderr)
+            print("", file=sys.stderr)
+            print("Sign in with the bundled Copilot runtime:", file=sys.stderr)
+            print(
+                r"  $copilot = Get-ChildItem ""$env:LOCALAPPDATA\github-copilot-sdk\cli"" -Recurse -Filter copilot.exe | "
+                "Sort-Object LastWriteTime -Descending | Select-Object -First 1",
+                file=sys.stderr,
+            )
+            print(r"  & $copilot.FullName login", file=sys.stderr)
+            print("", file=sys.stderr)
+            print("Then run: python -m techclass", file=sys.stderr)
+            print("Or use local Ollama mode: python -m techclass --local", file=sys.stderr)
+            raise SystemExit(1) from exc
         print(f"Error: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
 

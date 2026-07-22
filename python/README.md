@@ -5,8 +5,9 @@ This folder contains the Python implementation of TechClass.
 From this directory:
 
 ```powershell
-..\.venv\Scripts\python -m pip install -e ".[dev,web]"
+..\.venv\Scripts\python -m pip install -e "."
 ..\.venv\Scripts\python -m techclass
+..\.venv\Scripts\python -m techclass --web
 ```
 
 The default workspace root is the repository root one level above this folder,

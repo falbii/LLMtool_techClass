@@ -55,25 +55,36 @@ Requires an authenticated GitHub account with an active Copilot subscription.
 The Python Copilot SDK includes its compatible CLI runtime. Existing CLI
 installations can be selected with `COPILOT_CLI_PATH`.
 
-```bash
-python -m copilot download-runtime  # optional; first run can download it automatically
-techclass                           # console mode
-techclass --web                     # web UI at http://127.0.0.1:5050
-```
-
-If the SDK reports `Not authenticated`, sign in with one of these methods:
+Sign in once before running the Copilot backend:
 
 ```powershell
-# Use the bundled runtime directly on Windows
 $copilot = Get-ChildItem "$env:LOCALAPPDATA\github-copilot-sdk\cli" -Recurse -Filter copilot.exe |
   Sort-Object LastWriteTime -Descending |
   Select-Object -First 1
 & $copilot.FullName login
 ```
 
+Then launch the console or web UI:
+
+```bash
+python -m copilot download-runtime  # optional; first run can download it automatically
+techclass                           # console mode
+techclass --web                     # web UI at http://127.0.0.1:5050
+```
+
+If the SDK reports `Not authenticated`, repeat the login step above or provide
+a GitHub token for this PowerShell session:
+
 ```powershell
-# Or provide a GitHub token for this PowerShell session
 $env:COPILOT_GITHUB_TOKEN = "<your-token>"
+```
+
+When running directly from the repository checkout without activating the
+editable script, use:
+
+```powershell
+cd python
+..\.venv\Scripts\python -m techclass --web
 ```
 
 #### Local Ollama models
@@ -99,6 +110,7 @@ settings such as `OLLAMA_HOST`, `OLLAMA_NUM_CTX`, `OLLAMA_TEMPERATURE`, and
 The deterministic test suite does not require an LLM backend or network access:
 
 ```bash
+cd python
 python -m pytest
 ```
 
