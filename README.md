@@ -39,9 +39,9 @@ brew install python
 ```bash
 python -m venv .venv
 # Windows
-.venv\Scripts\python -m pip install -e ".[dev,web]"
+.venv\Scripts\python -m pip install -e ".\python[dev,web]"
 # macOS/Linux
-.venv/bin/python -m pip install -e ".[dev,web]"
+.venv/bin/python -m pip install -e "./python[dev,web]"
 ```
 
 ### 3. Choose an LLM backend and run
@@ -57,8 +57,23 @@ installations can be selected with `COPILOT_CLI_PATH`.
 
 ```bash
 python -m copilot download-runtime  # optional; first run can download it automatically
-techclass                         # console mode
-techclass --web                   # web UI at http://127.0.0.1:5050
+techclass                           # console mode
+techclass --web                     # web UI at http://127.0.0.1:5050
+```
+
+If the SDK reports `Not authenticated`, sign in with one of these methods:
+
+```powershell
+# Use the bundled runtime directly on Windows
+$copilot = Get-ChildItem "$env:LOCALAPPDATA\github-copilot-sdk\cli" -Recurse -Filter copilot.exe |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -First 1
+& $copilot.FullName login
+```
+
+```powershell
+# Or provide a GitHub token for this PowerShell session
+$env:COPILOT_GITHUB_TOKEN = "<your-token>"
 ```
 
 #### Local Ollama models
@@ -194,9 +209,15 @@ Results are written to `02_output/23_validation/benchmark/`:
 
 ```text
 LLMtool_techClass/
-|-- pyproject.toml                 package metadata and dependencies
-|-- techclass/                     Python application, pipeline, backends, CLI, and web host
-|-- tests_python/                  backend-independent Python tests
+|-- Program.cs                      C# console entry point
+|-- TechClass.csproj                C# project file
+|-- TechClass.sln                   C# solution file
+|-- core/, chat/, helpers/          C# implementation directories
+|-- tests/                          C# tests
+|-- python/
+|   |-- pyproject.toml              Python package metadata and dependencies
+|   |-- techclass/                  Python application, pipeline, backends, CLI, and web host
+|   `-- tests/                      backend-independent Python tests
 |-- web/wwwroot/                   framework-free browser interface
 |-- prompt/                        LLM prompt templates
 |-- docs/                          architecture notes and reviewer guide

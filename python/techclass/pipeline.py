@@ -102,7 +102,10 @@ def parse_technology_names(response: str) -> list[str]:
         if line.startswith("#") or len(line) < 3:
             continue
         lower = line.lower()
-        if ("technology" in lower or "list" in lower) and (lower.startswith(("technology", "list")) or lower.endswith(":")):
+        if (
+            ("technology" in lower or "technologies" in lower or "list" in lower)
+            and (lower.startswith(("technology", "technologies", "list")) or lower.endswith(":"))
+        ):
             continue
         cleaned = re.sub(r"^\d+\.\s*", "", line)
         cleaned = re.sub(r"^[-*\u2022]\s*", "", cleaned).strip()

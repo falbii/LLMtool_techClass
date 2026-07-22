@@ -25,7 +25,7 @@ The application converts a technical PDF into a sequence of reviewable artifacts
 ### Install and restore
 
 ```bash
-python -m pip install -e ".[dev,web]"
+python -m pip install -e "./python[dev,web]"
 ```
 
 ## Automated Tests
@@ -34,6 +34,7 @@ Run the backend-independent tests without Copilot credentials or an Ollama
 server:
 
 ```bash
+cd python
 python -m pytest
 ```
 

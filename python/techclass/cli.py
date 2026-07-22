@@ -16,12 +16,19 @@ from .pipeline import (
 from .workspace import Workspace
 
 
+def default_workspace_root() -> Path:
+    source_repo = Path(__file__).resolve().parents[2]
+    if (source_repo / "prompt").is_dir() and (source_repo / "01_input").is_dir():
+        return source_repo
+    return Path.cwd()
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Extract structured technology data from PDFs")
     parser.add_argument("--local", "--ollama", action="store_true", dest="local", help="use local Ollama")
     parser.add_argument("--model", help="model id (prompts for selection when omitted)")
     parser.add_argument("--web", action="store_true", help="run the browser interface")
-    parser.add_argument("--root", type=Path, default=Path.cwd(), help="repository/workspace root")
+    parser.add_argument("--root", type=Path, default=default_workspace_root(), help="repository/workspace root")
     return parser
 
 

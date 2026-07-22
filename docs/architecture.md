@@ -7,17 +7,17 @@ intermediate Markdown artifacts and final structured CSV output.
 
 ## Main Components
 
-- `techclass/cli.py`
+- `python/techclass/cli.py`
   Python entry point, backend/model selection, and interactive command loop.
-- `techclass/chat.py`
+- `python/techclass/chat.py`
   Provider-neutral chat interfaces plus GitHub Copilot SDK and Ollama adapters.
-- `techclass/pipeline.py`
+- `python/techclass/pipeline.py`
   Cached condensation, technology summarization, classification, and checks.
-- `techclass/classifier.py`, `techclass/verifier.py`, `techclass/formats.py`
+- `python/techclass/classifier.py`, `python/techclass/verifier.py`, `python/techclass/formats.py`
   Deterministic normalization, validation, merging, verification, and output formats.
-- `techclass/benchmark.py`
+- `python/techclass/benchmark.py`
   Cross-model benchmark orchestration and report generation.
-- `techclass/web.py`
+- `python/techclass/web.py`
   FastAPI host for the local browser interface.
 - `web/`
   Framework-free browser assets reused by the Python host.

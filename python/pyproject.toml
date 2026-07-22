@@ -25,6 +25,5 @@ techclass = "techclass.cli:main"
 packages = ["techclass"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests_python"]
+testpaths = ["tests"]
 asyncio_mode = "auto"
-
