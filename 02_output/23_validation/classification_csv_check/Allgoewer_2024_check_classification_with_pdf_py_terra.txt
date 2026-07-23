@@ -1,0 +1,11 @@
+Classification verification - Allgoewer_2024.pdf
+Verified: 115/118 (97.5%)
+
+Unverified numeric values:
+- [AEC_2050] lifetime = 87500
+- [PEM_2050] lifetime = 85420
+- [SOEC_2050] lifetime = 71991
+
+Parsing notes:
+- Row 17: ratios_out (2) and carriers_out (1) length mismatch
+- Row 35: ratios_in (1) and carriers_in (4) length mismatch
