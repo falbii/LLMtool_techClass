@@ -12,7 +12,7 @@ Thanks for your interest in improving this project.
 ## Development Setup
 
 1. Install Python 3.11 or newer.
-2. Install dependencies with `python -m pip install -e ".\python[dev,web]"` from the repository root.
+2. Install dependencies with `python -m pip install -e ".[dev,web]"` from the repository root.
 3. Choose a backend:
    - GitHub Copilot CLI, or
    - local Ollama with at least one model pulled
@@ -24,7 +24,6 @@ Run the deterministic, backend-independent test suite before submitting a pull
 request:
 
 ```bash
-cd python
 python -m pytest
 ```
 

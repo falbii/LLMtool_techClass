@@ -39,9 +39,9 @@ brew install python
 ```bash
 python -m venv .venv
 # Windows
-.venv\Scripts\python -m pip install -e ".\python[dev,web]"
+.venv\Scripts\python -m pip install -e ".[dev,web]"
 # macOS/Linux
-.venv/bin/python -m pip install -e "./python[dev,web]"
+.venv/bin/python -m pip install -e ".[dev,web]"
 ```
 
 ### 3. Choose an LLM backend and run
@@ -83,8 +83,7 @@ When running directly from the repository checkout without activating the
 editable script, use:
 
 ```powershell
-cd python
-..\.venv\Scripts\python -m techclass --web
+.\.venv\Scripts\python -m techclass --web
 ```
 
 #### Local Ollama models
@@ -101,7 +100,7 @@ techclass --local --web    # web UI with Ollama
 ```
 
 `--ollama` is an alias for `--local`. Ollama mode does not require the Copilot
-CLI or a GitHub sign-in. See [chat/README.md](chat/README.md) for local-backend
+CLI or a GitHub sign-in. See [docs/chat-backends.md](docs/chat-backends.md) for local-backend
 settings such as `OLLAMA_HOST`, `OLLAMA_NUM_CTX`, `OLLAMA_TEMPERATURE`, and
 `OLLAMA_SEED`.
 
@@ -110,7 +109,6 @@ settings such as `OLLAMA_HOST`, `OLLAMA_NUM_CTX`, `OLLAMA_TEMPERATURE`, and
 The deterministic test suite does not require an LLM backend or network access:
 
 ```bash
-cd python
 python -m pytest
 ```
 
@@ -221,15 +219,16 @@ Results are written to `02_output/23_validation/benchmark/`:
 
 ```text
 LLMtool_techClass/
-|-- Program.cs                      C# console entry point
-|-- TechClass.csproj                C# project file
-|-- TechClass.sln                   C# solution file
-|-- core/, chat/, helpers/          C# implementation directories
-|-- tests/                          C# tests
-|-- python/
-|   |-- pyproject.toml              Python package metadata and dependencies
-|   |-- techclass/                  Python application, pipeline, backends, CLI, and web host
-|   `-- tests/                      backend-independent Python tests
+|-- pyproject.toml                  Python package metadata and dependencies
+|-- techclass/                      Python package
+|   |-- chat/                       provider-neutral Copilot and Ollama backends
+|   |-- console/                    command-line entry point and command loop
+|   |-- core/                       PDF extraction and pipeline orchestration
+|   |-- format_output/              records, Markdown, and CSV formatting
+|   |-- helpers/                    parsing, validation, verification, benchmarks
+|   |-- web/                        FastAPI host for the browser interface
+|   `-- workspace.py                shared workspace directory model
+|-- tests/                          backend-independent Python tests
 |-- web/wwwroot/                   framework-free browser interface
 |-- prompt/                        LLM prompt templates
 |-- docs/                          architecture notes and reviewer guide
@@ -248,7 +247,7 @@ LLMtool_techClass/
 - [Reviewer guide](docs/reviewer-guide.md)
 - [Architecture notes](docs/architecture.md)
 - [Example materials](examples/README.md)
-- [Ollama backend notes](chat/README.md)
+- [Ollama backend notes](docs/chat-backends.md)
 - [Contribution and support guidelines](CONTRIBUTING.md)
 
 ## Notes and Limitations

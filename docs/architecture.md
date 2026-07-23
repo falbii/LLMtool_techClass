@@ -7,22 +7,24 @@ intermediate Markdown artifacts and final structured CSV output.
 
 ## Main Components
 
-- `python/techclass/cli.py`
-  Python entry point, backend/model selection, and interactive command loop.
-- `python/techclass/chat.py`
+- `techclass/console/cli.py`
+  Entry point, backend/model selection, and interactive command loop.
+- `techclass/chat/backends.py`
   Provider-neutral chat interfaces plus GitHub Copilot SDK and Ollama adapters.
-- `python/techclass/pipeline.py`
+- `techclass/core/pipeline.py`
   Cached condensation, technology summarization, classification, and checks.
-- `python/techclass/classifier.py`, `python/techclass/verifier.py`, `python/techclass/formats.py`
-  Deterministic normalization, validation, merging, verification, and output formats.
-- `python/techclass/benchmark.py`
+- `techclass/core/pdf.py`
+  PDF text extraction, chunking, and document prompt assembly.
+- `techclass/helpers/classifier.py`, `techclass/helpers/verifier.py`
+  Deterministic normalization, validation, merging, and numeric verification.
+- `techclass/format_output/`
+  Data models plus Markdown and CSV formatting.
+- `techclass/helpers/benchmark.py`
   Cross-model benchmark orchestration and report generation.
-- `python/techclass/web.py`
+- `techclass/web/server.py`
   FastAPI host for the local browser interface.
-- `web/`
-  Framework-free browser assets reused by the Python host.
-- C# source directories
-  Retained temporarily as the behavioral reference until Python parity is accepted.
+- `web/wwwroot/`
+  Framework-free browser assets served by the Python host.
 
 ## Design Choices Relevant to JOSS
 
