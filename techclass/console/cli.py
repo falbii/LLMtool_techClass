@@ -8,6 +8,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from .console_utils import Color, dim, error, info, plain, success, warn
 from ..chat import ChatClient, CopilotChatClient, OllamaChatClient
 from ..helpers.benchmark import SELECTION_COUNT, run_benchmark
 from ..core.pdf import build_multi_document_prompt, build_single_document_prompt, split_into_chunks
@@ -42,20 +43,20 @@ async def select_model(client: ChatClient, requested: str | None) -> str:
     models = await client.list_models()
     if requested:
         if models and requested not in {model.id for model in models}:
-            print(f"Warning: '{requested}' was not returned by {client.provider_name}; trying it anyway.")
+            warn(f"Warning: '{requested}' was not returned by {client.provider_name}; trying it anyway.")
         return requested
     if not models:
         raise RuntimeError(f"No {client.provider_name} models are available")
-    print("Available models:")
+    info("Available models:")
     for index, model in enumerate(models, 1):
         suffix = " (reasoning)" if model.supports_reasoning else ""
-        print(f"  {index}. {model.id}{suffix}")
+        dim(f"  {index}. {model.id}{suffix}")
     while True:
         choice = input(f"Choose a model [1-{len(models)}]: ").strip()
         try:
             return models[int(choice) - 1].id
         except (ValueError, IndexError):
-            print("Please enter one of the listed numbers.")
+            warn("Please enter one of the listed numbers.")
 
 
 def list_pdfs(ws: Workspace) -> list[Path]:
@@ -65,17 +66,17 @@ def list_pdfs(ws: Workspace) -> list[Path]:
 def choose_pdf(ws: Workspace) -> Path | None:
     pdfs = list_pdfs(ws)
     if not pdfs:
-        print(f"No PDFs found in {ws.pdf_dir}")
+        warn(f"No PDFs found in {ws.pdf_dir}")
         return None
     for index, pdf in enumerate(pdfs, 1):
-        print(f"  {index}. {pdf.name}")
+        dim(f"  {index}. {pdf.name}")
     value = input("Select PDF (Enter to cancel): ").strip()
     if not value:
         return None
     try:
         return pdfs[int(value) - 1]
     except (ValueError, IndexError):
-        print("Invalid selection")
+        error("Invalid selection")
         return None
 
 
@@ -85,7 +86,15 @@ async def run_console(ws: Workspace) -> None:
     current_pdf: Path | None = None
     session = await ws.client.create_session(ws.model)
     pdf_context_sent = False
-    print("\nTechClass Python is ready. Type /commands for help.\n")
+    
+    if sys.stdout.isatty():
+        info("╔══════════════════════════════════════════════════════════════╗")
+        info("║           LLM Tool for Extraction of Technical Data          ║")
+        info("╚══════════════════════════════════════════════════════════════╝")
+    else:
+        print("\nLLM Tool for Extraction of Technical Data")
+    print()
+    info("TechClass Python is ready. Type /commands for help.\n")
     try:
         while True:
             try:
@@ -105,8 +114,9 @@ async def run_console(ws: Workspace) -> None:
             if command in {"/exit", "/quit"}:
                 break
             if command in {"/commands", "/help"}:
-                print("/list /upload PATH /current /extraction /condense /summarize /classify")
-                print("/condense-check /batch-analyze QUESTION /benchmark /exit")
+                info("Available commands:")
+                plain("  /list /upload PATH /current /extraction /condense /summarize /classify")
+                plain("  /condense-check /batch-analyze QUESTION /benchmark /exit")
                 continue
             if command == "/list":
                 selected = choose_pdf(ws)
@@ -117,16 +127,16 @@ async def run_console(ws: Workspace) -> None:
             if command == "/upload":
                 source = Path(argument.strip().strip('"'))
                 if not source.is_file() or source.suffix.lower() != ".pdf":
-                    print("Usage: /upload PATH_TO_PDF")
+                    dim("Usage: /upload PATH_TO_PDF")
                     continue
                 target = ws.pdf_dir / source.name
                 invalidate_cached_artifacts(ws, target)
                 shutil.copy2(source, target)
                 current_pdf, pdf_context_sent = target, False
-                print(f"Uploaded and selected: {target.name}")
+                success(f"Uploaded and selected: {target.name}")
                 continue
             if command == "/current":
-                print(current_pdf.name if current_pdf else "No PDF selected")
+                dim(current_pdf.name if current_pdf else "No PDF selected")
                 continue
             if command in {"/extraction", "/condense", "/summarize", "/classify", "/condense-check"}:
                 if current_pdf is None:
@@ -138,11 +148,12 @@ async def run_console(ws: Workspace) -> None:
                     "/summarize": summarize, "/classify": classify, "/condense-check": check_condensation,
                 }[command]
                 await operation(ws, current_pdf)
+                print()
                 continue
             if command == "/batch-analyze":
                 question = argument.strip()
                 if not question:
-                    print("Usage: /batch-analyze QUESTION")
+                    dim("Usage: /batch-analyze QUESTION")
                     continue
                 documents: dict[Path, list[str]] = {}
                 for pdf in list_pdfs(ws):
@@ -159,7 +170,7 @@ async def run_console(ws: Workspace) -> None:
                     continue
                 names, _ = await find_technologies(ws, current_pdf)
                 for index, name in enumerate(names, 1):
-                    print(f"  {index}. {name}")
+                    dim(f"  {index}. {name}")
                 raw = input(f"Pick exactly {SELECTION_COUNT} numbers, comma-separated: ")
                 try:
                     indexes = list(dict.fromkeys(int(item.strip()) for item in raw.split(",")))
@@ -167,13 +178,16 @@ async def run_console(ws: Workspace) -> None:
                         raise ValueError
                     selected = [names[index - 1] for index in indexes]
                 except (ValueError, IndexError):
-                    print(f"Please select exactly {SELECTION_COUNT} valid technologies")
+                    warn(f"Please select exactly {SELECTION_COUNT} valid technologies")
                     continue
                 output = await run_benchmark(ws, current_pdf, selected)
-                print(f"Benchmark saved to {output}" if output else "Benchmark produced no output")
+                if output:
+                    success(f"Benchmark saved to {output}")
+                else:
+                    dim("Benchmark produced no output")
                 continue
             if command.startswith("/"):
-                print(f"Unknown command: {command}. Type /commands for help.")
+                error(f"Unknown command: {command}. Type /commands for help.")
                 continue
             prompt = value
             if current_pdf and not pdf_context_sent:
