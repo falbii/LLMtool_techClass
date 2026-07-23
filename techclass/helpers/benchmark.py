@@ -1,3 +1,5 @@
+"""Benchmark the same selected technologies across every available model."""
+
 from __future__ import annotations
 
 import csv
@@ -18,6 +20,8 @@ SELECTION_COUNT = 3
 
 
 async def run_benchmark(ws: Workspace, pdf: Path, selected: list[str]) -> Path | None:
+    """Run summary and classification for selected technologies on each model."""
+
     if not selected:
         return None
     _, chunks = await find_technologies(ws, pdf)
@@ -36,6 +40,7 @@ async def run_benchmark(ws: Workspace, pdf: Path, selected: list[str]) -> Path |
     ref_year = extract_source_year(ws, pdf)
 
     for model in models:
+        # Reuse the same workspace directories and provider, changing only the model id.
         model_ws = replace(ws, model=model.id)
         started = time.perf_counter()
         status = "OK"

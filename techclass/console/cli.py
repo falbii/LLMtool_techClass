@@ -1,3 +1,5 @@
+"""Interactive command-line interface for the TechClass workflow."""
+
 from __future__ import annotations
 
 import argparse
@@ -17,6 +19,8 @@ from ..workspace import Workspace
 
 
 def default_workspace_root() -> Path:
+    """Prefer the repository root when running from an editable checkout."""
+
     source_repo = Path(__file__).resolve().parents[2]
     if (source_repo / "prompt").is_dir() and (source_repo / "01_input").is_dir():
         return source_repo
@@ -33,6 +37,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 async def select_model(client: ChatClient, requested: str | None) -> str:
+    """Return the requested model or prompt the user from provider results."""
+
     models = await client.list_models()
     if requested:
         if models and requested not in {model.id for model in models}:
@@ -74,6 +80,8 @@ def choose_pdf(ws: Workspace) -> Path | None:
 
 
 async def run_console(ws: Workspace) -> None:
+    """Run the stateful REPL that drives chat and extraction commands."""
+
     current_pdf: Path | None = None
     session = await ws.client.create_session(ws.model)
     pdf_context_sent = False
@@ -88,6 +96,7 @@ async def run_console(ws: Workspace) -> None:
                 continue
             command, _, argument = value.partition(" ")
             command = command.lower()
+            # Allow both `/command` and bare `command` forms for the fixed command set.
             known = {"list", "upload", "current", "extraction", "condense", "summarize",
                      "classify", "condense-check", "batch-analyze", "benchmark", "commands",
                      "help", "exit", "quit"}
@@ -168,6 +177,7 @@ async def run_console(ws: Workspace) -> None:
                 continue
             prompt = value
             if current_pdf and not pdf_context_sent:
+                # Send the condensed PDF once, then keep follow-up questions in the same session.
                 condensed_path = await condense(ws, current_pdf)
                 chunks = split_into_chunks(condensed_path.read_text(encoding="utf-8-sig"))
                 prompt = build_single_document_prompt(chunks, value)
@@ -183,6 +193,8 @@ async def run_console(ws: Workspace) -> None:
 
 
 async def async_main(args: argparse.Namespace) -> None:
+    """Create the selected backend and dispatch to console or web mode."""
+
     client = await (OllamaChatClient.connect() if args.local else CopilotChatClient.connect())
     async with client:
         if args.web and not args.model:
@@ -202,6 +214,8 @@ async def async_main(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    """Parse command-line arguments and normalize user-facing startup errors."""
+
     args = build_parser().parse_args()
     try:
         asyncio.run(async_main(args))

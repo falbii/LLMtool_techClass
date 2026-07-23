@@ -1,3 +1,5 @@
+"""Chat provider adapters used by the console, web UI, and pipeline."""
+
 from __future__ import annotations
 
 import json
@@ -15,6 +17,8 @@ DeltaHandler = Callable[[str], None]
 
 
 class ChatSession(ABC):
+    """A single model conversation with optional streaming callbacks."""
+
     session_id: str
 
     @abstractmethod
@@ -36,6 +40,8 @@ class ChatSession(ABC):
 
 
 class ChatClient(ABC):
+    """Provider-level contract for model discovery and session creation."""
+
     provider_name: str
 
     @abstractmethod
@@ -55,6 +61,8 @@ class ChatClient(ABC):
 
 
 class CopilotChatClient(ChatClient):
+    """GitHub Copilot SDK-backed chat client."""
+
     provider_name = "copilot"
 
     def __init__(self, sdk_client: Any) -> None:
@@ -101,6 +109,8 @@ class CopilotChatClient(ChatClient):
 
 
 class CopilotChatSession(ChatSession):
+    """Wrap a Copilot SDK session behind the shared chat interface."""
+
     def __init__(self, session: Any) -> None:
         self._session = session
         self.session_id = str(_value(session, "session_id", ""))
@@ -114,6 +124,8 @@ class CopilotChatSession(ChatSession):
         pieces: list[str] = []
 
         def handle_event(event: Any) -> None:
+            # The SDK exposes streamed deltas as typed events; collect only the
+            # assistant message content while still forwarding reasoning text.
             event_type = _value(event, "type", "")
             event_name = str(_value(event_type, "value", event_type)).lower()
             data = _value(event, "data", None)
@@ -144,6 +156,8 @@ class CopilotChatSession(ChatSession):
 
 
 class OllamaChatClient(ChatClient):
+    """HTTP client for a local Ollama server."""
+
     provider_name = "ollama"
 
     def __init__(self, http: httpx.AsyncClient) -> None:
@@ -176,6 +190,8 @@ class OllamaChatClient(ChatClient):
 
 
 class OllamaChatSession(ChatSession):
+    """Stateful Ollama chat session that resends conversation history."""
+
     def __init__(self, http: httpx.AsyncClient, model: str) -> None:
         self._http = http
         self._model = model
@@ -221,12 +237,16 @@ class OllamaChatSession(ChatSession):
 
 
 def _value(value: Any, key: str, default: Any) -> Any:
+    """Read a field from either a dictionary or an SDK object."""
+
     if isinstance(value, dict):
         return value.get(key, default)
     return getattr(value, key, default)
 
 
 def _nested_value(value: Any, *keys: str, default: Any) -> Any:
+    """Read a nested field from mixed dictionary/object SDK responses."""
+
     current = value
     for key in keys:
         current = _value(current, key, None)

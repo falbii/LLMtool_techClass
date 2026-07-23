@@ -1,3 +1,5 @@
+"""PDF text extraction and prompt assembly helpers."""
+
 from __future__ import annotations
 
 import re
@@ -5,6 +7,8 @@ from pathlib import Path
 
 
 def extract_text(file_path: Path) -> str:
+    """Extract page-marked text from a PDF file."""
+
     from pypdf import PdfReader
 
     if not file_path.is_file():
@@ -31,6 +35,8 @@ def extract_text(file_path: Path) -> str:
 
 
 def _with_table_markers(content: str) -> list[str]:
+    """Mark likely table-like regions so condensation prompts preserve them."""
+
     result: list[str] = []
     buffer: list[str] = []
     table_type = ""
@@ -67,6 +73,8 @@ def _flush_table(output: list[str], buffer: list[str], table_type: str) -> None:
 
 
 def split_into_chunks(content: str, max_chars: int = 30_000, overlap_lines: int = 3) -> list[str]:
+    """Split long document text into overlapping chunks for model context limits."""
+
     chunks: list[str] = []
     current: list[str] = []
     current_length = 0
@@ -84,6 +92,8 @@ def split_into_chunks(content: str, max_chars: int = 30_000, overlap_lines: int 
 
 
 def build_single_document_prompt(chunks: list[str], question: str) -> str:
+    """Build a question prompt for one selected document."""
+
     if len(chunks) == 1:
         return f"Here's a PDF document I need you to analyze:\n\n{chunks[0]}\n\nQuestion: {question}"
     parts = [f"I have a multi-page PDF document split into {len(chunks)} parts.\n"]
@@ -94,6 +104,8 @@ def build_single_document_prompt(chunks: list[str], question: str) -> str:
 
 
 def build_multi_document_prompt(documents: dict[Path, list[str]], question: str) -> str:
+    """Build a question prompt that compares or searches across many documents."""
+
     parts = [f"I have {len(documents)} PDF documents to analyze:\n"]
     for doc_number, (path, chunks) in enumerate(documents.items(), 1):
         parts.append(f"**Document {doc_number}: {path.name}**")

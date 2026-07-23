@@ -1,3 +1,5 @@
+"""High-level extraction pipeline from PDF input to validated CSV output."""
+
 from __future__ import annotations
 
 import asyncio
@@ -18,6 +20,8 @@ MISSING_SECTION = "[NO PARSEABLE DATA - extraction marker missing for this techn
 
 
 def load_prompt(ws: Workspace, name: str) -> str:
+    """Load a prompt template from the workspace prompt directory."""
+
     path = ws.root / "prompt" / name
     if not path.is_file():
         raise FileNotFoundError(f"Prompt template not found: {path}")
@@ -33,11 +37,15 @@ def tech_list_path(ws: Workspace, pdf: Path) -> Path:
 
 
 def invalidate_cached_artifacts(ws: Workspace, pdf: Path) -> None:
+    """Remove derived files that become stale when a source PDF changes."""
+
     cache_path(ws, pdf).unlink(missing_ok=True)
     tech_list_path(ws, pdf).unlink(missing_ok=True)
 
 
 def read_tech_list(ws: Workspace, pdf: Path) -> list[str] | None:
+    """Return the editable cached technology list when it is newer than condensation."""
+
     path, condensed = tech_list_path(ws, pdf), cache_path(ws, pdf)
     if not path.is_file() or not condensed.is_file() or condensed.stat().st_mtime > path.stat().st_mtime:
         return None
@@ -55,6 +63,8 @@ def write_tech_list(ws: Workspace, pdf: Path, names: list[str]) -> None:
 
 
 async def condense(ws: Workspace, pdf: Path) -> Path:
+    """Create or reuse the condensed Markdown representation of a PDF."""
+
     output = cache_path(ws, pdf)
     output.parent.mkdir(parents=True, exist_ok=True)
     if output.is_file() and pdf.stat().st_mtime <= output.stat().st_mtime:
@@ -96,6 +106,8 @@ def build_summary_prompt(ws: Workspace, chunks: list[str], names: list[str]) -> 
 
 
 def parse_technology_names(response: str) -> list[str]:
+    """Extract technology names from a simple model-generated list."""
+
     names: list[str] = []
     for line in response.splitlines():
         line = line.strip()
@@ -115,6 +127,8 @@ def parse_technology_names(response: str) -> list[str]:
 
 
 def parse_batched_response(response: str, expected_count: int) -> list[str]:
+    """Split a batched summary response by explicit technology markers."""
+
     pattern = re.compile(r"===\s*TECHNOLOGY\s+(?P<number>\d+)\s*:.*?===", re.IGNORECASE)
     matches = list(pattern.finditer(response))
     details: list[str | None] = [None] * expected_count
@@ -128,6 +142,8 @@ def parse_batched_response(response: str, expected_count: int) -> list[str]:
 
 
 async def find_technologies(ws: Workspace, pdf: Path) -> tuple[list[str], list[str]]:
+    """Find technology names and return them with the condensed text chunks."""
+
     condensed = await condense(ws, pdf)
     chunks = split_into_chunks(condensed.read_text(encoding="utf-8-sig"))
     cached = read_tech_list(ws, pdf)
@@ -142,6 +158,8 @@ async def find_technologies(ws: Workspace, pdf: Path) -> tuple[list[str], list[s
 
 
 async def summarize(ws: Workspace, pdf: Path, delay: float = 3.0) -> Path | None:
+    """Generate technology-level Markdown summaries for one PDF."""
+
     names, chunks = await find_technologies(ws, pdf)
     if not names:
         print("No technologies found")
@@ -178,6 +196,8 @@ def build_classification_prompt(ws: Workspace, sections: list[tuple[str, str]]) 
 
 
 async def _try_classify(ws: Workspace, sections: list[tuple[str, str]], attempts: int = 2) -> list[dict[str, str]] | None:
+    """Ask the model for JSON rows and retry when no valid array is returned."""
+
     prompt = build_classification_prompt(ws, sections)
     for attempt in range(attempts):
         async with await ws.client.create_session(ws.model) as session:
@@ -192,6 +212,8 @@ async def _try_classify(ws: Workspace, sections: list[tuple[str, str]], attempts
 
 
 def extract_source_year(ws: Workspace, pdf: Path) -> int | None:
+    """Infer a source/reference year from the filename or condensed document header."""
+
     match = re.search(r"(?<!\d)(?:19|20)\d{2}(?!\d)", pdf.stem)
     if match:
         return int(match.group())
@@ -205,6 +227,8 @@ def extract_source_year(ws: Workspace, pdf: Path) -> int | None:
 
 
 async def classify(ws: Workspace, pdf: Path, delay: float = 3.0) -> Path | None:
+    """Convert summary Markdown into CSV rows and write a numeric verification report."""
+
     summary_path = ws.md_dir / f"{pdf.stem}_summary.md"
     sections = read_summary_sections(summary_path)
     if not sections:
@@ -243,6 +267,8 @@ async def classify(ws: Workspace, pdf: Path, delay: float = 3.0) -> Path | None:
 
 
 async def extract_all(ws: Workspace, pdf: Path) -> Path | None:
+    """Run condense, summarize, and classify in dependency order."""
+
     await condense(ws, pdf)
     if await summarize(ws, pdf) is None:
         return None

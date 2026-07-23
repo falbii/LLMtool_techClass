@@ -1,3 +1,5 @@
+"""Shared data models for classification records and chat model metadata."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -6,6 +8,8 @@ from decimal import Decimal
 
 @dataclass(slots=True)
 class TechnologyRecord:
+    """Normalized technology classification row used for CSV output."""
+
     tech_id: str | None = None
     process_type: str | None = None
     description: str | None = None
@@ -43,6 +47,8 @@ class TechnologyRecord:
 
 @dataclass(frozen=True, slots=True)
 class ChatModelInfo:
+    """Model metadata displayed by the CLI and web model picker."""
+
     id: str
     supports_reasoning: bool = False
 

@@ -1,3 +1,5 @@
+"""Deterministic parsing and normalization for model classification rows."""
+
 from __future__ import annotations
 
 import json
@@ -10,11 +12,15 @@ from ..format_output.models import TechnologyRecord
 
 
 def normalize_header(value: str) -> str:
+    """Convert CSV/JSON field names to the internal snake_case spelling."""
+
     value = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", value)
     return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
 
 
 def normalize_number(raw: str | None, magnitude: bool = False) -> str | None:
+    """Normalize common US/EU number spellings to a decimal string."""
+
     if not raw or not raw.strip():
         return None
     match = re.search(r"[-+]?\d[\d.,]*", raw)
@@ -45,6 +51,8 @@ def normalize_number(raw: str | None, magnitude: bool = False) -> str | None:
 
 
 def parse_record(row: dict[str, Any]) -> tuple[TechnologyRecord, list[str]]:
+    """Convert a loose model row into a typed record plus parsing notes."""
+
     lookup = {normalize_header(key): value for key, value in row.items()}
     errors: list[str] = []
 
@@ -124,6 +132,8 @@ def is_valid_json_array(value: str | None) -> bool:
 
 
 def extract_json(response: str) -> str:
+    """Return the first valid JSON array embedded in a model response."""
+
     for start, char in enumerate(response):
         if char != "[":
             continue
@@ -152,6 +162,8 @@ def extract_json(response: str) -> str:
 
 
 def parse_rows_from_json(value: str) -> list[dict[str, str]]:
+    """Load JSON rows while flattening simple values for the CSV parser."""
+
     try:
         source = json.loads(value)
     except json.JSONDecodeError:
@@ -184,6 +196,8 @@ def extract_abbreviation(text: str | None) -> str:
 
 
 def generate_tech_id(record: TechnologyRecord, used_ids: set[str]) -> str:
+    """Create a stable, readable technology id from the most descriptive fields."""
+
     parts: list[str] = []
     candidates = [record.main_input or (record.carriers_in[0] if record.carriers_in else None),
                   record.unit_operation, record.process_type, record.main_out]
@@ -202,6 +216,8 @@ def generate_tech_id(record: TechnologyRecord, used_ids: set[str]) -> str:
 
 
 def has_meaningful_data(record: TechnologyRecord) -> bool:
+    """Reject rows that contain only a single weak classification value."""
+
     count = sum(bool(value) for value in (
         record.description, record.unit_operation, record.summary, record.process_type,
         record.main_sector, record.main_category, record.category_spec, record.tech_type,
@@ -213,12 +229,16 @@ def has_meaningful_data(record: TechnologyRecord) -> bool:
 
 
 def merge_by_technology_and_year(rows: list[TechnologyRecord]) -> list[TechnologyRecord]:
+    """Merge partial rows that describe the same technology and year."""
+
     merged: list[TechnologyRecord] = []
     indexes: dict[str, int] = {}
     for row_index, row in enumerate(rows):
         name = next((value for value in (row.tech_type, row.description, row.unit_operation,
                     row.main_category, row.process_type, row.tech_id) if value), "unknown")
         normalized = re.sub(r"[^a-z0-9]", "", name.lower())
+        # Rows without a real year stay separate because they may describe
+        # different time horizons that the model failed to label.
         key = f"{normalized}|Y{row.year}|{normalize_header(row.category_spec or '')}" if row.year and row.year >= 1900 else f"{normalized}|UNMERGEABLE|{row_index}"
         if key not in indexes:
             indexes[key] = len(merged)
@@ -246,6 +266,8 @@ def merge_by_technology_and_year(rows: list[TechnologyRecord]) -> list[Technolog
 
 
 def validation_notes(record: TechnologyRecord) -> list[str]:
+    """Return non-fatal quality notes for suspicious but preserved values."""
+
     notes: list[str] = []
     if record.efficiency is not None and not 0 < record.efficiency <= 1:
         notes.append(f"efficiency: {record.efficiency:g} is outside the expected 0-1 range (left as-is)")

@@ -1,3 +1,5 @@
+"""FastAPI server for the local browser interface."""
+
 from __future__ import annotations
 
 import asyncio
@@ -14,6 +16,8 @@ from ..workspace import Workspace
 
 
 class WebState:
+    """Mutable session state for a single local web server process."""
+
     def __init__(self, ws: Workspace) -> None:
         self.ws = ws
         self.session: Any = None
@@ -30,6 +34,8 @@ class WebState:
 
 
 def create_app(ws: Workspace):
+    """Create the FastAPI application around a prepared workspace."""
+
     try:
         from fastapi import FastAPI, File, HTTPException, UploadFile
         from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
@@ -127,6 +133,8 @@ def create_app(ws: Workspace):
         return StreamingResponse(events(), media_type="text/event-stream")
 
     async def gated(operation):
+        """Serialize long-running pipeline operations for the selected PDF."""
+
         if state.session is None:
             raise HTTPException(409, "Start a session first")
         if state.selected_pdf is None:
@@ -214,6 +222,8 @@ def create_app(ws: Workspace):
 
 
 async def serve(ws: Workspace) -> None:
+    """Run the local web interface on localhost."""
+
     try:
         import uvicorn
     except ImportError as exc:

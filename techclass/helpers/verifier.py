@@ -1,3 +1,5 @@
+"""Numeric verification helpers for auditing model-derived outputs."""
+
 from __future__ import annotations
 
 import re
@@ -10,6 +12,8 @@ from ..format_output.models import TechnologyRecord
 
 @dataclass(frozen=True, slots=True)
 class Finding:
+    """A numeric value that could not be matched back to the source text."""
+
     tech_id: str
     field: str
     value: float
@@ -17,6 +21,8 @@ class Finding:
 
 @dataclass(frozen=True, slots=True)
 class VerificationReport:
+    """Summary of how many extracted numbers were found in source text."""
+
     total_values: int
     verified_values: int
     unverified: list[Finding]
@@ -31,6 +37,8 @@ class VerificationReport:
 
 
 def extract_numbers(text: str) -> list[float]:
+    """Build a numeric search index from free text."""
+
     numbers: list[float] = []
     for match in re.finditer(r"[-+]?\d[\d.,]*", text):
         raw = match.group().rstrip(".,")
@@ -54,6 +62,8 @@ def contains(index: list[float], value: float) -> bool:
 
 
 def verify(records: list[TechnologyRecord], source_text: str) -> VerificationReport:
+    """Check whether numeric fields in records appear in the source text."""
+
     index = extract_numbers(source_text)
     total = verified = 0
     findings: list[Finding] = []
@@ -81,6 +91,8 @@ def verify(records: list[TechnologyRecord], source_text: str) -> VerificationRep
 
 
 def format_report(source_name: str, report: VerificationReport, notes: list[str] | None = None) -> str:
+    """Render a verification report as human-readable plain text."""
+
     lines = [
         f"Classification verification - {source_name}",
         f"Verified: {report.verified_values}/{report.total_values} ({report.verified_percent:.1f}%)",

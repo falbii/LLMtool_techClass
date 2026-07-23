@@ -1,3 +1,5 @@
+"""Workspace directory model shared by console, web, and pipeline code."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -10,6 +12,8 @@ if TYPE_CHECKING:
 
 @dataclass(slots=True)
 class Workspace:
+    """Resolved project root plus derived input/output locations."""
+
     root: Path
     client: ChatClient
     model: str
@@ -55,6 +59,8 @@ class Workspace:
         return self.validation_dir / "classification_csv_check"
 
     def ensure_directories(self) -> None:
+        """Create all runtime input, output, and validation directories."""
+
         for path in (
             self.pdf_dir, self.cache_dir, self.tech_list_dir, self.md_dir,
             self.csv_dir, self.benchmark_dir, self.check_dir, self.classify_check_dir,

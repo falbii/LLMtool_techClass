@@ -1,3 +1,5 @@
+"""CSV and Markdown serialization for TechClass artifacts."""
+
 from __future__ import annotations
 
 import csv
@@ -21,6 +23,8 @@ LIST_FIELDS = {"carriers_in", "ratios_in", "units_in", "carriers_out", "ratios_o
 
 
 def write_csv(path: Path, rows: list[TechnologyRecord], model: str | None = None) -> None:
+    """Write normalized classification records in the canonical column order."""
+
     path.parent.mkdir(parents=True, exist_ok=True)
     header = [*HEADER_ORDER, *( ["model"] if model else [])]
     with path.open("w", encoding="utf-8-sig", newline="") as stream:
@@ -43,6 +47,8 @@ def write_csv(path: Path, rows: list[TechnologyRecord], model: str | None = None
 
 
 def read_csv(path: Path) -> list[TechnologyRecord]:
+    """Read classification CSV rows back into normalized records."""
+
     from ..helpers.classifier import parse_record
 
     if not path.is_file():
@@ -72,6 +78,8 @@ def write_summary_md(
     names: list[str],
     details: list[str],
 ) -> None:
+    """Write reviewable Markdown summaries for downstream classification."""
+
     lines = [
         f"# Technology Extraction Data - {source_pdf.name}", "", f"- **Model:** {model}",
         f"- **Started:** {started_at:%Y-%m-%d %H:%M:%S}",
@@ -88,6 +96,8 @@ def write_summary_md(
 
 
 def read_summary_sections(path: Path) -> list[tuple[str, str]]:
+    """Parse technology sections from the generated summary Markdown."""
+
     if not path.is_file():
         return []
     content = path.read_text(encoding="utf-8-sig")
