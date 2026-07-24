@@ -6,6 +6,9 @@ technologies, then writes validated CSV classifications. It also provides
 interactive document Q&A, deterministic verification reports, and multi-model
 benchmarks.
 
+> This branch intentionally keeps the original C# implementation and does not
+> include the Python port or any Python runtime setup.
+
 ## Statement of Need
 
 Researchers and analysts often need to turn semi-structured technical reports
