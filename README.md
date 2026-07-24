@@ -8,6 +8,40 @@ benchmarks.
 
 ![alt text](<Workflow.png>)
 
+## Extraction Workflow: 
+
+For the usual end-to-end workflow, select a PDF and run:
+
+```text
+/extraction
+```
+
+`/extraction` runs all the dependent stages in sequence:
+
+```text
+condense → summarize → classify
+```
+
+The final result is saved to:
+
+```text
+02_output/22_tech_classification_csv/<pdf-name>_classification.csv
+```
+
+Run individual stages when you want to inspect or edit the intermediate condesed and summary markdown,
+before classification:
+
+```text
+1. /condense   → 01_input/12_condensed_md/<pdf-name>_condensed.md
+2. /summarize  → 02_output/21_tech_summary_md/<pdf-name>_summary.md
+3. /classify   → 02_output/22_tech_classification_csv/<pdf-name>_classification.csv
+```
+
+**Condense** creates a compact cached Markdown version of the PDF. **Summarize**
+finds technology names and produces detailed per-technology summaries.
+**Classify** converts the summary Markdown into one or more rows per technology,
+including separate rows for distinct years or time horizons.
+
 ## Statement of Need
 
 Researchers and analysts often need to turn semi-structured technical reports
@@ -116,41 +150,8 @@ an error instead of being sent to the model. Other input is treated as a
 question for the selected backend. For a selected PDF, condensed text is added
 on the first question; follow-up questions reuse the session context.
 
-## Extraction Workflow: PDF → Markdown → CSV
 
-For the usual end-to-end workflow, select a PDF and run:
-
-```text
-/extraction
-```
-
-`/extraction` runs the dependent stages in sequence and stops if a stage fails:
-
-```text
-condense → summarize → classify
-```
-
-The final result is saved to:
-
-```text
-02_output/22_tech_classification_csv/<pdf-name>_classification.csv
-```
-
-Run individual stages when you want to inspect or edit the intermediate summary
-before classification:
-
-```text
-1. /condense   → 01_input/12_condensed_md/<pdf-name>_condensed.md
-2. /summarize  → 02_output/21_tech_summary_md/<pdf-name>_summary.md
-3. /classify   → 02_output/22_tech_classification_csv/<pdf-name>_classification.csv
-```
-
-**Condense** creates a compact cached Markdown version of the PDF. **Summarize**
-finds technology names and produces detailed per-technology summaries.
-**Classify** converts the summary Markdown into one or more rows per technology,
-including separate rows for distinct years or time horizons.
-
-### Token-saving cache and review points
+<!-- ### Token-saving cache and review points
 
 The condensed cache at `01_input/12_condensed_md/<name>_condensed.md` is reused
 while its source PDF is unchanged. Replacing an uploaded PDF invalidates the
@@ -166,7 +167,7 @@ running `/classify` when needed.
 Because condensation is lossy, use `/condense-check` to compare numeric values
 in the raw PDF and condensed Markdown. Classification also writes a numeric
 verification report to
-`02_output/23_validation/classification_csv_check/`.
+`02_output/23_validation/classification_csv_check/`. -->
 
 ## Included Example
 
