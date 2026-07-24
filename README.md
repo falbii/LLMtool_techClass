@@ -276,7 +276,7 @@ and, once published, the associated JOSS paper. The software is distributed
 under the [MIT License](LICENSE).
 
 ## Version History
-
+- **v1.2** — Python port: migrated the project from the legacy C# codebase to a Python implementation and applied minor adjustments.
 - **v1.1** — Renamed the project to **Open-source LLM Tool for Technical Data Extraction and Classification**; documented GitHub Copilot and local Ollama backends; added the `/extraction` full workflow and its web UI action.
 - **v1.0** — Data folders restructured into `01_input/` (`11_pdf_to_analyze`, `12_condensed_md`, `13_technology_list_md`) and `02_output/` (`21_tech_summary_md`, `22_tech_classification_csv`, `23_validation/{benchmark, condensed_md_check, classification_csv_check}`); classify verification reports get their own folder; benchmark files named `<pdf>_<provider>_benchmark_*_<yyyy-MM-dd>`; technology lists renamed `<name>_technology_list.md`.
 - **v0.6** — Source reorganized by role: `core/`, `format_output/`, `chat/`, `console/`, and `helpers/`; project renamed `TestApp` → `TechClass`.
