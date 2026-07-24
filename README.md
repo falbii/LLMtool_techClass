@@ -6,7 +6,7 @@ technologies, then writes validated CSV classifications. It also provides
 interactive document Q&A, deterministic verification reports, and multi-model
 benchmarks.
 
-![alt text](<Workflow.png>)
+![Workflow](./Workflow.png)
 
 ## Extraction Workflow: 
 
