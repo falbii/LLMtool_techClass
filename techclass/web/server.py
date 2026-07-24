@@ -5,14 +5,42 @@ from __future__ import annotations
 import asyncio
 import json
 import shutil
+import webbrowser
 from contextlib import asynccontextmanager
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
+from ..console import info, subscribe_to_messages, unsubscribe_from_messages, warn
 from ..helpers.benchmark import SELECTION_COUNT, run_benchmark
 from ..core.pdf import build_single_document_prompt, split_into_chunks
 from ..core.pipeline import check_condensation, classify, condense, extract_all, find_technologies, invalidate_cached_artifacts, summarize
 from ..workspace import Workspace
+
+WEB_URL = "http://127.0.0.1:5050"
+
+
+async def _open_browser_when_ready(server: Any) -> None:
+    """Open the web UI after Uvicorn has finished binding its socket."""
+
+    while not server.started and not server.should_exit:
+        await asyncio.sleep(0.05)
+    if not server.started:
+        return
+    try:
+        opened = await asyncio.to_thread(webbrowser.open, WEB_URL)
+        if not opened:
+            warn(f"Could not open the browser automatically — open {WEB_URL} yourself.")
+    except Exception:
+        warn(f"Could not open the browser automatically — open {WEB_URL} yourself.")
+
+
+def _model_progress_message(previous: str | None, model: str, session_id: str) -> str:
+    if previous and previous != model:
+        return f"🔄 Model switched: {previous} → {model} (session: {session_id})"
+    if previous:
+        return f"🔄 Session restarted with {model} (session: {session_id})"
+    return f"🌐 Model selected: {model} (session: {session_id})"
 
 
 class WebState:
@@ -26,9 +54,15 @@ class WebState:
         self.busy = False
         self.lock = asyncio.Lock()
         self.listeners: set[asyncio.Queue[dict[str, str]]] = set()
+        self.loop: asyncio.AbstractEventLoop | None = None
 
-    async def log(self, level: str, text: str) -> None:
-        print(text)
+    def forward_console_message(self, level: str, text: str) -> None:
+        """Forward ConsoleEx-style messages to browser progress listeners."""
+
+        if self.loop is not None:
+            self.loop.call_soon_threadsafe(self._broadcast, level, text)
+
+    def _broadcast(self, level: str, text: str) -> None:
         for queue in tuple(self.listeners):
             queue.put_nowait({"level": level, "text": text})
 
@@ -47,9 +81,15 @@ def create_app(ws: Workspace):
 
     @asynccontextmanager
     async def lifespan(_: Any):
-        yield
-        if state.session:
-            await state.session.close()
+        state.loop = asyncio.get_running_loop()
+        subscribe_to_messages(state.forward_console_message)
+        try:
+            yield
+        finally:
+            unsubscribe_from_messages(state.forward_console_message)
+            state.loop = None
+            if state.session:
+                await state.session.close()
 
     app = FastAPI(lifespan=lifespan)
 
@@ -62,11 +102,16 @@ def create_app(ws: Workspace):
         model = request.get("model", "").strip()
         if not model:
             raise HTTPException(400, "Model is required")
+        previous_model = ws.model if state.session else None
         if state.session:
             await state.session.close()
+            state.session = None
+        new_session = await ws.client.create_session(model)
+        state.session = new_session
         ws.model = model
-        state.session = await ws.client.create_session(model)
         state.pdf_context_sent = False
+        session_id = state.session.session_id
+        info(_model_progress_message(previous_model, model, session_id))
         return {"sessionId": state.session.session_id, "model": model}
 
     @app.get("/api/state")
@@ -113,9 +158,17 @@ def create_app(ws: Workspace):
             try:
                 prompt = text
                 if state.selected_pdf and not state.pdf_context_sent:
+                    yield (
+                        "event: status\n"
+                        f"data: {json.dumps({'text': f'Preparing {state.selected_pdf.name}: condensing PDF for context…'})}\n\n"
+                    )
                     path = await condense(ws, state.selected_pdf)
                     prompt = build_single_document_prompt(split_into_chunks(path.read_text(encoding="utf-8-sig")), text)
                     state.pdf_context_sent = True
+                    yield (
+                        "event: status\n"
+                        f"data: {json.dumps({'text': 'PDF context ready — asking the model…'})}\n\n"
+                    )
                 queue: asyncio.Queue[tuple[str, str] | None] = asyncio.Queue()
                 task = asyncio.create_task(state.session.send(
                     prompt,
@@ -211,6 +264,7 @@ def create_app(ws: Workspace):
 
     @app.post("/api/shutdown")
     async def shutdown():
+        warn("🛑 Shutdown requested from the web interface.")
         server = getattr(app.state, "server", None)
         if server is not None:
             server.should_exit = True
@@ -230,7 +284,14 @@ async def serve(ws: Workspace) -> None:
         raise RuntimeError("Web dependencies are missing. Run: pip install -e .[web]") from exc
     app = create_app(ws)
     config = uvicorn.Config(app, host="127.0.0.1", port=5050, log_level="info")
-    print("Web interface: http://127.0.0.1:5050")
+    print(f"Web interface: {WEB_URL}")
     server = uvicorn.Server(config)
     app.state.server = server
-    await server.serve()
+
+    browser_task = asyncio.create_task(_open_browser_when_ready(server))
+    try:
+        await server.serve()
+    finally:
+        browser_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await browser_task

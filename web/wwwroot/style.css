@@ -316,13 +316,26 @@ main {
 
 .bubble.reasoning {
   align-self: stretch;
-  color: #8794a6;
-  font-style: italic;
-  font-size: 0.84rem;
-  background: rgba(255, 255, 255, 0.45);
-  border: 1px dashed #d8e3f0;
-  padding: 0.6rem 1rem;
+  color: #65758b;
+  font-size: 0.86rem;
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.94), rgba(255, 255, 255, 0.86));
+  border: 1px solid #cfe0f5;
+  border-left: 3px solid #60a5fa;
+  padding: 0.72rem 1rem 0.82rem;
   border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(37, 99, 235, 0.06);
+}
+
+.bubble.reasoning::before {
+  content: "✦  Thinking process";
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #3b82f6;
+  font-size: 0.73rem;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 /* subtle "you stopped the answer" marker on the assistant side */
@@ -333,19 +346,38 @@ main {
   font-size: 0.82rem;
 }
 
-/* "thinking" indicator: a small blue droplet floating in space that keeps
-   deforming while we wait for the model's first token. */
+/* Visible waiting state shown until the first reasoning/answer token arrives. */
 .thinking {
   align-self: flex-start;
   display: flex;
   align-items: center;
-  padding: 0.3rem 0.2rem;
+  gap: 0.72rem;
+  min-width: 138px;
+  padding: 0.68rem 0.9rem;
+  color: #3b82f6;
+  font-size: 0.88rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid #d6e5f7;
+  border-radius: 16px;
+  box-shadow: 0 3px 16px rgba(37, 99, 235, 0.08);
   animation: rise 0.18s ease-out;
 }
+
+.thinking-label {
+  animation: thinking-text-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes thinking-text-pulse {
+  0%, 100% { opacity: 0.58; }
+  50% { opacity: 1; }
+}
+
 .thinking .blob {
   position: relative;
-  width: 26px;
-  height: 26px;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   /* clear core, blue toward the rim — "blue liquid glass" look */
   background: radial-gradient(circle at 50% 50%,

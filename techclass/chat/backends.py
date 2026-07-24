@@ -44,6 +44,11 @@ class ChatClient(ABC):
 
     provider_name: str
 
+    async def prerequisite_details(self) -> list[str]:
+        """Return provider checks that succeeded after connecting."""
+
+        return []
+
     @abstractmethod
     async def list_models(self) -> list[ChatModelInfo]: ...
 
@@ -67,6 +72,7 @@ class CopilotChatClient(ChatClient):
 
     def __init__(self, sdk_client: Any) -> None:
         self._client = sdk_client
+        self._reasoning_models: set[str] = set()
 
     @classmethod
     async def connect(cls) -> "CopilotChatClient":
@@ -91,17 +97,39 @@ class CopilotChatClient(ChatClient):
             supports = _nested_value(capabilities, "supports", "reasoning_effort", default=False)
             if not supports:
                 supports = bool(_value(model, "supported_reasoning_efforts", []))
-            result.append(ChatModelInfo(str(model_id), bool(supports)))
+            model_id = str(model_id)
+            if supports:
+                self._reasoning_models.add(model_id)
+            result.append(ChatModelInfo(model_id, bool(supports)))
         return result
+
+    async def prerequisite_details(self) -> list[str]:
+        runtime = await self._client.get_status()
+        auth = await self._client.get_auth_status()
+        if not auth.isAuthenticated:
+            detail = f": {auth.statusMessage}" if auth.statusMessage else ""
+            raise RuntimeError(f"GitHub Copilot is not authenticated{detail}")
+
+        identity = f" as {auth.login}" if auth.login else ""
+        host = f" ({auth.host})" if auth.host else ""
+        return [
+            f"Copilot runtime {runtime.version} connected (protocol {runtime.protocol_version})",
+            f"GitHub Copilot authenticated{identity}{host}",
+        ]
 
     async def create_session(self, model: str) -> ChatSession:
         from copilot.session import PermissionHandler
 
-        session = await self._client.create_session(
+        options: dict[str, Any] = dict(
             on_permission_request=PermissionHandler.approve_all,
             model=model,
             streaming=True,
         )
+        # Current Copilot runtimes require an explicit summary request for some
+        # reasoning models to emit assistant.reasoning(_delta) events.
+        if model in self._reasoning_models:
+            options["reasoning_summary"] = "detailed"
+        session = await self._client.create_session(**options)
         return CopilotChatSession(session)
 
     async def close(self) -> None:
@@ -122,6 +150,38 @@ class CopilotChatSession(ChatSession):
         on_content: DeltaHandler | None = None,
     ) -> str:
         pieces: list[str] = []
+        reasoning_by_id: dict[str, str] = {}
+
+        def emit_reasoning(data: Any, *, complete: bool) -> None:
+            content_key = "content" if complete else "delta_content"
+            text = _value(data, content_key, None)
+            if text is None:
+                camel_key = "content" if complete else "deltaContent"
+                text = _value(data, camel_key, "")
+            text = str(text or "")
+            if not text:
+                return
+
+            reasoning_id = _value(data, "reasoning_id", None)
+            if reasoning_id is None:
+                reasoning_id = _value(data, "reasoningId", "")
+            key = str(reasoning_id or "default")
+            previous = reasoning_by_id.get(key, "")
+
+            if complete:
+                # A completed reasoning event commonly repeats all streamed
+                # deltas. Forward only a new suffix, or the whole text when no
+                # deltas were delivered.
+                if previous and text.startswith(previous):
+                    text = text[len(previous):]
+                elif previous:
+                    return
+                reasoning_by_id[key] = previous + text
+            else:
+                reasoning_by_id[key] = previous + text
+
+            if text and on_reasoning:
+                on_reasoning(text)
 
         def handle_event(event: Any) -> None:
             # The SDK exposes streamed deltas as typed events; collect only the
@@ -129,14 +189,26 @@ class CopilotChatSession(ChatSession):
             event_type = _value(event, "type", "")
             event_name = str(_value(event_type, "value", event_type)).lower()
             data = _value(event, "data", None)
-            delta = str(_value(data, "delta_content", "") or "")
-            if event_name.endswith("assistant.reasoning_delta") and delta:
-                if on_reasoning:
-                    on_reasoning(delta)
+            delta = _value(data, "delta_content", None)
+            if delta is None:
+                delta = _value(data, "deltaContent", "")
+            delta = str(delta or "")
+            if event_name.endswith("assistant.reasoning_delta"):
+                emit_reasoning(data, complete=False)
+            elif event_name.endswith("assistant.reasoning"):
+                emit_reasoning(data, complete=True)
             elif event_name.endswith("assistant.message_delta") and delta:
                 pieces.append(delta)
                 if on_content:
                     on_content(delta)
+            elif event_name.endswith("assistant.message") and not reasoning_by_id:
+                # Some providers attach a reasoning summary only to the final
+                # message rather than emitting separate reasoning events.
+                reasoning_text = _value(data, "reasoning_text", None)
+                if reasoning_text is None:
+                    reasoning_text = _value(data, "reasoningText", "")
+                if reasoning_text and on_reasoning:
+                    on_reasoning(str(reasoning_text))
 
         unsubscribe = self._session.on(handle_event)
         try:
@@ -160,8 +232,9 @@ class OllamaChatClient(ChatClient):
 
     provider_name = "ollama"
 
-    def __init__(self, http: httpx.AsyncClient) -> None:
+    def __init__(self, http: httpx.AsyncClient, host: str) -> None:
         self._http = http
+        self._host = host
 
     @classmethod
     async def connect(cls) -> "OllamaChatClient":
@@ -175,7 +248,10 @@ class OllamaChatClient(ChatClient):
         except Exception as exc:
             await http.aclose()
             raise RuntimeError(f"Could not reach Ollama at {host}: {exc}") from exc
-        return cls(http)
+        return cls(http, host)
+
+    async def prerequisite_details(self) -> list[str]:
+        return [f"Ollama server reachable at {self._host}"]
 
     async def list_models(self) -> list[ChatModelInfo]:
         response = await self._http.get("/api/tags")

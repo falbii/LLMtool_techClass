@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib.util
+import platform
 import shutil
 import sys
 from pathlib import Path
 
-from .console_utils import Color, dim, error, info, plain, success, warn
-from ..chat import ChatClient, CopilotChatClient, OllamaChatClient
+from .console_utils import dim, error, info, plain, success, warn
+from ..chat import ChatClient, ChatModelInfo, CopilotChatClient, OllamaChatClient
 from ..helpers.benchmark import SELECTION_COUNT, run_benchmark
 from ..core.pdf import build_multi_document_prompt, build_single_document_prompt, split_into_chunks
 from ..core.pipeline import (
@@ -17,6 +19,13 @@ from ..core.pipeline import (
     invalidate_cached_artifacts, summarize,
 )
 from ..workspace import Workspace
+
+REQUIRED_PROMPTS = (
+    "classification_from_summary.md",
+    "condense_pdf.md",
+    "find_technologies.md",
+    "summary_technology.md",
+)
 
 
 def default_workspace_root() -> Path:
@@ -37,10 +46,48 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-async def select_model(client: ChatClient, requested: str | None) -> str:
+def print_startup_banner() -> None:
+    """Print the application banner before any backend startup work."""
+
+    info("╔══════════════════════════════════════════════════════════════╗")
+    info("║           LLM Tool for Extraction of Technical Data          ║")
+    info("╚══════════════════════════════════════════════════════════════╝")
+    print()
+
+
+def check_local_prerequisites(args: argparse.Namespace) -> None:
+    """Validate prerequisites that do not require a provider connection."""
+
+    if sys.version_info < (3, 11):
+        raise RuntimeError("Python 3.11 or newer is required")
+    success(f"   ✓ Python {platform.python_version()}")
+
+    prompt_dir = args.root.resolve() / "prompt"
+    missing_prompts = [name for name in REQUIRED_PROMPTS if not (prompt_dir / name).is_file()]
+    if missing_prompts:
+        raise RuntimeError(f"Missing prompt template(s): {', '.join(missing_prompts)}")
+    success(f"   ✓ {len(REQUIRED_PROMPTS)} prompt templates available")
+
+    if args.web:
+        modules = {"fastapi": "fastapi", "python-multipart": "multipart", "uvicorn": "uvicorn"}
+        missing_modules = [package for package, module in modules.items()
+                           if importlib.util.find_spec(module) is None]
+        if missing_modules:
+            raise RuntimeError(
+                f"Missing web dependencies: {', '.join(missing_modules)}. "
+                'Run: pip install -e ".[web]"'
+            )
+        success("   ✓ Web interface dependencies available")
+
+
+async def select_model(
+    client: ChatClient,
+    requested: str | None,
+    models: list[ChatModelInfo] | None = None,
+) -> str:
     """Return the requested model or prompt the user from provider results."""
 
-    models = await client.list_models()
+    models = models if models is not None else await client.list_models()
     if requested:
         if models and requested not in {model.id for model in models}:
             warn(f"Warning: '{requested}' was not returned by {client.provider_name}; trying it anyway.")
@@ -86,14 +133,7 @@ async def run_console(ws: Workspace) -> None:
     current_pdf: Path | None = None
     session = await ws.client.create_session(ws.model)
     pdf_context_sent = False
-    
-    if sys.stdout.isatty():
-        info("╔══════════════════════════════════════════════════════════════╗")
-        info("║           LLM Tool for Extraction of Technical Data          ║")
-        info("╚══════════════════════════════════════════════════════════════╝")
-    else:
-        print("\nLLM Tool for Extraction of Technical Data")
-    print()
+
     info("TechClass Python is ready. Type /commands for help.\n")
     try:
         while True:
@@ -209,17 +249,25 @@ async def run_console(ws: Workspace) -> None:
 async def async_main(args: argparse.Namespace) -> None:
     """Create the selected backend and dispatch to console or web mode."""
 
+    check_local_prerequisites(args)
     client = await (OllamaChatClient.connect() if args.local else CopilotChatClient.connect())
     async with client:
+        for detail in await client.prerequisite_details():
+            success(f"   ✓ {detail}")
+
+        models = await client.list_models()
+        if not models:
+            raise RuntimeError(f"No {client.provider_name} models are available")
+        success(f"   ✓ {len(models)} {client.provider_name} model(s) available")
+
         if args.web and not args.model:
-            models = await client.list_models()
-            if not models:
-                raise RuntimeError(f"No {client.provider_name} models are available")
             model = models[0].id
         else:
-            model = await select_model(client, args.model)
+            model = await select_model(client, args.model, models)
         ws = Workspace.create(args.root, client, model)
         ws.ensure_directories()
+        success(f"   ✓ Workspace directories ready at {ws.root}")
+        print()
         if args.web:
             from ..web import serve
             await serve(ws)
@@ -231,6 +279,8 @@ def main() -> None:
     """Parse command-line arguments and normalize user-facing startup errors."""
 
     args = build_parser().parse_args()
+    print_startup_banner()
+    plain("🔍 Checking prerequisites...\n")
     try:
         asyncio.run(async_main(args))
     except KeyboardInterrupt:

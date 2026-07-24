@@ -338,8 +338,20 @@ function addThinkingIndicator() {
   const wrap = document.createElement("div");
   wrap.id = "thinking";
   wrap.className = "thinking";
-  wrap.appendChild(Object.assign(document.createElement("div"), { className: "blob" }));
+  wrap.append(
+    Object.assign(document.createElement("div"), { className: "blob" }),
+    Object.assign(document.createElement("span"), {
+      className: "thinking-label",
+      textContent: "Thinking…",
+    }),
+  );
   $("chat").appendChild(wrap);
+  scrollChatDown();
+}
+
+function updateThinkingIndicator(text) {
+  const label = $("thinking")?.querySelector(".thinking-label");
+  if (label) label.textContent = text;
   scrollChatDown();
 }
 
@@ -423,7 +435,9 @@ $("chat-form").addEventListener("submit", async (e) => {
         }
         const payload = data ? JSON.parse(data) : {};
 
-        if (evt === "reasoning") {
+        if (evt === "status") {
+          updateThinkingIndicator(payload.text);
+        } else if (evt === "reasoning") {
           removeThinkingIndicator(); // real output is arriving now
           reasoningBubble ??= addChatBubble("reasoning");
           reasoningBubble.textContent += payload.text;
