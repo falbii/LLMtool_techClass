@@ -6,6 +6,8 @@ technologies, then writes validated CSV classifications. It also provides
 interactive document Q&A, deterministic verification reports, and multi-model
 benchmarks.
 
+![alt text](<Workflow.png>)
+
 ## Statement of Need
 
 Researchers and analysts often need to turn semi-structured technical reports
