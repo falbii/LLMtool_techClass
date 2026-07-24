@@ -7,29 +7,30 @@ intermediate Markdown artifacts and final structured CSV output.
 
 ## Main Components
 
-- `Program.cs`
-  Entry point, backend selection, model selection, and mode dispatch.
-- `Workspace.cs`
-  Shared runtime context holding backend, model, and directory layout.
-- `chat/`
-  Provider-neutral chat interfaces plus GitHub Copilot and Ollama
-  implementations.
-- `core/`
-  PDF extraction, condensation, technology summarization, and classification.
-- `helpers/`
-  Numeric verification, normalization, benchmarking, and validation support.
-- `format_output/`
-  Output record definitions and CSV/Markdown formatting helpers.
-- `console/`
-  Interactive command handling for terminal mode.
-- `web/`
-  Local browser-based UI that exposes the same workflow.
+- `techclass/console/cli.py`
+  Entry point, backend/model selection, and interactive command loop.
+- `techclass/chat/backends.py`
+  Provider-neutral chat interfaces plus GitHub Copilot SDK and Ollama adapters.
+- `techclass/core/pipeline.py`
+  Cached condensation, technology summarization, classification, and checks.
+- `techclass/core/pdf.py`
+  PDF text extraction, chunking, and document prompt assembly.
+- `techclass/helpers/classifier.py`, `techclass/helpers/verifier.py`
+  Deterministic normalization, validation, merging, and numeric verification.
+- `techclass/format_output/`
+  Data models plus Markdown and CSV formatting.
+- `techclass/helpers/benchmark.py`
+  Cross-model benchmark orchestration and report generation.
+- `techclass/web/server.py`
+  FastAPI host for the local browser interface.
+- `web/wwwroot/`
+  Framework-free browser assets served by the Python host.
 
 ## Design Choices Relevant to JOSS
 
 - Backend abstraction
   The extraction workflow is insulated from the model provider by an
-  `IChatClient` and `IChatSession` abstraction, allowing the same pipeline to run
+  `ChatClient` and `ChatSession` abstraction, allowing the same pipeline to run
   with Copilot or Ollama.
 
 - Cached condensation

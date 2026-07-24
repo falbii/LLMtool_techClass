@@ -11,12 +11,12 @@ Thanks for your interest in improving this project.
 
 ## Development Setup
 
-1. Install the .NET 10 SDK.
-2. Restore dependencies with `dotnet restore`.
+1. Install Python 3.11 or newer.
+2. Install dependencies with `python -m pip install -e ".[dev,web]"` from the repository root.
 3. Choose a backend:
    - GitHub Copilot CLI, or
    - local Ollama with at least one model pulled
-4. Run the application with `dotnet run`.
+4. Run the application with `techclass`.
 
 ## Tests
 
@@ -24,7 +24,7 @@ Run the deterministic, backend-independent test suite before submitting a pull
 request:
 
 ```bash
-dotnet test TechClass.sln
+python -m pytest
 ```
 
 Tests must not require a Copilot subscription, a running Ollama server, or
@@ -43,7 +43,7 @@ validation, merging, or output behavior.
 When opening an issue, please include:
 
 - operating system
-- .NET SDK version
+- Python version
 - backend used: Copilot or Ollama
 - command sequence that triggered the issue
 - sample input characteristics if they matter

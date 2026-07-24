@@ -1,0 +1,31 @@
+Classification verification - Allgoewer_2024.pdf
+Verified: 143/146 (97.9%)
+
+Unverified numeric values:
+- [AEC_2050] lifetime = 87500
+- [PEM_2050] lifetime = 85420
+- [SOEC_2050] lifetime = 71991
+
+Parsing notes:
+- Row 5: ratios_in (2) and carriers_in (3) length mismatch
+- Row 6: ratios_in (2) and carriers_in (3) length mismatch
+- Row 8: ratios_in (2) and carriers_in (3) length mismatch
+- Row 8: units_in (3) and ratios_in (2) length mismatch
+- Row 9: ratios_in (1) and carriers_in (3) length mismatch
+- Row 10: ratios_in (1) and carriers_in (3) length mismatch
+- Row 31: ratios_in: could not parse 'not reported'
+- Row 31: ratios_in: could not parse 'not reported'
+- Row 31: ratios_in (4) and carriers_in (6) length mismatch
+- Row 31: units_in (6) and ratios_in (4) length mismatch
+- Row 32: ratios_in: could not parse 'not reported'
+- Row 32: ratios_in: could not parse 'not reported'
+- Row 32: ratios_in (3) and carriers_in (5) length mismatch
+- Row 32: units_in (5) and ratios_in (3) length mismatch
+- Row 33: ratios_in: could not parse 'not reported'
+- Row 33: ratios_in: could not parse 'not reported'
+- Row 33: ratios_in (4) and carriers_in (6) length mismatch
+- Row 33: units_in (6) and ratios_in (4) length mismatch
+- Row 34: ratios_in: could not parse 'not reported'
+- Row 34: ratios_in: could not parse 'not reported'
+- Row 34: ratios_in (3) and carriers_in (5) length mismatch
+- Row 34: units_in (5) and ratios_in (3) length mismatch
